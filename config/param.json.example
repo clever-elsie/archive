@@ -1,0 +1,31 @@
+{
+  "SESSION_TIMEOUT_MINUTES": 10080,
+  "SERVER_PORT": 3000,
+  "SSL_CERT_PATH": "/etc/nginx/ssl/s.crt",
+  "SSL_KEY_PATH": "/etc/nginx/ssl/s.key",
+  "IS_DEVELOPMENT": true,
+  "ALLOWED_ORIGINS": [
+    "https://192.168.10.108:443",
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "https://localhost:3000",
+    "https://localhost:8080",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8080",
+    "https://127.0.0.1:3000",
+    "https://127.0.0.1:8080"
+  ]
+}
+
+# 設定項目の説明:
+# SESSION_TIMEOUT_MINUTES: セッションタイムアウト時間（分）
+# SERVER_PORT: サーバーのポート番号
+# SSL_CERT_PATH: SSL証明書のパス
+# SSL_KEY_PATH: SSL秘密鍵のパス
+# IS_DEVELOPMENT: 開発環境フラグ（true: 開発環境, false: 本番環境）
+# ALLOWED_ORIGINS: CORSで許可するオリジンのリスト
+#
+# 本番環境では以下を設定してください:
+# - IS_DEVELOPMENT: false
+# - ALLOWED_ORIGINS: 実際のドメインのみ
+# - SSL_CERT_PATH, SSL_KEY_PATH: 実際の証明書パス 

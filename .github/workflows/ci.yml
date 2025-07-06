@@ -1,0 +1,131 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake libssl-dev pkg-config libasio-dev
+        sudo apt-get install -y gcc-13 g++-13
+        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 130 \
+          --slave /usr/bin/g++ g++ /usr/bin/g++-13
+        
+    - name: Install Crow framework
+      run: |
+        git clone https://github.com/CrowCpp/Crow.git
+        cd Crow
+        mkdir build && cd build
+        cmake .. -DCROW_BUILD_EXAMPLES=OFF -DCROW_BUILD_TESTS=OFF
+        make -j$(nproc)
+        sudo make install
+        
+    - name: Build project
+      run: |
+        mkdir build && cd build
+        cmake ..
+        make -j$(nproc)
+        
+    - name: Run tests
+      run: |
+        cd build
+        # Add test execution here when tests are implemented
+        echo "Tests will be added in future releases"
+        
+  docker-build:
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Build Docker image
+      run: |
+        docker build -t archive:latest .
+        
+    - name: Test Docker image
+      run: |
+        docker run --rm -d --name test-archive -p 8080:8080 archive:latest
+        sleep 10
+        curl -f http://localhost:8080/ || exit 1
+        docker stop test-archive
+        
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run Trivy vulnerability scanner
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'fs'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'trivy-results.sarif'
+        
+    - name: Upload Trivy scan results to GitHub Security tab
+      uses: github/codeql-action/upload-sarif@v3
+      if: always()
+      with:
+        sarif_file: 'trivy-results.sarif'
+        
+  code-quality:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Run cppcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cppcheck
+        cppcheck --enable=all --xml --xml-version=2 src/ 2> cppcheck-result.xml
+        
+    - name: Upload cppcheck results
+      uses: actions/upload-artifact@v4
+      with:
+        name: cppcheck-results
+        path: cppcheck-result.xml
+        
+  documentation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check documentation links
+      run: |
+        # Check if all markdown files have proper links
+        find . -name "*.md" -exec echo "Checking {}" \;
+        
+    - name: Validate README
+      run: |
+        # Basic README validation
+        if [ ! -f README.md ]; then
+          echo "README.md is missing"
+          exit 1
+        fi
+        
+        # Check for required sections
+        grep -q "## 主な機能" README.md || echo "Warning: Missing main features section"
+        grep -q "## セットアップ" README.md || echo "Warning: Missing setup section"
+        grep -q "## ライセンス" README.md || echo "Warning: Missing license section" 

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOME-SERVER Viewer</title>
+<link rel="stylesheet" href="/src/frontend/viewer/style.css">
+<link rel="stylesheet" href="/src/frontend/viewer/mobile.css" media="(max-width: 768px)">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+
+<body oncontextmenu="return false;" onload="initializePage()">
+	<!-- ヘッダー -->
+	<header class="header">
+		<div class="header-content">
+			<a href="/web/index.html" class="home-link">
+				<i class="fas fa-home"></i>
+				<span>HOME</span>
+			</a>
+			<div class="header-info">
+				<div id="title" class="title"></div>
+				<div id="counter" class="counter"></div>
+			</div>
+		</div>
+	</header>
+
+	<!-- メインコンテンツ -->
+	<main class="main-content">
+		<!-- メタデータ編集セクション -->
+		<section class="metadata-section">
+			<div class="metadata-card">
+				<h3><i class="fas fa-user"></i> 作成者</h3>
+				<div class="input-group">
+					<input id="creator_input" type="text" placeholder="作成者名を入力" class="modern-input"/>
+					<button id="creator_add" class="btn btn-primary" onclick="Info('A','A','creator_input');">
+						<i class="fas fa-plus"></i> 追加
+					</button>
+					<button id="creator_erase" class="btn btn-danger" onclick="Info('A','D','creator_input');">
+						<i class="fas fa-minus"></i> 削除
+					</button>
+				</div>
+				<div id="creators" class="tag-list"></div>
+			</div>
+
+			<div class="metadata-card">
+				<h3><i class="fas fa-tags"></i> タグ</h3>
+				<div class="input-group">
+					<input id="tag_input" type="text" placeholder="タグを入力" class="modern-input"/>
+					<button id="tag_add" class="btn btn-primary" onclick="Info('T','A','tag_input');">
+						<i class="fas fa-plus"></i> 追加
+					</button>
+					<button id="tag_erase" class="btn btn-danger" onclick="Info('T','D','tag_input');">
+						<i class="fas fa-minus"></i> 削除
+					</button>
+				</div>
+				<div id="tags" class="tag-list"></div>
+			</div>
+		</section>
+
+		<!-- 画像表示エリア -->
+		<section class="image-section">
+			<div id="imageContainer" class="image-container"></div>
+			<div id="jmpControll" class="navigation-controls"></div>
+		</section>
+
+		<!-- ジャンプコントロール -->
+		<section class="jump-section">
+			<div class="jump-controls">
+				<input id="jmpImg" type="number" placeholder="ページ番号" class="modern-input" onkeypress="handleJumpImgKeyPress(event)">
+				<button onclick="jmpImg2()" class="btn btn-secondary">
+					<i class="fas fa-arrow-right"></i> ジャンプ
+				</button>
+			</div>
+		</section>
+
+		<!-- 同じ作成者の作品 -->
+		<section class="creator-works-section">
+			<h3 id="bottom"><i class="fas fa-palette"></i> 同じ作成者の作品</h3>
+			<div id="creatorContainer" class="thumbnail-grid"></div>
+		</section>
+
+		<!-- 検索セクション -->
+		<section class="search-section">
+			<h3 id="THUM"><i class="fas fa-search"></i> その他の作品</h3>
+			<div class="search-controls">
+				<input id="query_box" type="text" placeholder="検索クエリを入力" class="modern-input"/>
+				<button onclick="throw_query()" class="btn btn-primary">
+					<i class="fas fa-search"></i> 検索
+				</button>
+			</div>
+		</section>
+
+		<!-- ナビゲーションコントロール -->
+		<section class="navigation-section">
+			<div class="nav-buttons">
+				<button class="btn btn-secondary" onclick="fetchRandomImage();">
+					<i class="fas fa-random"></i> ランダムリロード
+				</button>
+				<button onclick="cd(par_id);" class="btn btn-secondary">
+					<i class="fas fa-level-up-alt"></i> 上位ディレクトリ
+				</button>
+				<button onclick="cd(cur_id);" class="btn btn-secondary">
+					<i class="fas fa-folder"></i> 現在のディレクトリ
+				</button>
+			</div>
+			
+			<div class="page-navigation">
+				<button class="btn btn-secondary" id="prev_page">
+					<i class="fas fa-chevron-left"></i> 前へ
+				</button>
+				<input id="page_num" type="number" placeholder="ページ番号" class="modern-input">
+				<button class="btn btn-secondary" onclick="call_page_num()">
+					<i class="fas fa-arrow-right"></i> ページジャンプ
+				</button>
+				<button class="btn btn-secondary" id="next_page">
+					次へ <i class="fas fa-chevron-right"></i>
+				</button>
+			</div>
+		</section>
+
+		<!-- サムネイル表示エリア -->
+		<section class="thumbnail-section">
+			<div id="thumbnailContainer" class="thumbnail-grid"></div>
+		</section>
+
+		<!-- ページリスト -->
+		<section class="page-list-section">
+			<a id="page_ref"></a>
+			<div id="page_list" class="page-list"></div>
+		</section>
+
+		<!-- システムリロード -->
+		<section class="system-section">
+			<button class="btn btn-warning" onclick="reload_leaf_req()">
+				<i class="fas fa-sync-alt"></i> システムリロード
+			</button>
+		</section>
+	</main>
+
+	<!-- フローティングナビゲーション -->
+	<nav class="floating-nav">
+		<a href="#top" class="nav-item">
+			<i class="fas fa-arrow-up"></i>
+			<span>トップ</span>
+		</a>
+		<a href="#bottom" class="nav-item">
+			<i class="fas fa-user"></i>
+			<span>作成者</span>
+		</a>
+		<a href="#THUM" class="nav-item">
+			<i class="fas fa-search"></i>
+			<span>検索</span>
+		</a>
+		<a href="#page_ref" class="nav-item">
+			<i class="fas fa-list"></i>
+			<span>ページリスト</span>
+		</a>
+	</nav>
+	
+	<!-- ナビゲーショントグルボタン -->
+	<button class="nav-toggle" onclick="toggleNav()">
+		<i class="fas fa-chevron-right"></i>
+	</button>
+
+	<script src="/src/frontend/viewer/src.js"></script>
+</body>
+</html>
+

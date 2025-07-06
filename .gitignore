@@ -1,0 +1,84 @@
+# ビルド成果物
+*.o
+*.out
+*.exe
+*.a
+*.so
+*.dll
+build/
+dist/
+bin/
+obj/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# データファイル（プライベート）
+data/**
+DL/
+memo/buf/**
+
+# 機密情報
+users.json
+*.key
+*.crt
+*.pem
+
+# 設定・環境
+.vscode/
+.env
+*.log
+*.tmp
+*.swp
+*.swo
+*~
+config/param.json
+
+# 設定ファイル（環境固有）
+config/param.json
+
+# システムファイル
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# バックアップファイル
+*.bak
+*.backup
+*.old
+
+# 一時ファイル
+*.tmp
+*.temp
+
+# ログファイル
+logs/
+*.log
+
+# キャッシュ
+.cache/
+*.cache
+
+# 依存関係
+node_modules/
+venv/
+__pycache__/
+*.pyc
+
+# IDE設定
+.idea/
+*.sublime-*
+.vscode/
+
+# OS生成ファイル
+.fuse_hidden*
+.nfs*

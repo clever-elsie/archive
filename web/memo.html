@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>メモ管理</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com">
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+	<link rel="stylesheet" href="/src/frontend/memo/style.css" type="text/css">
+	<link rel="stylesheet" href="/src/frontend/memo/mobile.css" type="text/css" media="(max-width: 768px)">
+</head>
+<body onload="fetch_server()">
+	<!-- ヘッダー -->
+	<header class="header">
+		<div class="header-content">
+			<a href="/web/index.html" class="home-link">
+				<i class="fas fa-home"></i>
+				<span>HOME</span>
+			</a>
+			<div class="header-info">
+				<h1 class="title">メモ管理</h1>
+				<div class="counter" id="memo-counter">0 件のメモ</div>
+			</div>
+		</div>
+	</header>
+
+	<!-- メインコンテンツ -->
+	<main class="main-content">
+		<!-- 新規作成セクション -->
+		<section class="create-section">
+			<div class="create-card">
+				<h3><i class="fas fa-plus-circle"></i> 新規メモ作成</h3>
+				<p class="section-description">新しいメモを作成して、アイデアやタスクを記録しましょう。</p>
+				<button class="btn btn-primary" onclick="new_box()">
+					<i class="fas fa-plus"></i>
+					新規作成
+				</button>
+			</div>
+		</section>
+
+		<!-- メモ一覧セクション -->
+		<section class="memo-section">
+			<h3><i class="fas fa-sticky-note"></i> メモ一覧</h3>
+			<div id="box" class="memo-container">
+				<!-- メモが動的にここに追加されます -->
+			</div>
+		</section>
+	</main>
+
+	<script src="/src/frontend/memo/script.js"></script>
+</body>
+</html>

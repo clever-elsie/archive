@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  home-server:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: home-server
+    ports:
+      - "8080:8080"
+    volumes:
+      # 設定ファイルの永続化
+      - ./data:/app/data
+      # 画像ディレクトリのマウント
+      - ./images:/app/images:ro
+      # メモディレクトリのマウント
+      - ./memos:/app/memos:ro
+    environment:
+      - HOME_SERVER_PORT=8080
+      - HOME_SERVER_HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - home-network
+
+  # 開発用サービス（オプション）
+  home-server-dev:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dev
+    container_name: home-server-dev
+    ports:
+      - "8081:8080"
+    volumes:
+      - .:/app
+      - ./data:/app/data
+      - ./images:/app/images:ro
+      - ./memos:/app/memos:ro
+    environment:
+      - HOME_SERVER_PORT=8080
+      - HOME_SERVER_HOST=0.0.0.0
+      - CMAKE_BUILD_TYPE=Debug
+    profiles:
+      - dev
+    networks:
+      - home-network
+
+networks:
+  home-network:
+    driver: bridge
+
+volumes:
+  data: 

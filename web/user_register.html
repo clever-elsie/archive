@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユーザー管理システム</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+            color: #ffffff;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #64ffda;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #8892b0;
+            font-size: 1.1rem;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            margin-bottom: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
+        }
+
+        .card h2 {
+            color: #64ffda;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+            font-weight: 500;
+        }
+
+        .form-group input, .form-group select {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #ffffff;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus, .form-group select:focus {
+            outline: none;
+            border-color: #64ffda;
+            box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.1);
+        }
+
+        .form-group input::placeholder {
+            color: #8892b0;
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            text-decoration: none;
+            color: #ffffff;
+            min-height: 48px;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #64ffda 0%, #00d4aa 100%);
+            color: #0f0f23;
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff8e53 100%);
+            color: #ffffff;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
+            color: #0f0f23;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: #ffffff;
+        }
+
+        .message {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .message.success {
+            background: rgba(100, 255, 218, 0.2);
+            border: 1px solid rgba(100, 255, 218, 0.3);
+            color: #64ffda;
+        }
+
+        .message.error {
+            background: rgba(255, 107, 107, 0.2);
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            color: #ff6b6b;
+        }
+
+        .user-list {
+            display: grid;
+            gap: 1rem;
+        }
+
+        .user-item {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .user-info {
+            flex: 1;
+        }
+
+        .user-name {
+            font-weight: 600;
+            color: #ffffff;
+            margin-bottom: 0.25rem;
+        }
+
+        .user-role {
+            color: #8892b0;
+            font-size: 0.9rem;
+        }
+
+        .user-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .home-link {
+            position: fixed;
+            top: 2rem;
+            left: 2rem;
+            color: #64ffda;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .home-link:hover {
+            color: #00d4aa;
+            transform: translateY(-2px);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .user-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .user-actions {
+                width: 100%;
+                justify-content: flex-end;
+            }
+        }
+        option {
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <a href="/web/index.html" class="home-link">
+        <i class="fas fa-home"></i>
+        <span>HOME</span>
+    </a>
+
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-users-cog"></i> ユーザー管理システム</h1>
+            <p>ユーザーの登録、削除、権限管理を行います</p>
+        </div>
+
+        <!-- ログインセクション -->
+        <div id="loginSection" class="card">
+            <h2><i class="fas fa-sign-in-alt"></i> ログイン</h2>
+            <div id="loginMessage"></div>
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="loginUsername">ユーザー名</label>
+                    <input type="text" id="loginUsername" required>
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">パスワード</label>
+                    <input type="password" id="loginPassword" required>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> ログイン
+                </button>
+            </form>
+        </div>
+
+        <!-- メインセクション -->
+        <div id="mainSection" class="hidden">
+            <div class="card">
+                <h2><i class="fas fa-user-plus"></i> 新規ユーザー登録</h2>
+                <div id="registerMessage"></div>
+                <form id="registerForm">
+                    <div class="form-group">
+                        <label for="newUsername">ユーザー名</label>
+                        <input type="text" id="newUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">パスワード</label>
+                        <input type="password" id="newPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirmPassword">パスワード（確認）</label>
+                        <input type="password" id="confirmPassword" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="userRole">権限</label>
+                        <select id="userRole" required>
+                            <option value="user">一般ユーザー</option>
+                            <option value="admin">管理者</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-user-plus"></i> 登録
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2><i class="fas fa-user-edit"></i> 権限操作</h2>
+                <div id="permissionMessage"></div>
+                <form id="permissionForm">
+                    <div class="form-group">
+                        <label for="targetUsername">対象ユーザー名</label>
+                        <input type="text" id="targetUsername" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="permissionAction">操作</label>
+                        <select id="permissionAction" required>
+                            <option value="promote">昇格（管理者にする）</option>
+                            <option value="demote">降格（一般ユーザーにする）</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-user-edit"></i> 実行
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2><i class="fas fa-user-minus"></i> ユーザー削除</h2>
+                <div id="deleteMessage"></div>
+                <form id="deleteForm">
+                    <div class="form-group">
+                        <label for="deleteUsername">削除するユーザー名</label>
+                        <input type="text" id="deleteUsername" required>
+                    </div>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-user-minus"></i> 削除
+                    </button>
+                </form>
+            </div>
+
+            <div class="card">
+                <h2><i class="fas fa-list"></i> ユーザー一覧</h2>
+                <div id="userListMessage"></div>
+                <button onclick="loadUserList()" class="btn btn-secondary">
+                    <i class="fas fa-sync-alt"></i> 更新
+                </button>
+                <div id="userList" class="user-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = '';
+        let currentPermissions = {};
+
+        // ページ読み込み時の処理
+        window.onload = function() {
+            checkFirstUser();
+        };
+
+        // 初回ユーザー確認
+        async function checkFirstUser() {
+            try {
+                const response = await fetch('/req/user/check_first');
+                const data = await response.json();
+                
+                if (data.success && data.is_first_user) {
+                    showMessage('loginMessage', '初回ユーザーです。任意のユーザー名とパスワードで管理者アカウントを作成してください。', 'success');
+                }
+            } catch (error) {
+                console.error('初回ユーザー確認エラー:', error);
+            }
+        }
+
+        // ログインフォーム処理
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            try {
+                const response = await fetch('/req/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentUser = username;
+                    localStorage.setItem('sessionId', data.session_id);
+                    localStorage.setItem('csrfToken', data.csrf_token);
+                    localStorage.setItem('username', username);
+                    
+                    showMessage('loginMessage', 'ログインに成功しました', 'success');
+                    document.getElementById('loginSection').classList.add('hidden');
+                    document.getElementById('mainSection').classList.remove('hidden');
+                    
+                    // 権限情報を取得
+                    await loadUserPermissions();
+                    // ユーザー一覧を読み込み
+                    await loadUserList();
+                } else {
+                    showMessage('loginMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('loginMessage', 'ログイン中にエラーが発生しました', 'error');
+            }
+        });
+
+        // ユーザー登録フォーム処理
+        document.getElementById('registerForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('newUsername').value;
+            const password = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const role = document.getElementById('userRole').value;
+            
+            if (password !== confirmPassword) {
+                showMessage('registerMessage', 'パスワードが一致しません', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/req/user/register', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': localStorage.getItem('sessionId'),
+                        'X-CSRF-Token': localStorage.getItem('csrfToken')
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        role,
+                        created_by: currentUser
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('registerMessage', data.message, 'success');
+                    document.getElementById('registerForm').reset();
+                    await loadUserList();
+                } else {
+                    showMessage('registerMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('registerMessage', 'ユーザー登録中にエラーが発生しました', 'error');
+            }
+        });
+
+        // 権限操作フォーム処理
+        document.getElementById('permissionForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('targetUsername').value;
+            const action = document.getElementById('permissionAction').value;
+            
+            try {
+                const endpoint = action === 'promote' ? '/req/user/promote' : '/req/user/demote';
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': localStorage.getItem('sessionId'),
+                        'X-CSRF-Token': localStorage.getItem('csrfToken')
+                    },
+                    body: JSON.stringify({
+                        username,
+                        [action === 'promote' ? 'promoted_by' : 'demoted_by']: currentUser
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('permissionMessage', data.message, 'success');
+                    document.getElementById('permissionForm').reset();
+                    await loadUserList();
+                } else {
+                    showMessage('permissionMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('permissionMessage', '権限操作中にエラーが発生しました', 'error');
+            }
+        });
+
+        // ユーザー削除フォーム処理
+        document.getElementById('deleteForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('deleteUsername').value;
+            
+            if (!confirm(`ユーザー "${username}" を削除しますか？この操作は取り消せません。`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/req/user/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': localStorage.getItem('sessionId'),
+                        'X-CSRF-Token': localStorage.getItem('csrfToken')
+                    },
+                    body: JSON.stringify({
+                        username,
+                        deleted_by: currentUser
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('deleteMessage', data.message, 'success');
+                    document.getElementById('deleteForm').reset();
+                    await loadUserList();
+                } else {
+                    showMessage('deleteMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('deleteMessage', 'ユーザー削除中にエラーが発生しました', 'error');
+            }
+        });
+
+        // ユーザー権限情報を読み込み
+        async function loadUserPermissions() {
+            try {
+                const response = await fetch('/req/user/permissions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': localStorage.getItem('sessionId')
+                    },
+                    body: JSON.stringify({ username: currentUser })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentPermissions = data;
+                    
+                    // 権限に応じてUIを制御
+                    const roleSelect = document.getElementById('userRole');
+                    const permissionForm = document.getElementById('permissionForm');
+                    const deleteForm = document.getElementById('deleteForm');
+                    
+                    if (!data.can_register_admin) {
+                        roleSelect.innerHTML = '<option value="user">一般ユーザー</option>';
+                    }
+                    
+                    if (!data.can_manage_users) {
+                        permissionForm.style.display = 'none';
+                        deleteForm.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.error('権限情報取得エラー:', error);
+            }
+        }
+
+        // ユーザー一覧を読み込み
+        async function loadUserList() {
+            try {
+                const response = await fetch('/req/user/list', {
+                    method: 'GET',
+                    headers: {
+                        'X-Session-ID': localStorage.getItem('sessionId')
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayUserList(data.users);
+                } else {
+                    showMessage('userListMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('userListMessage', 'ユーザー一覧の取得中にエラーが発生しました', 'error');
+            }
+        }
+
+        // ユーザー一覧を表示
+        function displayUserList(users) {
+            const userList = document.getElementById('userList');
+            userList.innerHTML = '';
+            
+            if (users.length === 0) {
+                userList.innerHTML = '<p style="text-align: center; color: #8892b0;">登録されているユーザーはいません</p>';
+                return;
+            }
+            
+            users.forEach(user => {
+                const userItem = document.createElement('div');
+                userItem.className = 'user-item';
+                
+                const userInfo = document.createElement('div');
+                userInfo.className = 'user-info';
+                userInfo.innerHTML = `
+                    <div class="user-name">${user.username}</div>
+                    <div class="user-role">${user.role === 'admin' ? '管理者' : '一般ユーザー'} - 作成者: ${user.created_by} - 作成日: ${user.created_at}</div>
+                `;
+                
+                const userActions = document.createElement('div');
+                userActions.className = 'user-actions';
+                
+                if (currentPermissions.can_manage_users && user.username !== currentUser) {
+                    if (user.role === 'user') {
+                        userActions.innerHTML += `
+                            <button onclick="promoteUser('${user.username}')" class="btn btn-success">
+                                <i class="fas fa-arrow-up"></i> 昇格
+                            </button>
+                        `;
+                    } else {
+                        userActions.innerHTML += `
+                            <button onclick="demoteUser('${user.username}')" class="btn btn-warning">
+                                <i class="fas fa-arrow-down"></i> 降格
+                            </button>
+                        `;
+                    }
+                    
+                    userActions.innerHTML += `
+                        <button onclick="deleteUser('${user.username}')" class="btn btn-danger">
+                            <i class="fas fa-trash"></i> 削除
+                        </button>
+                    `;
+                }
+                
+                userItem.appendChild(userInfo);
+                userItem.appendChild(userActions);
+                userList.appendChild(userItem);
+            });
+        }
+
+        // ユーザー昇格
+        async function promoteUser(username) {
+            try {
+                const response = await fetch('/req/user/promote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': localStorage.getItem('sessionId')
+                    },
+                    body: JSON.stringify({
+                        username,
+                        promoted_by: currentUser
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('userListMessage', data.message, 'success');
+                    await loadUserList();
+                } else {
+                    showMessage('userListMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('userListMessage', 'ユーザー昇格中にエラーが発生しました', 'error');
+            }
+        }
+
+        // ユーザー降格
+        async function demoteUser(username) {
+            try {
+                const response = await fetch('/req/user/demote', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': localStorage.getItem('sessionId')
+                    },
+                    body: JSON.stringify({
+                        username,
+                        demoted_by: currentUser
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('userListMessage', data.message, 'success');
+                    await loadUserList();
+                } else {
+                    showMessage('userListMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('userListMessage', 'ユーザー降格中にエラーが発生しました', 'error');
+            }
+        }
+
+        // ユーザー削除
+        async function deleteUser(username) {
+            if (!confirm(`ユーザー "${username}" を削除しますか？この操作は取り消せません。`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/req/user/delete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Session-ID': localStorage.getItem('sessionId'),
+                        'X-CSRF-Token': localStorage.getItem('csrfToken')
+                    },
+                    body: JSON.stringify({
+                        username,
+                        deleted_by: currentUser
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('userListMessage', data.message, 'success');
+                    await loadUserList();
+                } else {
+                    showMessage('userListMessage', data.message, 'error');
+                }
+            } catch (error) {
+                showMessage('userListMessage', 'ユーザー削除中にエラーが発生しました', 'error');
+            }
+        }
+
+        // メッセージ表示
+        function showMessage(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="message ${type}">${message}</div>`;
+            
+            // 3秒後にメッセージを消去
+            setTimeout(() => {
+                element.innerHTML = '';
+            }, 3000);
+        }
+    </script>
+</body>
+</html> 

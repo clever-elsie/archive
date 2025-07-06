@@ -1,0 +1,24 @@
+[Unit]
+Description=HOME-SERVER Web Application
+After=network.target
+
+[Service]
+Type=simple
+User=homeserver
+Group=homeserver
+WorkingDirectory=@CMAKE_INSTALL_PREFIX@/share/home-server
+ExecStart=@CMAKE_INSTALL_PREFIX@/bin/home-server
+Restart=always
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+
+# セキュリティ設定
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/home-server
+
+[Install]
+WantedBy=multi-user.target 
