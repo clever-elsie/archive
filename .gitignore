@@ -14,7 +14,6 @@ obj/
 CMakeCache.txt
 CMakeFiles/
 cmake_install.cmake
-Makefile
 *.cmake
 !CMakeLists.txt
 
@@ -73,6 +72,9 @@ node_modules/
 venv/
 __pycache__/
 *.pyc
+
+# サードパーティライブラリ（自動クローンされる）
+third_party/
 
 # IDE設定
 .idea/

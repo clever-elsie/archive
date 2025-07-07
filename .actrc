@@ -1,0 +1,18 @@
+# act configuration file
+# This file configures act (GitHub Actions local runner)
+
+# Use specific Docker image for better compatibility
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+
+# Bind ports for testing
+--bind
+
+# Enable verbose output for debugging
+--verbose
+
+# Use specific working directory
+--workflows .github/workflows/
+
+# Environment variables for local testing
+-e ACTIONS_RUNNER_DEBUG=true
+-e ACTIONS_STEP_DEBUG=true 

@@ -1,0 +1,85 @@
+# ローカルCI/CDテスト用Dockerfile
+FROM ubuntu:24.04
+
+# メタデータ
+LABEL maintainer="clever-elsie <elsie.c13v3r@gmail.com>"
+LABEL description="HOME-SERVER Local CI/CD Test Environment"
+LABEL version="1.0.0"
+
+# 環境変数
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CMAKE_BUILD_TYPE=Release
+ENV CXX_STANDARD=23
+
+# 必要なパッケージのインストール
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    libssl-dev \
+    pkg-config \
+    wget \
+    curl \
+    libboost-all-dev \
+    python3 \
+    libasio-dev \
+    cppcheck \
+    && apt-get install -y gcc-13 g++-13 2>/dev/null || echo "GCC 13 not available" \
+    && rm -rf /var/lib/apt/lists/*
+
+# GCC 13をデフォルトに設定（存在する場合のみ）
+RUN if [ -f /usr/bin/gcc-13 ]; then \
+        echo "Setting GCC 13 as default"; \
+        update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 130 \
+        --slave /usr/bin/g++ g++ /usr/bin/g++-13 \
+        --slave /usr/bin/gcov gcov /usr/bin/gcov-13; \
+    elif [ -f /usr/bin/gcc-12 ]; then \
+        echo "Setting GCC 12 as default"; \
+        update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 120 \
+        --slave /usr/bin/g++ g++ /usr/bin/g++-12 \
+        --slave /usr/bin/gcov gcov /usr/bin/gcov-12; \
+    else \
+        echo "Using default GCC"; \
+        gcc --version; \
+    fi
+
+# 作業ディレクトリの設定
+WORKDIR /workspace
+
+# Crowフレームワークのクローンとインストール
+RUN git clone https://github.com/CrowCpp/Crow.git && \
+    cd Crow && \
+    mkdir build && \
+    cd build && \
+    cmake .. -DCROW_BUILD_EXAMPLES=OFF -DCROW_BUILD_TESTS=OFF && \
+    make -j$(nproc) && \
+    make install && \
+    cd /workspace && \
+    rm -rf Crow
+
+# テスト用ディレクトリの作成
+RUN mkdir -p /workspace/test_data \
+    && mkdir -p /workspace/test_memo/buf \
+    && mkdir -p /workspace/build
+
+# テスト用設定ファイルの作成
+RUN echo '{"users": [{"username": "test", "password": "test123", "is_admin": true}]}' > /workspace/test_data/users.json
+
+# テストスクリプトのコピー（後でマウントされる）
+COPY scripts/test-ci-local.sh /workspace/scripts/
+RUN chmod +x /workspace/scripts/test-ci-local.sh
+
+# テスト実行用のエントリーポイント
+COPY scripts/docker-test-entrypoint.sh /workspace/
+RUN chmod +x /workspace/docker-test-entrypoint.sh
+
+# エントリーポイントスクリプトをシステムパスにコピー
+RUN cp /workspace/docker-test-entrypoint.sh /usr/local/bin/docker-test-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-test-entrypoint.sh
+
+# 環境変数の設定
+ENV WORKSPACE=/workspace
+ENV PATH="/workspace/scripts:$PATH"
+
+# エントリーポイント
+ENTRYPOINT ["/usr/local/bin/docker-test-entrypoint.sh"] 

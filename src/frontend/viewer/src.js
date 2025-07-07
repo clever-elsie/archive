@@ -139,8 +139,8 @@ function fetch_page(idx){
 	
 	authenticatedFetch("/req/img/page",{method:'POST',body:JSON.stringify({'idx' : Number(idx)})})
 	.then(response=>response.json()).then(data=>{
-		container.innerHTML='';
-		displayThumbnailImages(container,data);
+		// 画像の準備が整うまで既存の画像を保持するため、clearContainerをtrueで渡す
+		displayThumbnailImages(container,data, undefined, true);
 	});
 }
 
@@ -605,11 +605,6 @@ function calculateOptimalImageSize(imageInfo) {
 
 // サムネイルコンテナ用の関数（改善版）
 function displayThumbnailImages(container, images, currentId, clearContainer = true) {
-	// コンテナをクリア（オプション）
-	if (clearContainer) {
-		container.innerHTML = '';
-	}
-	
 	// ローディング表示を画面上部にポップアップで表示
 	const loadingPopup = document.createElement('div');
 	loadingPopup.id = 'loading-popup';
@@ -639,6 +634,11 @@ function displayThumbnailImages(container, images, currentId, clearContainer = t
 		const loadingPopup = document.getElementById('loading-popup');
 		if (loadingPopup) {
 			loadingPopup.remove();
+		}
+		
+		// コンテナをクリア（画像の準備が整った後に実行）
+		if (clearContainer) {
+			container.innerHTML = '';
 		}
 		
 		// 画像データと元のデータを結合
@@ -748,8 +748,8 @@ function fetchRandomImage() {
 	authenticatedFetch('/req/img/rand',{method:'GET'})
 	.then(response => response.json()).then(data=>{
 		let container=document.getElementById('thumbnailContainer');
-		container.innerHTML=''; // 画像を表示するエリアをクリア
-		displayThumbnailImages(container,data);
+		// 画像の準備が整うまで既存の画像を保持するため、clearContainerをtrueで渡す
+		displayThumbnailImages(container,data, undefined, true);
 	});
 }
 
@@ -857,8 +857,8 @@ function fetchImageList(id) {
 		.then(response => response.json())
 		.then(data =>{
 			const container = document.getElementById('creatorContainer');
-			container.innerHTML = ''; // 画像を表示するエリアをクリア
-			displayThumbnailImages(container,data, id);
+			// 画像の準備が整うまで既存の画像を保持するため、clearContainerをtrueで渡す
+			displayThumbnailImages(container,data, id, true);
 		});
 
 		const creators=document.getElementById('creators');

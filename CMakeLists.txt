@@ -51,12 +51,15 @@ install(TARGETS home-server
     RUNTIME DESTINATION bin
 )
 
-# ドメイン設定ファイルの自動生成
+# SSL証明書ディレクトリの作成と証明書の生成（既存ファイルがない場合のみ）
 add_custom_command(
     TARGET home-server PRE_BUILD
-    COMMAND ${CMAKE_SOURCE_DIR}/scripts/generate_domain_config.sh
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/config/ssl
+    COMMAND ${CMAKE_COMMAND} -E echo "Checking for existing SSL certificates..."
+    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_SOURCE_DIR}/config/ssl/.ssl_check
+    COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/generate-ssl.sh ${CMAKE_SOURCE_DIR}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Generating domain configuration file"
+    COMMENT "Checking and generating SSL certificate and key if needed"
 )
 
 # 設定ファイルのインストール

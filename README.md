@@ -12,6 +12,7 @@ HOME-SERVERは、画像ビューアー、メモ管理、ユーザー管理機能
 - [主な機能](#主な機能)
 - [デザイン特徴](#デザイン特徴)
 - [セットアップ](#セットアップ)
+- [テスト](#テスト)
 - [使用方法](#使用方法)
 - [プロジェクト構造](#プロジェクト構造)
 - [API エンドポイント](#api-エンドポイント)
@@ -138,32 +139,55 @@ docker-compose up --build
 docker-compose --profile dev up --build
 ```
 
-### 3. ドメイン設定
+### 3. パラメータ設定
 
-システムは起動時に `config/domain` ファイルから許可されたオリジンを読み込みます。
+システムは起動時に `config/param.json` ファイルから設定パラメータを読み込みます。
 
-#### ドメイン設定ファイルの編集
+#### パラメータ設定ファイルの編集
 ```bash
 # 設定ファイルを編集
-nano config/domain
+nano config/param.json
 
 # 例：本番環境での設定
-https://192.168.10.108:443
-https://your-domain.com
-https://www.your-domain.com
+{
+  "SESSION_TIMEOUT_MINUTES": 10080,
+  "SERVER_PORT": 3000,
+  "SSL_CERT_PATH": "config/ssl/server.crt",
+  "SSL_KEY_PATH": "config/ssl/server.key",
+  "IS_DEVELOPMENT": false,
+  "ALLOWED_ORIGINS": [
+    "https://192.168.10.108:443",
+    "https://your-domain.com",
+    "https://www.your-domain.com"
+  ]
+}
 
 # 開発環境での設定
-http://localhost:3000
-http://localhost:8080
-https://localhost:3000
-https://localhost:8080
+{
+  "SESSION_TIMEOUT_MINUTES": 10080,
+  "SERVER_PORT": 3000,
+  "SSL_CERT_PATH": "config/ssl/server.crt",
+  "SSL_KEY_PATH": "config/ssl/server.key",
+  "IS_DEVELOPMENT": true,
+  "ALLOWED_ORIGINS": [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "https://localhost:3000",
+    "https://localhost:8080"
+  ]
+}
 ```
 
 #### 設定ファイルの形式
-- 1行ごとに許可するorigin URLを記述
-- コメント行は `#` で始まる
-- 空行は無視される
+- JSON形式で設定を記述
+- `ALLOWED_ORIGINS` 配列に許可するorigin URLを記述
+- その他の設定パラメータ（セッションタイムアウト、ポート、SSL設定など）も含む
 - 設定ファイルが存在しない場合は、デフォルトの開発環境用設定が使用される
+
+#### SSL証明書について
+- システムは `/etc/nginx/ssl/` ディレクトリ内の既存のSSL証明書（`.crt`、`.key`ファイル）を優先的に使用します
+- 任意の `.key` と `.crt` ファイルの組み合わせを自動的に検索します
+- 既存の証明書が見つからない場合のみ、`config/ssl/` ディレクトリに新しい自己署名証明書が自動生成されます
 
 ### 4. サーバー起動
 
@@ -194,6 +218,197 @@ make watch
 # サービス再起動
 make reload
 ```
+
+## テスト
+
+HOME-SERVERでは、本番環境を保護するため、Docker環境でのローカルCI/CDテストを推奨しています。
+
+### 🧪 テストの種類
+
+#### Docker環境でのテスト（推奨）
+- **完全テスト**: すべてのビルド、品質チェック、セキュリティスキャンを実行
+- **クイックテスト**: 基本的なビルドとコード品質チェックのみ実行
+- **詳細ログテスト**: 詳細なログ出力付きでテスト実行
+
+#### ホスト環境でのテスト（非推奨）
+- 本番環境を汚す可能性があるため、開発時のみ使用
+
+### 🚀 クイックスタート
+
+#### 基本的なテスト実行
+```bash
+# 全テストを実行（推奨）
+make test-ci-local
+
+# クイックテスト（日常的な開発で使用）
+make test-ci-local-quick
+
+# 詳細ログ付きテスト
+make test-ci-local-verbose
+```
+
+#### テストイメージの再ビルド
+```bash
+# テストイメージを再ビルドしてからテスト
+make test-ci-local-build
+```
+
+### 📋 テスト内容
+
+#### 1. 依存関係チェック
+- 必要なツールの存在確認
+- バージョン確認
+
+#### 2. プロジェクト構造検証
+- 必要なファイルの存在確認
+- ディレクトリ構造の確認
+
+#### 3. ビルドテスト
+- **Makefileビルド**: `server_systemd.out`の生成
+- **CMakeビルド**: `home-server`の生成
+- **ビルドスクリプト**: `scripts/build.sh`のテスト
+
+#### 4. コード品質チェック
+- cppcheckによる静的解析
+- コードフォーマットチェック
+
+#### 5. ドキュメントチェック
+- README.mdの構造確認
+- HTMLファイルの構文チェック
+
+#### 6. セキュリティチェック（オプション）
+- 基本的なセキュリティチェック
+- ハードコードされたパスワードの確認
+
+#### 7. 統合テスト
+- 実行ファイルの基本テスト
+- テスト用設定ファイルの確認
+
+### 🔧 詳細な使用方法
+
+#### スクリプト直接実行
+```bash
+# 基本的なテスト
+./scripts/docker-ci-runner.sh
+
+# クイックテスト
+./scripts/docker-ci-runner.sh --quick
+
+# イメージ再ビルド
+./scripts/docker-ci-runner.sh --build
+
+# 詳細ログ
+./scripts/docker-ci-runner.sh --verbose
+
+# クリーンアップをスキップ
+./scripts/docker-ci-runner.sh --no-cleanup
+```
+
+#### 個別テスト
+```bash
+# Makefileビルドのみ
+make test-makefile
+
+# CMakeビルドのみ
+make test-cmake
+
+# Dockerビルドのみ
+make test-docker
+
+# ドキュメントチェックのみ
+make test-docs
+```
+
+### 🐳 Dockerテスト環境
+
+#### アーキテクチャ
+```
+ホスト環境 (Ubuntu 24.04)
+├── Docker Engine
+└── テストコンテナ (Ubuntu 24.04)
+    ├── ビルドツール (GCC, CMake, Make)
+    ├── 依存関係 (Crow, OpenSSL)
+    ├── テストツール (cppcheck)
+    └── プロジェクトコード (マウント)
+```
+
+#### 必要なツール
+- **ホスト環境**: `docker`, `make`
+- **コンテナ環境**: 自動インストール（`build-essential`, `cmake`, `cppcheck`, `Crow framework`など）
+
+### 🔄 開発ワークフロー
+
+#### 日常的な開発
+```bash
+# 1. コード変更
+git add .
+git commit -m "Your changes"
+
+# 2. クイックテスト
+make test-ci-local-quick
+
+# 3. 問題がなければpush
+git push origin main
+```
+
+#### プルリクエスト前
+```bash
+# 完全テストを実行
+make test-ci-local-verbose
+```
+
+#### 定期的な完全テスト
+```bash
+# 週1回程度、完全テストを実行
+make test-ci-local
+```
+
+### 🛠️ トラブルシューティング
+
+#### Dockerがインストールされていない
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install -y docker.io
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# ユーザーをdockerグループに追加
+sudo usermod -aG docker $USER
+# ログアウトして再ログイン
+```
+
+#### 権限エラー
+```bash
+# ユーザーをdockerグループに追加
+sudo usermod -aG docker $USER
+
+# または一時的にsudoを使用
+sudo ./scripts/docker-ci-runner.sh
+```
+
+#### イメージビルドエラー
+```bash
+# 詳細ログでビルド
+./scripts/docker-ci-runner.sh --build --verbose
+
+# 手動でビルド
+docker build -f docker/Dockerfile.test -t home-server-ci-test .
+```
+
+### 📚 詳細ドキュメント
+
+- [Docker環境でのCI/CDテスト](docs/docker-ci-testing.md)
+- [ローカルCI/CDテスト](docs/local-ci-testing.md)
+
+### 🎯 テストのメリット
+
+- **本番環境の保護**: ホスト環境を汚さない
+- **一貫した環境**: 常に同じテスト環境で実行
+- **依存関係の分離**: テストに必要なツールを独立して管理
+- **再現性**: 同じ結果を確実に得られる
+- **早期エラー発見**: push前に問題を特定
+- **開発効率向上**: 手動テストの負担軽減
 
 ## 使用方法
 

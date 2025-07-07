@@ -1,0 +1,95 @@
+CC = g++ -std=gnu++2b -O2 -I /usr/local/include
+OPT=-lssl -lcrypto
+SRCDIR = src/server
+target = $(SRCDIR)/main.cpp
+out = server_systemd.out
+HDRS=$(SRCDIR)/memo.hpp $(SRCDIR)/viewer.hpp $(SRCDIR)/headers.hpp $(SRCDIR)/auth.hpp $(SRCDIR)/middleware.hpp $(SRCDIR)/config.hpp $(SRCDIR)/user_manager.hpp $(SRCDIR)/user_api.hpp $(SRCDIR)/user_routes.hpp $(SRCDIR)/server_systemd.hpp
+
+all: $(out) Makefile
+
+run: all
+	./$(out)
+
+$(out): $(target) Makefile $(HDRS)
+	$(CC) $(target) -o $(out) $(OPT)
+	
+reload: $(out)
+	sudo systemctl restart HS
+
+see:
+	systemctl status HS
+watch:
+	watch systemctl status HS
+
+clean:
+	rm -f $(out)
+	rm -f *.o
+
+# CI/CD関連のターゲット（Docker環境）
+test-ci-local:
+	@echo "Running Docker-based CI/CD tests..."
+	@chmod +x scripts/docker-ci-runner.sh
+	@./scripts/docker-ci-runner.sh
+
+test-ci-local-quick:
+	@echo "Running quick Docker-based CI/CD tests..."
+	@chmod +x scripts/docker-ci-runner.sh
+	@./scripts/docker-ci-runner.sh --quick
+
+test-ci-local-build:
+	@echo "Building and running Docker-based CI/CD tests..."
+	@chmod +x scripts/docker-ci-runner.sh
+	@./scripts/docker-ci-runner.sh --build
+
+test-ci-local-verbose:
+	@echo "Running verbose Docker-based CI/CD tests..."
+	@chmod +x scripts/docker-ci-runner.sh
+	@./scripts/docker-ci-runner.sh --verbose
+
+# ホスト環境でのテスト（非推奨）
+test-ci-host:
+	@echo "Running host-based CI/CD tests (not recommended for production)..."
+	@chmod +x scripts/test-ci-local.sh
+	@./scripts/test-ci-local.sh --skip-docker --skip-security
+
+test-ci-act:
+	@echo "Running GitHub Actions locally with act..."
+	@chmod +x scripts/test-ci-local.sh
+	@./scripts/test-ci-local.sh --act
+
+test-ci-act-quick:
+	@echo "Running quick GitHub Actions locally with act..."
+	@chmod +x scripts/test-ci-local.sh
+	@./scripts/test-ci-local.sh --act --skip-docker --skip-security
+
+# 個別のテストターゲット
+test-makefile:
+	@echo "Testing Makefile build..."
+	@make clean
+	@make all
+	@echo "✓ Makefile build successful"
+
+test-cmake:
+	@echo "Testing CMake build..."
+	@rm -rf build
+	@mkdir -p build
+	@cd build && cmake .. -DCMAKE_BUILD_TYPE=Release && make -j$(nproc)
+	@echo "✓ CMake build successful"
+
+test-docker:
+	@echo "Testing Docker build..."
+	@docker build -t archive:test .
+	@echo "✓ Docker build successful"
+
+test-docs:
+	@echo "Testing documentation..."
+	@[ -f "README.md" ] || (echo "README.md not found" && exit 1)
+	@grep -q "## 主な機能" README.md || echo "Warning: Missing main features section"
+	@grep -q "## セットアップ" README.md || echo "Warning: Missing setup section"
+	@echo "✓ Documentation check completed"
+
+install: $(out)
+	sudo cp $(out) /usr/local/bin/
+	sudo systemctl daemon-reload
+	sudo systemctl enable HS
+	sudo systemctl start HS
