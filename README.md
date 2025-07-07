@@ -487,9 +487,6 @@ HOME-SERVER/
 ├── scripts/                       # ビルド・デプロイスクリプト
 ├── data/                          # データディレクトリ
 ├── memo/                          # メモデータ
-├── .github/                       # GitHub設定
-│   ├── workflows/                 # CI/CD設定
-│   └── ISSUE_TEMPLATE/            # Issueテンプレート
 ├── README.md                      # プロジェクト概要
 ├── CONTRIBUTING.md                # 貢献ガイドライン
 ├── SECURITY.md                    # セキュリティポリシー

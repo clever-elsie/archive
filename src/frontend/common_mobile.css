@@ -1,67 +1,45 @@
-@import url("../common_mobile.css");
+/* 共通モバイルスタイル: レイアウト・ボタン・レスポンシブ・スクロールバー等 */
 
-/* モバイル用スタイル */
 @media (max-width: 768px) {
-	/* ヘッダー */
 	.header {
 		padding: 0.75rem 0;
 	}
-
 	.header-content {
 		flex-direction: column;
 		gap: 0.75rem;
 		text-align: center;
 		padding: 0 1rem;
 	}
-
 	.home-link {
 		font-size: 1rem;
 	}
-
 	.title {
 		font-size: 1.3rem;
 	}
-
 	.counter {
 		font-size: 0.9rem;
 	}
-
-	/* メインコンテンツ */
 	.main-content {
 		padding: 1rem;
 	}
-
-	/* セクション */
 	section {
 		margin-bottom: 2rem;
 	}
-
 	section h3 {
 		font-size: 1.3rem;
 		margin-bottom: 1rem;
 	}
-
-	.section-description {
-		font-size: 0.9rem;
-		margin-bottom: 1rem;
-	}
-
-	/* カード */
 	.create-card,
 	.memo-card {
 		padding: 1.5rem;
 		border-radius: 12px;
 	}
-
-	/* テキストエリア */
 	.memo-textarea {
 		min-height: 100px;
 		padding: 0.75rem;
-		font-size: 16px; /* iOSでズームを防ぐ */
+		font-size: 16px;
 		line-height: 1.5;
 	}
-
-	/* ボタン */
 	.btn {
 		padding: 0.75rem 1rem;
 		font-size: 0.9rem;
@@ -70,153 +48,121 @@
 		width: 100%;
 		justify-content: center;
 	}
-
-	/* メモボタンコンテナ */
 	.memo-buttons {
 		flex-direction: column;
 		gap: 0.75rem;
 		margin-top: 1rem;
 	}
-
-	/* タッチデバイス用の調整 */
 	.btn:hover {
 		transform: none;
 		box-shadow: none;
 	}
-
 	.btn:active {
 		transform: translateY(1px);
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 	}
-
-	/* スクロールバー */
 	::-webkit-scrollbar {
 		width: 6px;
 	}
-
 	::-webkit-scrollbar-thumb {
 		background: rgba(100, 255, 218, 0.4);
 	}
 }
 
-/* 小さい画面用 */
 @media (max-width: 480px) {
 	.header-content {
 		padding: 0 0.75rem;
 	}
-
 	.main-content {
 		padding: 0.75rem;
 	}
-
 	.create-card,
 	.memo-card {
 		padding: 1rem;
 	}
-
 	.memo-textarea {
 		padding: 0.5rem;
 		font-size: 16px;
 	}
-
 	.btn {
 		padding: 0.75rem 0.5rem;
 		font-size: 0.85rem;
 		min-height: 40px;
 	}
-
 	section h3 {
 		font-size: 1.2rem;
 	}
 }
 
-/* 縦向きの小さい画面 */
 @media (orientation: portrait) and (max-height: 600px) {
 	.header {
 		padding: 0.5rem 0;
 	}
-
 	.header-content {
 		gap: 0.5rem;
 	}
-
 	.main-content {
 		padding: 0.5rem;
 	}
-
 	section {
 		margin-bottom: 1.5rem;
 	}
-
 	.create-card,
 	.memo-card {
 		padding: 1rem;
 	}
-
 	.memo-textarea {
 		min-height: 80px;
 	}
 }
 
-/* 横向きの小さい画面 */
 @media (orientation: landscape) and (max-height: 500px) {
 	.header {
 		padding: 0.5rem 0;
 	}
-
 	.header-content {
 		flex-direction: row;
 		gap: 1rem;
 	}
-
 	.main-content {
 		padding: 0.5rem 1rem;
 	}
-
 	.create-card,
 	.memo-card {
 		padding: 1rem;
 	}
-
 	.memo-buttons {
 		flex-direction: row;
 		gap: 0.5rem;
 	}
-
 	.btn {
 		width: auto;
 		min-width: 80px;
 	}
 }
 
-/* タッチデバイス用の調整 */
 @media (hover: none) {
 	.btn:hover {
 		transform: none;
 		box-shadow: none;
 	}
-
 	.memo-card:hover {
 		transform: none;
 		box-shadow: none;
 	}
-
 	.create-card:hover {
 		transform: none;
 		box-shadow: none;
 	}
-
 	.home-link:hover {
 		transform: none;
 	}
 }
 
-/* 高解像度ディスプレイ用 */
 @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
 	.memo-textarea {
 		font-size: 15px;
 	}
-
 	.btn {
 		font-size: 0.85rem;
 	}

@@ -56,6 +56,18 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+# makefile.env自動生成（未作成時のみ）
+if [ ! -f "makefile.env" ]; then
+  echo "makefile.envが存在しないため自動生成します。"
+  cat <<EOF > makefile.env
+# Makefile用パラメータファイル（自動生成されました）
+# サービス名
+SERVICE=myservice
+# 出力バイナリ名
+OUT=server_systemd.out
+EOF
+fi
+
 print_info "Building HOME-SERVER in $BUILD_TYPE mode"
 
 # 依存関係のチェック

@@ -84,3 +84,6 @@ third_party/
 # OS生成ファイル
 .fuse_hidden*
 .nfs*
+
+# Makefile用パラメータファイル
+makefile.env

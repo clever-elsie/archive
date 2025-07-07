@@ -140,4 +140,15 @@ server {
 
 ## サポート
 
-問題が発生した場合は、GitHubのIssuesページで報告してください。 
+問題が発生した場合は、GitHubのIssuesページで報告してください。
+
+## Makefile用パラメータのカスタマイズ
+
+- `./scripts/build.sh` 実行時に `makefile.env` が自動生成されます（既存の場合は上書きされません）。
+- サービス名やバイナリ名を変更したい場合は、`makefile.env` を編集してください。
+  - 例:
+    ```
+    SERVICE=yourservicename
+    OUT=yourbinary.out
+    ```
+- `makefile.env` は `.gitignore` に含まれており、リポジトリにはコミットされません。 

@@ -1,28 +1,34 @@
+# パラメータファイルの読み込み（存在すれば）
+-include makefile.env
+
+# ユーザーが上書き可能な変数定義
+SERVICE ?= myservice
+OUT ?= server_systemd.out
+
 CC = g++ -std=gnu++2b -O2 -I /usr/local/include
 OPT=-lssl -lcrypto
 SRCDIR = src/server
 target = $(SRCDIR)/main.cpp
-out = server_systemd.out
 HDRS=$(SRCDIR)/memo.hpp $(SRCDIR)/viewer.hpp $(SRCDIR)/headers.hpp $(SRCDIR)/auth.hpp $(SRCDIR)/middleware.hpp $(SRCDIR)/config.hpp $(SRCDIR)/user_manager.hpp $(SRCDIR)/user_api.hpp $(SRCDIR)/user_routes.hpp $(SRCDIR)/server_systemd.hpp
 
-all: $(out) Makefile
+all: $(OUT) Makefile
 
 run: all
-	./$(out)
+	./$(OUT)
 
-$(out): $(target) Makefile $(HDRS)
-	$(CC) $(target) -o $(out) $(OPT)
+$(OUT): $(target) Makefile $(HDRS)
+	$(CC) $(target) -o $(OUT) $(OPT)
 	
-reload: $(out)
-	sudo systemctl restart HS
+reload: $(OUT)
+	sudo systemctl restart $(SERVICE)
 
 see:
-	systemctl status HS
+	systemctl status $(SERVICE)
 watch:
-	watch systemctl status HS
+	watch systemctl status $(SERVICE)
 
 clean:
-	rm -f $(out)
+	rm -f $(OUT)
 	rm -f *.o
 
 # CI/CD関連のターゲット（Docker環境）
@@ -88,8 +94,8 @@ test-docs:
 	@grep -q "## セットアップ" README.md || echo "Warning: Missing setup section"
 	@echo "✓ Documentation check completed"
 
-install: $(out)
-	sudo cp $(out) /usr/local/bin/
+install: $(OUT)
+	sudo cp $(OUT) /usr/local/bin/
 	sudo systemctl daemon-reload
-	sudo systemctl enable HS
-	sudo systemctl start HS
+	sudo systemctl enable $(SERVICE)
+	sudo systemctl start $(SERVICE)
