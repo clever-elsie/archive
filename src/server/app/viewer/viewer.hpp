@@ -24,7 +24,6 @@ inline filesystem::file_time_type base_time{};
 
 struct Info{
 	string path;
-	set<string>author;
 	set<string>tag;
 	vector<Info*>dirs;
 	vector<string>imgs;
@@ -34,7 +33,7 @@ struct Info{
 	bool has_only_img;
 	
 	inline Info(const string&dir,Info*par_)
-	:path(dir),author(),tag(),
+	:path(dir),tag(),
 	dirs(),imgs(),img_time(base_time),id(UINT64_MAX),par(par_),has_only_img(0){
 		if(!filesystem::is_directory(dir))return;
 		const string info=dir+"/.info";
@@ -44,11 +43,7 @@ struct Info{
 			while(getline(ifs,buf)){
 				if(buf.size()<1)continue;
 				if(buf.back()=='\n')buf.pop_back();
-				const char F=buf.back();
-				if(F!='T'&&F!='A')continue;
-				buf.pop_back();
-				if(F=='T') tag.emplace(buf);
-				else author.emplace(buf);
+				tag.emplace(buf);
 			}
 		}
 		constexpr static array<string,5> exts{".webp",".jpg",".jpeg",".png",".gif"};
@@ -199,24 +194,16 @@ inline crow::json::wvalue get_imgs(const crow::request&req){
 	const string info=leaf_dirs[id]->path+"/.info";
 	if(!filesystem::exists(info))
 		ofstream ofs(info);
-	crow::json::wvalue::list as,ts;
+	crow::json::wvalue::list ts;
 	ret["id"]=id;
-	for(const auto&x:leaf_dirs[id]->author)
-		as.push_back(html_escape(x));
-	ret["creators"]=crow::json::wvalue(as);
 	for(const auto&x:leaf_dirs[id]->tag)
 		ts.push_back(html_escape(x));
 	ret["tags"]=crow::json::wvalue(ts);
-	return crow::json::wvalue(ret);
-}
-
-inline crow::json::wvalue get_creators_all(const crow::request&req){
-	lock_guard<mutex> lock(imtex);
-	auto data = crow::json::load(req.body);
-	int64_t id = data["id"].i();
-	Info*creator=leaf_dirs[id]->par;
-	crow::json::wvalue::list ret;
-	for(auto const &dir:creator->dirs) pb_next(ret,*dir);
+	// 追加: 親ディレクトリの全画像ディレクトリサムネイル
+	crow::json::wvalue::list parent_list;
+	Info* parent = leaf_dirs[id]->par;
+	for(const auto &dir : parent->dirs) pb_next(parent_list, *dir);
+	ret["parent"] = std::move(parent_list);
 	return crow::json::wvalue(ret);
 }
 
@@ -252,9 +239,7 @@ inline bool parse_query(size_t&idx,const Info&tar,const string&s){
 			default:{
 				auto[cnt,token]=get_token(idx,s);
 				idx+=cnt;
-				r=tar.author.contains(token)
-				||tar.tag.contains(token)
-				||tar.path.contains(token);
+				r=tar.tag.contains(token)||tar.path.contains(token);
 			}break;
 		}
 		if(nx_not) r=!r;
@@ -326,64 +311,33 @@ inline crow::json::wvalue get_dir_list(const crow::request&req){
 }
 
 inline crow::response info_renew(const crow::request&req){
-	// 管理者権限チェック
 	string session_id = MIDDLEWARE::extract_session_id(req);
 	if (session_id.empty() || !AUTH::validate_session(session_id)) {
 		crow::json::wvalue error_response;
 		error_response["error"] = "認証が必要です";
 		return crow::response(401, error_response);
 	}
-	
 	string username = AUTH::get_username_from_session(session_id);
 	if (!USER_MANAGER::user_manager.is_admin(username)) {
 		crow::json::wvalue error_response;
 		error_response["error"] = "管理者権限が必要です";
 		return crow::response(403, error_response);
 	}
-	
 	lock_guard<mutex> lock(imtex);
 	const auto data=crow::json::load(req.body);
 	int64_t id=data["id"].i();
 	string tar=data["data"].s();
 	string info=leaf_dirs[id]->path+"/.info";
-	if(data["AD"].s()=="A"){
-		string buf;
-		ifstream ifs(info);
-		bool already_has=false;
-		while(getline(ifs,buf)){
-			if(buf.size()<1)continue;
-			if(buf.back()=='\n')buf.pop_back();
-			if(buf==tar){
-				already_has=true;
-				break;
-			}
-		}
-		ifs.close();
-		if(!already_has){
-			ofstream ofs(info,ios_base::app);
-			ofs<<tar<<'\n';
-			char F=tar.back();
-			tar.pop_back();
-			if(F=='A') leaf_dirs[id]->author.emplace(move(tar));
-			else leaf_dirs[id]->tag.emplace(move(tar));
-		}
+	if(data["AD"].s()=="add"){
+		if(leaf_dirs[id]->tag.contains(tar)) return crow::response(200);
+		leaf_dirs[id]->tag.emplace(move(tar));
+		ofstream ofs(info,ios_base::app);
+		ofs<<tar<<'\n';
 	}else{ // delete
-		vector<string>dbuf;
-		string buf;
-		ifstream ifs(info);
-		while(getline(ifs,buf)){
-			if(buf.size()<1)continue;
-			if(buf.back()=='\n')buf.pop_back();
-			if(buf!=tar) dbuf.emplace_back(move(buf));
-		}
-		ifs.close();
+		leaf_dirs[id]->tag.erase(tar);
 		ofstream ofs(info,ios_base::trunc);
-		for(const auto&x:dbuf)
+		for(const auto&x:leaf_dirs[id]->tag)
 			ofs<<x<<'\n';
-		char F=tar.back();
-		tar.pop_back();
-		if(F=='A')leaf_dirs[id]->author.erase(tar);
-		else leaf_dirs[id]->tag.erase(tar);
 	}
 	return crow::response(200);
 }

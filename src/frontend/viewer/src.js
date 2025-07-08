@@ -1,4 +1,3 @@
-
 //
 //
 //
@@ -96,14 +95,15 @@ async function reload_leaf_req(){
 	prev_page=next_page=0;
 	cur_id=par_id=0;
 	document.getElementById("page_list").innerHTML='';
-	document.getElementById("creatorContainer").innerHTML='';
+	document.getElementById("parentContainer").innerHTML='';
 	document.getElementById("imageContainer").innerHTML='';
 	document.getElementById("thumbnailContainer").innerHTML='';
 	document.getElementById("title").innerHTML='';
 	document.getElementById("counter").innerHTML='';
-	document.getElementById("creators").innerHTML='';
+	document.getElementById("parentContainer").innerHTML='';
 	document.getElementById("tags").innerHTML='';
 	document.getElementById("jmpControll").innerHTML='';
+	document.getElementById("jmpControll2").innerHTML='';
 	authenticatedFetch('/req/img/reload',{method:'GET'})
 	.then(()=>{ fetchPageList(); });
 }
@@ -122,29 +122,19 @@ function updateSystemReloadButton() {
 
 // メタデータ編集セクションの表示制御
 function updateMetadataEditSection() {
-	// 作成者関連の要素
-	const creatorInput = document.getElementById('creator_input');
-	const creatorAdd = document.getElementById('creator_add');
-	const creatorErase = document.getElementById('creator_erase');
-	
 	// タグ関連の要素
 	const tagInput = document.getElementById('tag_input');
 	const tagAdd = document.getElementById('tag_add');
 	const tagErase = document.getElementById('tag_erase');
-	
+
 	// 管理者の場合は表示、一般ユーザーの場合は非表示
 	const displayStyle = isAdmin() ? 'block' : 'none';
-	
-	// 作成者関連の要素を制御
-	if (creatorInput) creatorInput.style.display = displayStyle;
-	if (creatorAdd) creatorAdd.style.display = displayStyle;
-	if (creatorErase) creatorErase.style.display = displayStyle;
-	
+
 	// タグ関連の要素を制御
 	if (tagInput) tagInput.style.display = displayStyle;
 	if (tagAdd) tagAdd.style.display = displayStyle;
 	if (tagErase) tagErase.style.display = displayStyle;
-	
+
 	// 既存の通知を削除
 	const metadataSection = document.querySelector('.metadata-section');
 	if (metadataSection) {
@@ -222,14 +212,14 @@ function cd(id){
 	let par = document.getElementById('thumbnailContainer');
 	par.innerHTML='';
 	document.getElementById('jmpControll').innerHTML='';
-	
+	document.getElementById('jmpControll2').innerHTML='';
 	// タイトルとカウンターをクリア
 	document.getElementById('title').innerHTML='';
 	document.getElementById('counter').innerHTML='';
-	document.getElementById('creators').innerHTML='';
+	document.getElementById('parentContainer').innerHTML='';
 	document.getElementById('tags').innerHTML='';
 	document.getElementById('imageContainer').innerHTML='';
-	document.getElementById('creatorContainer').innerHTML='';
+	document.getElementById('parentContainer').innerHTML='';
 	
 	authenticatedFetch("/req/img/dir_access",{
 		method:'POST',
@@ -319,30 +309,34 @@ function filename(src,base){
 
 // 共通のprev/nextボタン生成関数
 function displayPrevNextButtons(currentIndex, mediaList, displayFunc) {
-	const container = document.getElementById('jmpControll');
-	const navDiv = document.createElement('div');
-	navDiv.style.textAlign = 'center';
-	navDiv.style.margin = '1em';
-	if (currentIndex > 0) {
-		let prevBtn = document.createElement('button');
-		prevBtn.className='ctrlbutton';
-		prevBtn.innerText = 'prev';
-		prevBtn.onclick = () => displayFunc(mediaList[currentIndex - 1], mediaList, currentIndex - 1);
-		navDiv.appendChild(prevBtn);
+	const cids = ['jmpControll','jmpControll2'];
+	for(let cid of cids){
+		const container = document.getElementById(cid);
+		const navDiv = document.createElement('div');
+		navDiv.style.textAlign = 'center';
+		navDiv.style.margin = '1em';
+		if (currentIndex > 0) {
+			let prevBtn = document.createElement('button');
+			prevBtn.className='ctrlbutton';
+			prevBtn.innerText = 'prev';
+			prevBtn.onclick = () => displayFunc(mediaList[currentIndex - 1], mediaList, currentIndex - 1);
+			navDiv.appendChild(prevBtn);
+		}
+		if (currentIndex < mediaList.length - 1) {
+			let nextBtn = document.createElement('button');
+			nextBtn.className='ctrlbutton';
+			nextBtn.innerText = 'next';
+			nextBtn.onclick = () => displayFunc(mediaList[currentIndex + 1], mediaList, currentIndex + 1);
+			navDiv.appendChild(nextBtn);
+		}
+		container.appendChild(navDiv);
 	}
-	if (currentIndex < mediaList.length - 1) {
-		let nextBtn = document.createElement('button');
-		nextBtn.className='ctrlbutton';
-		nextBtn.innerText = 'next';
-		nextBtn.onclick = () => displayFunc(mediaList[currentIndex + 1], mediaList, currentIndex + 1);
-		navDiv.appendChild(nextBtn);
-	}
-	container.appendChild(navDiv);
 }
 
 // displayVideoFrame, displayAudioFrame, displayTextFrameを拡張
 function displayVideoFrame(videoURL, videoList = null, currentIndex = null) {
 	document.getElementById('jmpControll').innerHTML='';
+	document.getElementById('jmpControll2').innerHTML='';
 	let fe = document.createElement("video");
 	let fs = document.createElement("source");
 	fs.src = '../'+remove_prefix(videoURL);
@@ -357,13 +351,14 @@ function displayVideoFrame(videoURL, videoList = null, currentIndex = null) {
 	document.getElementById('counter').innerHTML = 1;
 	document.getElementById('imageContainer').innerHTML = '';
 	document.getElementById('imageContainer').appendChild(fe);
-	document.getElementById('creatorContainer').innerHTML='';
+	document.getElementById('parentContainer').innerHTML='';
 	if(videoList && currentIndex !== null)
 		displayPrevNextButtons(currentIndex, videoList, (item, list, idx) => displayVideoFrame(item.path, list, idx));
 }
 
 function displayAudioFrame(audioURL, audioList = null, currentIndex = null) {
 	document.getElementById('jmpControll').innerHTML='';
+	document.getElementById('jmpControll2').innerHTML='';
 	const msc=document.createElement('audio');
 	msc.src='../'+remove_prefix(audioURL);
 	msc.controls=true;
@@ -378,13 +373,14 @@ function displayAudioFrame(audioURL, audioList = null, currentIndex = null) {
 	document.getElementById('counter').innerHTML = 1;
 	document.getElementById('imageContainer').innerHTML = '';
 	document.getElementById('imageContainer').appendChild(fig);
-	document.getElementById('creatorContainer').innerHTML='';
+	document.getElementById('parentContainer').innerHTML='';
 	if(audioList && currentIndex !== null)
 		displayPrevNextButtons(currentIndex, audioList, (item, list, idx) => displayAudioFrame(item.path, list, idx));
 }
 
 function displayTextFrame(textURL, textList = null, currentIndex = null) {
 	document.getElementById('jmpControll').innerHTML='';
+	document.getElementById('jmpControll2').innerHTML='';
 	fetch('../'+remove_prefix(textURL))
 	.then(response=>response.text())
 	.then(text=>{
@@ -395,7 +391,7 @@ function displayTextFrame(textURL, textList = null, currentIndex = null) {
 		document.getElementById('counter').innerHTML = 1;
 		document.getElementById('imageContainer').innerHTML = '';
 		document.getElementById('imageContainer').appendChild(content);
-		document.getElementById('creatorContainer').innerHTML='';
+		document.getElementById('parentContainer').innerHTML='';
 		if(textList && currentIndex !== null)
 			displayPrevNextButtons(currentIndex, textList, (item, list, idx) => displayTextFrame(item.path, list, idx));
 	});
@@ -564,28 +560,30 @@ function displayThumbnailImages(container, images, currentId, clearContainer = t
 		});
 
 		// prev/nextボタン
-		const jmpCtrl = document.getElementById('jmpControll');
-		if(jmpCtrl) jmpCtrl.innerHTML = '';
-		if (currentId !== undefined && jmpCtrl) {
-			const idx = combinedData.findIndex(item => String(item.id) === String(currentId));
-			const navDiv = document.createElement('div');
-			navDiv.style.textAlign = 'center';
-			navDiv.style.margin = '1em';
-			if (idx > 0) {
-				const prevBtn = document.createElement('button');
-				prevBtn.className='ctrlbutton';
-				prevBtn.innerText = 'prev';
-				prevBtn.onclick = () => fetchImageList(combinedData[idx - 1].id);
-				navDiv.appendChild(prevBtn);
+		for(let cid of ['jmpControll','jmpControll2']){
+			const jmpCtrl = document.getElementById(cid);
+			if(jmpCtrl) jmpCtrl.innerHTML = '';
+			if (currentId !== undefined && jmpCtrl) {
+				const idx = combinedData.findIndex(item => String(item.id) === String(currentId));
+				const navDiv = document.createElement('div');
+				navDiv.style.textAlign = 'center';
+				navDiv.style.margin = '1em';
+				if (idx > 0) {
+					const prevBtn = document.createElement('button');
+					prevBtn.className='ctrlbutton';
+					prevBtn.innerText = 'prev';
+					prevBtn.onclick = () => fetchImageList(combinedData[idx - 1].id);
+					navDiv.appendChild(prevBtn);
+				}
+				if (idx < combinedData.length - 1) {
+					const nextBtn = document.createElement('button');
+					nextBtn.className='ctrlbutton';
+					nextBtn.innerText = 'next';
+					nextBtn.onclick = () => fetchImageList(combinedData[idx + 1].id);
+					navDiv.appendChild(nextBtn);
+				}
+				jmpCtrl.appendChild(navDiv);
 			}
-			if (idx < combinedData.length - 1) {
-				const nextBtn = document.createElement('button');
-				nextBtn.className='ctrlbutton';
-				nextBtn.innerText = 'next';
-				nextBtn.onclick = () => fetchImageList(combinedData[idx + 1].id);
-				navDiv.appendChild(nextBtn);
-			}
-			jmpCtrl.appendChild(navDiv);
 		}
 	}).catch(error => {
 		console.error('画像の読み込み中にエラーが発生しました:', error);
@@ -645,6 +643,7 @@ function fetchRandomImage() {
 // ディレクトリの画像一覧を取得して表示する関数
 function fetchImageList(id) {
 	document.getElementById('jmpControll').innerHTML='';
+	document.getElementById('jmpControll2').innerHTML='';
 	authenticatedFetch('/req/img',{method:'POST',body:JSON.stringify({'id':id})})
 	.then(response => response.json())
 	.then(data => {
@@ -742,22 +741,11 @@ function fetchImageList(id) {
 			container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">画像の読み込みに失敗しました</div>';
 		});
 
-		authenticatedFetch('/req/img/creator',{method:'POST',body:JSON.stringify({'id':id})})
-		.then(response => response.json())
-		.then(data =>{
-			const container = document.getElementById('creatorContainer');
-			// 画像の準備が整うまで既存の画像を保持するため、clearContainerをtrueで渡す
-			displayThumbnailImages(container,data, id, true);
-		});
-
-		const creators=document.getElementById('creators');
-		creators.innerHTML='';
-		if(data["creators"] && data["creators"].length > 0) {
-			data["creators"].forEach(author=>{
-				if(creators.innerHTML==='') creators.innerHTML=author;
-				else creators.innerHTML+=' '+author;
-			});
-		}
+		// 親ディレクトリのサムネイル（data['parent']）を表示
+		const parentContainer = document.getElementById('parentContainer');
+		if (parentContainer && data['parent'])
+			displayThumbnailImages(parentContainer, data['parent'], id, true);
+		else parentContainer.innerHTML='';
 
 		const tags=document.getElementById('tags');
 		tags.innerHTML='';
@@ -778,23 +766,19 @@ function fetchImageList(id) {
 }
 
 let info_id=-1;
-function Info(TA,AD,id){
-	// 管理者権限チェック
+function Info(AD){
 	if (!isAdmin()) {
-		alert('タグや作成者の編集は管理者のみ実行できます');
+		alert('タグの編集は管理者のみ実行できます');
 		return;
 	}
-	
+
 	if(info_id==-1)return;
-	const dom=document.getElementById(id);
+	const dom=document.getElementById('tag_input');
 	let token=String(dom.value);
-	token=token.replace(/　/g,' ');
-	token=token.replace(/\n/g,' ');
-	token=token.replace(/\s/g,' ');
-	token=token.replace(/^\s*/g,'');
-	token=token.replace(/\s+$/g,'');
-	token=token.replace(/\s+/g,' ');
-	let tokens=token.split(' ');
+	let tokens=token.replace(/　/g,' ').replace(/\n/g,' ')
+		.replace(/\s/g,' ').replace(/^\s*/g,'')
+		.replace(/\s+$/g,'').replace(/\s+/g,' ').split(' ');
+	if(tokens.length==0)return;
 	for(let i=0;i<tokens.length;++i){
 		let item=tokens[i];
 		authenticatedFetch("/req/img/info_renew",{
@@ -802,14 +786,14 @@ function Info(TA,AD,id){
 			body:JSON.stringify({
 				"AD":AD,
 				"id":info_id,
-				"data":item+TA
+				"data":item
 			})
 		})
 		.then(response=>{
 			if(response.ok){
-				let tar=document.getElementById(TA==='T'?'tags':'creators');
+				let tar=document.getElementById('tags');
 				let holding=tar.innerText.trim().split(' ');
-				if(AD=='A'){
+				if(AD=='add'){
 					let already_has=false;
 					for(let i=0;i<holding.length;++i){
 						if(String(holding[i])==String(item)){
@@ -818,7 +802,7 @@ function Info(TA,AD,id){
 						}
 					}
 					if(!already_has) tar.innerHTML+=' '+item;
-				}else{
+				}else if(AD=='delete'){
 					let next='';
 					for(let i=0;i<holding.length;++i)
 						if(String(holding[i])!=String(item))

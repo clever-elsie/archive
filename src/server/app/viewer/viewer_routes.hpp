@@ -18,9 +18,6 @@ inline void setup_viewer_routes(crow::App<Middleware>& app){
   CROW_ROUTE(app,"/req/img")
     .methods(crow::HTTPMethod::POST)
       (VIEWER::get_imgs);
-  CROW_ROUTE(app,"/req/img/creator")
-    .methods(crow::HTTPMethod::POST)
-      (VIEWER::get_creators_all);
   CROW_ROUTE(app,"/req/img/page_list")
     .methods(crow::HTTPMethod::GET)
       (VIEWER::get_page_list);
