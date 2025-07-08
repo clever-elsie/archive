@@ -1,96 +1,5 @@
 @import url("../common.css");
 
-/* リセットとベーススタイル */
-* {
-	margin: 0;
-	padding: 0;
-	box-sizing: border-box;
-}
-
-body {
-	background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
-	color: #ffffff;
-	font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-	line-height: 1.6;
-	min-height: 100vh;
-	overflow-x: hidden;
-}
-
-/* ヘッダー */
-.header {
-	background: rgba(255, 255, 255, 0.05);
-	backdrop-filter: blur(20px);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-	position: sticky;
-	top: 0;
-	z-index: 1000;
-	padding: 1rem 0;
-}
-
-.header-content {
-	max-width: 1200px;
-	margin: 0 auto;
-	padding: 0 2rem;
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-}
-
-.home-link {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	color: #64ffda;
-	text-decoration: none;
-	font-weight: 600;
-	font-size: 1.2rem;
-	transition: all 0.3s ease;
-}
-
-.home-link:hover {
-	color: #00d4aa;
-	transform: translateY(-2px);
-}
-
-.header-info {
-	text-align: right;
-}
-
-.title {
-	font-size: 1.5rem;
-	font-weight: 600;
-	color: #ffffff;
-	margin-bottom: 0.25rem;
-}
-
-.counter {
-	font-size: 1rem;
-	color: #8892b0;
-	font-weight: 400;
-}
-
-/* メインコンテンツ */
-.main-content {
-	max-width: 1200px;
-	margin: 0 auto;
-	padding: 2rem;
-}
-
-/* セクション共通スタイル */
-section {
-	margin-bottom: 3rem;
-}
-
-section h3 {
-	font-size: 1.5rem;
-	font-weight: 600;
-	color: #ffffff;
-	margin-bottom: 1.5rem;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-}
-
 /* メタデータセクション */
 .metadata-section {
 	display: grid;
@@ -166,75 +75,6 @@ section h3 {
 
 .modern-input::placeholder {
 	color: #8892b0;
-}
-
-/* ボタンスタイル */
-.btn {
-	padding: 0.75rem 1.5rem;
-	border: none;
-	border-radius: 8px;
-	font-size: 0.9rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	text-decoration: none;
-	color: #ffffff;
-	min-height: 48px; /* スマホでのタップしやすさ */
-	min-width: 120px;
-	justify-content: center;
-	text-align: center;
-	word-wrap: break-word;
-	white-space: normal;
-	line-height: 1.2;
-}
-
-.btn:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
-}
-
-.btn:active {
-	transform: translateY(0);
-	box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-}
-
-.btn-primary {
-	background: linear-gradient(135deg, #64ffda 0%, #00d4aa 100%);
-	color: #0f0f23;
-}
-
-.btn-primary:hover {
-	background: linear-gradient(135deg, #00d4aa 0%, #64ffda 100%);
-}
-
-.btn-secondary {
-	background: rgba(255, 255, 255, 0.1);
-	border: 1px solid rgba(255, 255, 255, 0.2);
-}
-
-.btn-secondary:hover {
-	background: rgba(255, 255, 255, 0.15);
-	border-color: rgba(255, 255, 255, 0.3);
-}
-
-.btn-danger {
-	background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
-}
-
-.btn-danger:hover {
-	background: linear-gradient(135deg, #ee5a52 0%, #ff6b6b 100%);
-}
-
-.btn-warning {
-	background: linear-gradient(135deg, #ffd93d 0%, #ff6b6b 100%);
-	color: #0f0f23;
-}
-
-.btn-warning:hover {
-	background: linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%);
 }
 
 /* メディアタイプ別ボタンスタイル */
@@ -625,16 +465,6 @@ img:hover {
 
 /* レスポンシブデザイン */
 @media (max-width: 768px) {
-	.header-content {
-		flex-direction: column;
-		gap: 1rem;
-		text-align: center;
-	}
-	
-	.main-content {
-		padding: 1rem;
-	}
-	
 	.metadata-section {
 		grid-template-columns: 1fr;
 	}

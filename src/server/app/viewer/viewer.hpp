@@ -1,11 +1,11 @@
 #pragma once
-#include "headers.hpp"
-#include "middleware.hpp"
-#include "auth.hpp"
-#include "user_manager.hpp"
+#include "../../headers.hpp"
+#include "../../manager/auth/middleware.hpp"
+#include "../../manager/auth/auth.hpp"
+#include "../../manager/users/user_manager.hpp"
 #include <ranges>
 
-namespace comic{
+namespace VIEWER{
 using namespace std;
 struct Info;
 

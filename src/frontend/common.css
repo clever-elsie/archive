@@ -137,6 +137,15 @@ section h3 {
 	border-color: rgba(255, 255, 255, 0.3);
 }
 
+.btn-success {
+	background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+	color: #ffffff;
+}
+
+.btn-success:hover {
+	background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+}
+
 .btn-warning {
 	background: linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%);
 	color: #0f0f23;
@@ -191,13 +200,3 @@ section h3 {
 		justify-content: center;
 	}
 }
-
-@media (max-width: 480px) {
-	.create-card,
-	.memo-card {
-		padding: 1.5rem;
-	}
-	.memo-textarea {
-		font-size: 16px;
-	}
-} 

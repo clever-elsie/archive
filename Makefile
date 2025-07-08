@@ -1,15 +1,25 @@
-# パラメータファイルの読み込み（存在すれば）
--include makefile.env
-
-# ユーザーが上書き可能な変数定義
+# デフォルト値の定義
 SERVICE ?= myservice
 OUT ?= server_systemd.out
+
+# パラメータファイルの読み込み（存在すれば上書き）
+-include makefile.env
 
 CC = g++ -std=gnu++2b -O2 -I /usr/local/include
 OPT=-lssl -lcrypto
 SRCDIR = src/server
 target = $(SRCDIR)/main.cpp
-HDRS=$(SRCDIR)/memo.hpp $(SRCDIR)/viewer.hpp $(SRCDIR)/headers.hpp $(SRCDIR)/auth.hpp $(SRCDIR)/middleware.hpp $(SRCDIR)/config.hpp $(SRCDIR)/user_manager.hpp $(SRCDIR)/user_api.hpp $(SRCDIR)/user_routes.hpp $(SRCDIR)/server_systemd.hpp
+
+MEMO_HDRS=$(SRCDIR)/app/memo/memo.hpp $(SRCDIR)/app/memo/memo_routes.hpp
+VIEWER_HDRS=$(SRCDIR)/app/viewer/viewer.hpp $(SRCDIR)/app/viewer/viewer_routes.hpp
+APP_HDRS=$(MEMO_HDRS) $(VIEWER_HDRS)
+
+CONFIG_HDRS=$(SRCDIR)/manager/config.hpp
+AUTH_HDRS=$(SRCDIR)/manager/auth/auth.hpp $(SRCDIR)/manager/auth/auth_routes.hpp $(SRCDIR)/manager/auth/middleware.hpp
+USER_HDRS=$(SRCDIR)/manager/users/user_manager.hpp $(SRCDIR)/manager/users/user_api.hpp $(SRCDIR)/manager/users/user_routes.hpp
+MANAGER_HDRS=$(CONFIG_HDRS) $(AUTH_HDRS) $(USER_HDRS)
+
+HDRS=$(APP_HDRS) $(MANAGER_HDRS)
 
 all: $(OUT) Makefile
 

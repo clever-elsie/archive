@@ -1,7 +1,7 @@
 #pragma once
-#include "headers.hpp"
+#include "../../headers.hpp"
 #include "auth.hpp"
-#include "config.hpp"
+#include "../config.hpp"
 #include <string>
 #include <crow.h>
 #include <vector>

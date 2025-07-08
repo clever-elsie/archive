@@ -32,6 +32,7 @@ docker-compose --profile dev up --build
 
 - **C++23標準**: 最新のC++標準に準拠
 - **命名規則**: 
+  - 名前空間: `UPPERCASE`
   - クラス名: `PascalCase`
   - 関数名: `snake_case`
   - 定数: `UPPER_SNAKE_CASE`
