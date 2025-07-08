@@ -15,6 +15,8 @@ namespace CONFIG {
     std::string SSL_KEY_PATH;
     bool IS_DEVELOPMENT;
     std::vector<std::string> ALLOWED_ORIGINS;
+    std::string ALLOWED_METHODS;
+    std::string ALLOWED_HEADERS;
   };
 
   // グローバル設定パラメータ
@@ -53,6 +55,8 @@ namespace CONFIG {
         params.ALLOWED_ORIGINS.push_back(origin.s());
       }
       
+      params.ALLOWED_METHODS = data["ALLOWED_METHODS"].s();
+      params.ALLOWED_HEADERS = data["ALLOWED_HEADERS"].s();
     } catch (const std::exception& e) {
       std::cerr << "Error parsing config: " << e.what() << std::endl;
       return false;
@@ -88,7 +92,4 @@ namespace CONFIG {
     return result;
   }
 
-  // CORS設定（ドメイン設定ファイルから動的に読み込み）
-  inline const char* ALLOWED_METHODS = "GET, POST, OPTIONS";
-  inline const char* ALLOWED_HEADERS = "Content-Type, X-Session-ID, X-CSRF-Token";
 } 

@@ -14,7 +14,9 @@
     "http://127.0.0.1:8080",
     "https://127.0.0.1:3000",
     "https://127.0.0.1:8080"
-  ]
+  ],
+  "ALLOWED_METHODS": "GET, POST, OPTIONS",
+  "ALLOWED_HEADERS": "Content-Type, X-Session-ID, X-CSRF-Token"
 }
 
 # 設定項目の説明:
@@ -24,6 +26,8 @@
 # SSL_KEY_PATH: SSL秘密鍵のパス
 # IS_DEVELOPMENT: 開発環境フラグ（true: 開発環境, false: 本番環境）
 # ALLOWED_ORIGINS: CORSで許可するオリジンのリスト
+# ALLOWED_METHODS: CORSで許可するHTTPメソッド（カンマ区切り）
+# ALLOWED_HEADERS: CORSで許可するHTTPヘッダー（カンマ区切り）
 #
 # 本番環境では以下を設定してください:
 # - IS_DEVELOPMENT: false

@@ -175,8 +175,8 @@ struct AuthMiddleware {
             res.add_header("Access-Control-Allow-Origin", allowed_origin);
         }
         
-        res.add_header("Access-Control-Allow-Methods", CONFIG::ALLOWED_METHODS);
-        res.add_header("Access-Control-Allow-Headers", CONFIG::ALLOWED_HEADERS);
+        res.add_header("Access-Control-Allow-Methods", CONFIG::params.ALLOWED_METHODS);
+        res.add_header("Access-Control-Allow-Headers", CONFIG::params.ALLOWED_HEADERS);
         res.add_header("Access-Control-Max-Age", "86400"); // 24時間
         res.add_header("Access-Control-Allow-Credentials", "true");
         
