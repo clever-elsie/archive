@@ -66,6 +66,48 @@
 	box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
 }
 
+/* ファイル名表示エリア */
+.memo-filename {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1rem;
+	padding: 0.75rem 1rem;
+	background: rgba(255, 255, 255, 0.03);
+	border-radius: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.filename-text {
+	color: #64ffda;
+	font-family: 'Inter', monospace;
+	font-size: 0.9rem;
+	font-weight: 500;
+	word-break: break-all;
+}
+
+.extension-text {
+	color: #8892b0;
+	font-weight: normal;
+}
+
+.rename-btn {
+	padding: 0.25rem 0.5rem;
+	font-size: 0.8rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	background: rgba(255, 255, 255, 0.05);
+	color: #8892b0;
+	transition: all 0.3s ease;
+	flex-shrink: 0;
+	margin-left: 0.5rem;
+}
+
+.rename-btn:hover {
+	background: rgba(100, 255, 218, 0.1);
+	border-color: #64ffda;
+	color: #64ffda;
+}
+
 /* テキストエリア */
 .memo-textarea {
 	width: 100%;
@@ -102,6 +144,64 @@
 	flex-wrap: wrap;
 }
 
+/* モーダルダイアログ */
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.7);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+	backdrop-filter: blur(5px);
+}
+
+.extension-dialog {
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	padding: 2rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	backdrop-filter: blur(10px);
+	max-width: 400px;
+	width: 90%;
+	animation: modalSlideIn 0.3s ease-out;
+}
+
+.extension-dialog h3 {
+	color: #64ffda;
+	margin-bottom: 1rem;
+	text-align: center;
+}
+
+#extension-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.5rem;
+	justify-content: center;
+	margin-bottom: 1.5rem;
+}
+
+#extension-list button {
+	margin: 0.25rem;
+	padding: 0.5rem 1rem;
+	border: 1px solid rgba(100, 255, 218, 0.3);
+	background: rgba(100, 255, 218, 0.1);
+	color: #64ffda;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	font-size: 0.9rem;
+}
+
+#extension-list button:hover {
+	background: rgba(100, 255, 218, 0.2);
+	border-color: #64ffda;
+	transform: translateY(-1px);
+}
+
 /* アニメーション */
 @keyframes fadeIn {
 	from {
@@ -114,11 +214,46 @@
 	}
 }
 
+@keyframes modalSlideIn {
+	from {
+		opacity: 0;
+		transform: translateY(-20px) scale(0.95);
+	}
+	to {
+		opacity: 1;
+		transform: translateY(0) scale(1);
+	}
+}
 
 /* レスポンシブデザイン */
 @media (max-width: 768px) {
 	.memo-buttons {
 		flex-direction: column;
+	}
+	
+	.memo-filename {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
+	}
+	
+	.rename-btn {
+		margin-left: 0;
+		align-self: flex-end;
+	}
+	
+	.extension-dialog {
+		padding: 1.5rem;
+		margin: 1rem;
+	}
+	
+	#extension-list {
+		gap: 0.25rem;
+	}
+	
+	#extension-list button {
+		padding: 0.4rem 0.8rem;
+		font-size: 0.85rem;
 	}
 }
 
@@ -130,5 +265,473 @@
 
 	.memo-textarea {
 		font-size: 16px; /* iOSでズームを防ぐ */
+	}
+	
+	.extension-dialog {
+		padding: 1rem;
+	}
+	
+	#extension-list button {
+		padding: 0.3rem 0.6rem;
+		font-size: 0.8rem;
+	}
+}
+
+/* メモ管理ページのスタイル */
+
+/* 検索セクション */
+.search-section {
+	margin-bottom: 2rem;
+}
+
+.search-card {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	padding: 2rem;
+	backdrop-filter: blur(10px);
+}
+
+.search-input-container {
+	display: flex;
+	gap: 1rem;
+	margin-top: 1rem;
+}
+
+.search-input {
+	flex: 1;
+	padding: 0.75rem 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.1);
+	color: #ffffff;
+	font-size: 1rem;
+	backdrop-filter: blur(10px);
+}
+
+.search-input::placeholder {
+	color: rgba(255, 255, 255, 0.6);
+}
+
+.search-input:focus {
+	outline: none;
+	border-color: #64ffda;
+	box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2);
+}
+
+/* メモ一覧アイテム */
+.memo-item {
+	background: rgba(255, 255, 255, 0.05);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	padding: 1.5rem;
+	margin-bottom: 1rem;
+	backdrop-filter: blur(10px);
+	transition: all 0.3s ease;
+}
+
+.memo-item:hover {
+	background: rgba(255, 255, 255, 0.08);
+	border-color: rgba(255, 255, 255, 0.2);
+	transform: translateY(-2px);
+	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.memo-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: flex-start;
+	margin-bottom: 1rem;
+}
+
+.memo-title {
+	display: flex;
+	align-items: center;
+	gap: 1rem;
+	flex: 1;
+}
+
+.filename-text {
+	font-size: 1.25rem;
+	font-weight: 600;
+	color: #64ffda;
+}
+
+.format-badge {
+	background: rgba(255, 193, 7, 0.2);
+	color: #ffc107;
+	padding: 0.25rem 0.5rem;
+	border-radius: 12px;
+	font-size: 0.75rem;
+	font-weight: 500;
+	margin-left: 0.5rem;
+	border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.memo-actions {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.btn-edit, .btn-tags, .btn-rename, .btn-delete {
+	padding: 0.5rem 1rem;
+	border: none;
+	border-radius: 8px;
+	font-size: 0.875rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.btn-edit {
+	background: rgba(100, 255, 218, 0.2);
+	color: #64ffda;
+	border: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.btn-edit:hover {
+	background: rgba(100, 255, 218, 0.3);
+	transform: translateY(-1px);
+}
+
+.btn-tags {
+	background: rgba(255, 193, 7, 0.2);
+	color: #ffc107;
+	border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+.btn-tags:hover {
+	background: rgba(255, 193, 7, 0.3);
+	transform: translateY(-1px);
+}
+
+.btn-rename {
+	background: rgba(108, 117, 125, 0.2);
+	color: #6c757d;
+	border: 1px solid rgba(108, 117, 125, 0.3);
+}
+
+.btn-rename:hover {
+	background: rgba(108, 117, 125, 0.3);
+	transform: translateY(-1px);
+}
+
+.btn-delete {
+	background: rgba(220, 53, 69, 0.2);
+	color: #dc3545;
+	border: 1px solid rgba(220, 53, 69, 0.3);
+}
+
+.btn-delete:hover {
+	background: rgba(220, 53, 69, 0.3);
+	transform: translateY(-1px);
+}
+
+.memo-meta {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 1rem;
+}
+
+.memo-tags {
+	display: flex;
+	gap: 0.5rem;
+	flex-wrap: wrap;
+}
+
+.tag {
+	background: rgba(100, 255, 218, 0.2);
+	color: #64ffda;
+	padding: 0.25rem 0.75rem;
+	border-radius: 20px;
+	font-size: 0.75rem;
+	font-weight: 500;
+	border: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.memo-dates {
+	display: flex;
+	gap: 1rem;
+	font-size: 0.875rem;
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.created-date, .updated-date {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+}
+
+/* メモ編集画面 */
+.memo-editor {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.8);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+	backdrop-filter: blur(10px);
+}
+
+.editor-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 1rem;
+	padding-bottom: 1rem;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.editor-header h3 {
+	color: #64ffda;
+	margin: 0;
+}
+
+.btn-close {
+	background: none;
+	border: none;
+	color: rgba(255, 255, 255, 0.7);
+	font-size: 1.5rem;
+	cursor: pointer;
+	transition: color 0.3s ease;
+}
+
+.btn-close:hover {
+	color: #ffffff;
+}
+
+.editor-content {
+	background: rgba(15, 15, 35, 0.95);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	padding: 2rem;
+	max-width: 800px;
+	width: 90%;
+	max-height: 80vh;
+	overflow-y: auto;
+	backdrop-filter: blur(20px);
+}
+
+.memo-textarea {
+	width: 100%;
+	min-height: 300px;
+	padding: 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.05);
+	color: #ffffff;
+	font-size: 1rem;
+	font-family: 'Inter', sans-serif;
+	resize: vertical;
+	backdrop-filter: blur(10px);
+}
+
+.memo-textarea:focus {
+	outline: none;
+	border-color: #64ffda;
+	box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2);
+}
+
+.editor-actions {
+	display: flex;
+	gap: 1rem;
+	margin-top: 1rem;
+	justify-content: flex-end;
+}
+
+.btn-save, .btn-cancel {
+	padding: 0.75rem 1.5rem;
+	border: none;
+	border-radius: 8px;
+	font-size: 1rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.btn-save {
+	background: rgba(100, 255, 218, 0.2);
+	color: #64ffda;
+	border: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.btn-save:hover {
+	background: rgba(100, 255, 218, 0.3);
+	transform: translateY(-1px);
+}
+
+.btn-cancel {
+	background: rgba(108, 117, 125, 0.2);
+	color: #6c757d;
+	border: 1px solid rgba(108, 117, 125, 0.3);
+}
+
+.btn-cancel:hover {
+	background: rgba(108, 117, 125, 0.3);
+	transform: translateY(-1px);
+}
+
+/* 形式選択ダイアログ */
+.modal-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(0, 0, 0, 0.7);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+	backdrop-filter: blur(10px);
+}
+
+.format-dialog {
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	padding: 2rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	backdrop-filter: blur(10px);
+	max-width: 400px;
+	width: 90%;
+}
+
+/* タイトル入力ダイアログ */
+.title-dialog {
+	background: rgba(255, 255, 255, 0.1);
+	border-radius: 16px;
+	padding: 2rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	backdrop-filter: blur(10px);
+	max-width: 500px;
+	width: 90%;
+}
+
+.title-dialog input {
+	width: 100%;
+	padding: 0.75rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.1);
+	color: #ffffff;
+	font-size: 1rem;
+	backdrop-filter: blur(10px);
+}
+
+.title-dialog input:focus {
+	outline: none;
+	border-color: #64ffda;
+	box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2);
+}
+
+.title-dialog input::placeholder {
+	color: rgba(255, 255, 255, 0.6);
+}
+
+.title-dialog label {
+	display: block;
+	margin-bottom: 0.5rem;
+	color: rgba(255, 255, 255, 0.8);
+	font-weight: 500;
+}
+
+.title-dialog .btn {
+	padding: 0.75rem 1.5rem;
+	border: none;
+	border-radius: 8px;
+	font-size: 1rem;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all 0.3s ease;
+}
+
+.title-dialog .btn-primary {
+	background: rgba(100, 255, 218, 0.2);
+	color: #64ffda;
+	border: 1px solid rgba(100, 255, 218, 0.3);
+}
+
+.title-dialog .btn-primary:hover:not(:disabled) {
+	background: rgba(100, 255, 218, 0.3);
+	transform: translateY(-1px);
+}
+
+.title-dialog .btn-primary:disabled {
+	background: rgba(108, 117, 125, 0.2);
+	color: rgba(255, 255, 255, 0.5);
+	border-color: rgba(108, 117, 125, 0.3);
+	cursor: not-allowed;
+}
+
+.title-dialog .btn-secondary {
+	background: rgba(108, 117, 125, 0.2);
+	color: #6c757d;
+	border: 1px solid rgba(108, 117, 125, 0.3);
+}
+
+.title-dialog .btn-secondary:hover {
+	background: rgba(108, 117, 125, 0.3);
+	transform: translateY(-1px);
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+	.search-input-container {
+		flex-direction: column;
+	}
+	
+	.memo-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 1rem;
+	}
+	
+	.memo-title {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
+	}
+	
+	.memo-actions {
+		width: 100%;
+		justify-content: flex-start;
+	}
+	
+	.memo-meta {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
+	}
+	
+	.memo-dates {
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+	
+	.editor-content {
+		width: 95%;
+		padding: 1rem;
+	}
+	
+	.editor-actions {
+		flex-direction: column;
+	}
+	
+	.title-dialog {
+		width: 95%;
+		padding: 1.5rem;
 	}
 }

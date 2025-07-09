@@ -53,6 +53,32 @@
 		border-radius: 12px;
 	}
 
+	/* ファイル名表示エリア */
+	.memo-filename {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.5rem;
+		padding: 0.5rem 0.75rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.filename-text {
+		font-size: 0.85rem;
+		line-height: 1.4;
+	}
+
+	.extension-text {
+		font-size: 0.8rem;
+	}
+
+	.rename-btn {
+		padding: 0.25rem 0.5rem;
+		font-size: 0.75rem;
+		margin-left: 0;
+		align-self: flex-end;
+		min-height: 32px;
+	}
+
 	/* テキストエリア */
 	.memo-textarea {
 		min-height: 100px;
@@ -76,6 +102,33 @@
 		flex-direction: column;
 		gap: 0.75rem;
 		margin-top: 1rem;
+	}
+
+	/* モーダルダイアログ */
+	.modal-overlay {
+		padding: 1rem;
+	}
+
+	.extension-dialog {
+		padding: 1.5rem;
+		margin: 1rem;
+		border-radius: 12px;
+	}
+
+	.extension-dialog h3 {
+		font-size: 1.2rem;
+		margin-bottom: 1rem;
+	}
+
+	#extension-list {
+		gap: 0.25rem;
+		margin-bottom: 1rem;
+	}
+
+	#extension-list button {
+		padding: 0.4rem 0.8rem;
+		font-size: 0.85rem;
+		min-height: 40px;
 	}
 
 	/* タッチデバイス用の調整 */
@@ -114,6 +167,25 @@
 		padding: 1rem;
 	}
 
+	.memo-filename {
+		padding: 0.5rem;
+		margin-bottom: 0.5rem;
+	}
+
+	.filename-text {
+		font-size: 0.8rem;
+	}
+
+	.extension-text {
+		font-size: 0.75rem;
+	}
+
+	.rename-btn {
+		padding: 0.2rem 0.4rem;
+		font-size: 0.7rem;
+		min-height: 28px;
+	}
+
 	.memo-textarea {
 		padding: 0.5rem;
 		font-size: 16px;
@@ -127,6 +199,21 @@
 
 	section h3 {
 		font-size: 1.2rem;
+	}
+
+	.extension-dialog {
+		padding: 1rem;
+		margin: 0.5rem;
+	}
+
+	.extension-dialog h3 {
+		font-size: 1.1rem;
+	}
+
+	#extension-list button {
+		padding: 0.3rem 0.6rem;
+		font-size: 0.8rem;
+		min-height: 36px;
 	}
 }
 
@@ -153,8 +240,18 @@
 		padding: 1rem;
 	}
 
+	.memo-filename {
+		padding: 0.4rem;
+		margin-bottom: 0.4rem;
+	}
+
 	.memo-textarea {
 		min-height: 80px;
+	}
+
+	.extension-dialog {
+		padding: 1rem;
+		margin: 0.5rem;
 	}
 }
 
@@ -178,6 +275,16 @@
 		padding: 1rem;
 	}
 
+	.memo-filename {
+		flex-direction: row;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.rename-btn {
+		align-self: center;
+	}
+
 	.memo-buttons {
 		flex-direction: row;
 		gap: 0.5rem;
@@ -186,6 +293,22 @@
 	.btn {
 		width: auto;
 		min-width: 80px;
+	}
+
+	.extension-dialog {
+		padding: 1rem;
+		margin: 0.5rem;
+	}
+
+	#extension-list {
+		flex-direction: row;
+		gap: 0.25rem;
+	}
+
+	#extension-list button {
+		padding: 0.3rem 0.6rem;
+		font-size: 0.8rem;
+		min-height: 32px;
 	}
 }
 
@@ -209,6 +332,18 @@
 	.home-link:hover {
 		transform: none;
 	}
+
+	.rename-btn:hover {
+		background: rgba(255, 255, 255, 0.05);
+		border-color: rgba(255, 255, 255, 0.2);
+		color: #8892b0;
+	}
+
+	#extension-list button:hover {
+		background: rgba(100, 255, 218, 0.1);
+		border-color: rgba(100, 255, 218, 0.3);
+		transform: none;
+	}
 }
 
 /* 高解像度ディスプレイ用 */
@@ -217,7 +352,23 @@
 		font-size: 15px;
 	}
 
+	.filename-text {
+		font-size: 0.8rem;
+	}
+
+	.extension-text {
+		font-size: 0.75rem;
+	}
+
 	.btn {
 		font-size: 0.85rem;
+	}
+
+	.rename-btn {
+		font-size: 0.7rem;
+	}
+
+	#extension-list button {
+		font-size: 0.8rem;
 	}
 } 

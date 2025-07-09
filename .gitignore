@@ -24,7 +24,7 @@ docker-compose.override.yml
 # データファイル（プライベート）
 data/**
 DL/
-memo/buf/**
+memo/**
 
 # 機密情報
 users.json
