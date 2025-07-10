@@ -294,7 +294,7 @@ function cd(id){
 }
 
 function remove_prefix(src){
-	const base_dir="/home/elsie/archieve";
+	const base_dir="/home/elsie/archive";
 	let p='.';
 	for(i=base_dir.length;i<src.length;++i)
 		p=p+=src[i];
