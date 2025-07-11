@@ -92,6 +92,7 @@ inline MemoData load_memo_data(const string& file_path) {
     MemoData memo;
     ifstream ifs(file_path);
     if (ifs) {
+        memo.path = file_path;
         string json_str{istreambuf_iterator<char>(ifs), istreambuf_iterator<char>()};
         auto json_data = crow::json::load(json_str);
         if (json_data) {
@@ -120,10 +121,6 @@ inline MemoData load_memo_data(const string& file_path) {
             if (json_data.has("updated_at")) {
                 memo.updated_at = json_data["updated_at"].s();
             }
-            // パスを読み込み
-            if (json_data.has("path")) {
-                memo.path = json_data["path"].s();
-            }
         }
     }
     return memo;
@@ -149,7 +146,6 @@ inline bool save_memo_data(const string& file_path, const MemoData& memo) {
     // 日時を保存
     json_data["created_at"] = memo.created_at;
     json_data["updated_at"] = memo.updated_at;
-    json_data["path"] = memo.path; // パスも保存
     
     ofstream ofs(file_path);
     if (!ofs) {
@@ -270,7 +266,6 @@ inline crow::response memo_fetch_all(const crow::request &req) {
                 x["tag"] = crow::json::wvalue::list(memo.tag.begin(), memo.tag.end());
                 x["created_at"] = memo.created_at;
                 x["updated_at"] = memo.updated_at;
-                x["path"] = memo.path;
                 v.push_back(std::move(x));
             }
         }
@@ -306,6 +301,7 @@ inline crow::response memo_search(const crow::request &req) {
         for (const auto &file : filesystem::directory_iterator(user_path)) {
             filesystem::path path = file.path();
             if (path.extension().string() == ".json") {
+                // メモデータを読み込み
                 MemoData memo = load_memo_data(path.string());
                 if (size_t idx = 0;RETRIEVE::parse_query(idx, memo, query)) {
                     string filename = path.filename().string();
@@ -318,7 +314,6 @@ inline crow::response memo_search(const crow::request &req) {
                     x["tag"] = crow::json::wvalue::list(memo.tag.begin(), memo.tag.end());
                     x["created_at"] = memo.created_at;
                     x["updated_at"] = memo.updated_at;
-                    x["path"] = memo.path;
                     v.push_back(std::move(x));
                 }
             }
@@ -393,7 +388,7 @@ inline crow::response memo_create_new(const crow::request &req) {
     memo.format = format;
     memo.created_at = timestamp;
     memo.updated_at = timestamp;
-    memo.path = file_path; // パスを設定
+    memo.path = file_path;
     
     // JSONファイルとして保存
     if (!save_memo_data(file_path, memo)) {
@@ -411,7 +406,6 @@ inline crow::response memo_create_new(const crow::request &req) {
     ret["data"] = "";
     ret["created_at"] = timestamp;
     ret["updated_at"] = timestamp;
-    ret["path"] = memo.path;
     return crow::response(200, std::move(ret));
 }
 
@@ -517,7 +511,6 @@ inline crow::response memo_now(const crow::request& req) {
     ret["data"] = memo.data;
     ret["created_at"] = memo.created_at;
     ret["updated_at"] = memo.updated_at;
-    ret["path"] = memo.path;
     return crow::response(ret);
 }
 
@@ -835,7 +828,7 @@ inline crow::response memo_create_with_title(const crow::request &req) {
     memo.format = format;
     memo.created_at = timestamp;
     memo.updated_at = timestamp;
-    memo.path = file_path; // パスを設定
+    memo.path = file_path;
     
     // JSONファイルとして保存
     if (!save_memo_data(file_path, memo)) {
@@ -853,7 +846,6 @@ inline crow::response memo_create_with_title(const crow::request &req) {
     ret["data"] = "";
     ret["created_at"] = timestamp;
     ret["updated_at"] = timestamp;
-    ret["path"] = memo.path;
     return crow::response(200, std::move(ret));
 }
 
