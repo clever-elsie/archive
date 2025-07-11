@@ -218,14 +218,14 @@ inline bool matches_search_query(const string& query, const string& title, const
 }
 
 inline crow::response memo_fetch_all(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -271,14 +271,14 @@ inline crow::response memo_fetch_all(const crow::request &req) {
 }
 
 inline crow::response memo_search(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -323,14 +323,14 @@ inline crow::response memo_search(const crow::request &req) {
 }
 
 inline crow::response memo_create_new(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -408,14 +408,14 @@ inline crow::response memo_create_new(const crow::request &req) {
 }
 
 inline crow::response memo_renew(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -462,14 +462,14 @@ inline crow::response memo_renew(const crow::request &req) {
 }
 
 inline crow::response memo_now(const crow::request& req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -513,14 +513,14 @@ inline crow::response memo_now(const crow::request& req) {
 }
 
 inline crow::response memo_rm(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -557,14 +557,14 @@ inline crow::response memo_rm(const crow::request &req) {
 }
 
 inline crow::response memo_rename(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -620,14 +620,14 @@ inline crow::response memo_rename(const crow::request &req) {
 }
 
 inline crow::response memo_update_tags(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -681,8 +681,8 @@ inline crow::response memo_update_tags(const crow::request &req) {
 }
 
 inline crow::response memo_get_formats(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
@@ -699,14 +699,14 @@ inline crow::response memo_get_formats(const crow::request &req) {
 }
 
 inline crow::response memo_check_title(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";
@@ -746,14 +746,14 @@ inline crow::response memo_check_title(const crow::request &req) {
 }
 
 inline crow::response memo_create_with_title(const crow::request &req) {
-    string session_id = MIDDLEWARE::extract_session_id(req);
-    if (session_id.empty() || !AUTH::validate_session(session_id)) {
+    string token = MIDDLEWARE::extract_token(req);
+    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
         crow::json::wvalue error_response;
         error_response["error"] = "認証が必要です";
         return crow::response(401, error_response);
     }
     
-    string username = AUTH::get_username_from_session(session_id);
+    string username = AUTH::get_username_from_token(token);
     if (username.empty()) {
         crow::json::wvalue error_response;
         error_response["error"] = "ユーザー情報が取得できません";

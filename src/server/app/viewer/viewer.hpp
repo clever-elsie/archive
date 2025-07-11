@@ -133,14 +133,14 @@ inline string rel_join(const string&dir){
 
 inline crow::response reload_leaf(const crow::request&req){
 	// 管理者権限チェック
-	string session_id = MIDDLEWARE::extract_session_id(req);
-	if (session_id.empty() || !AUTH::validate_session(session_id)) {
+	string token = MIDDLEWARE::extract_token(req);
+	if (token.empty() || !AUTH::validate_token_wrapper(token)) {
 		crow::json::wvalue error_response;
 		error_response["error"] = "認証が必要です";
 		return crow::response(401, error_response);
 	}
 	
-	string username = AUTH::get_username_from_session(session_id);
+	string username = AUTH::get_username_from_token(token);
 	if (!USER_MANAGER::user_manager.is_admin(username)) {
 		crow::json::wvalue error_response;
 		error_response["error"] = "管理者権限が必要です";
@@ -311,13 +311,13 @@ inline crow::json::wvalue get_dir_list(const crow::request&req){
 }
 
 inline crow::response info_renew(const crow::request&req){
-	string session_id = MIDDLEWARE::extract_session_id(req);
-	if (session_id.empty() || !AUTH::validate_session(session_id)) {
+	string token = MIDDLEWARE::extract_token(req);
+	if (token.empty() || !AUTH::validate_token_wrapper(token)) {
 		crow::json::wvalue error_response;
 		error_response["error"] = "認証が必要です";
 		return crow::response(401, error_response);
 	}
-	string username = AUTH::get_username_from_session(session_id);
+	string username = AUTH::get_username_from_token(token);
 	if (!USER_MANAGER::user_manager.is_admin(username)) {
 		crow::json::wvalue error_response;
 		error_response["error"] = "管理者権限が必要です";

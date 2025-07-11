@@ -22,14 +22,15 @@ set(SOURCES
 
 # ヘッダーファイル
 set(HEADERS
-    src/server/auth.hpp
-    src/server/middleware.hpp
-    src/server/user_manager.hpp
-    src/server/user_api.hpp
-    src/server/user_routes.hpp
-    src/server/viewer.hpp
-    src/server/memo.hpp
-    src/server/config.hpp
+    src/server/manager/auth/auth.hpp
+    src/server/manager/auth/middleware.hpp
+    src/server/manager/auth/jwt.hpp
+    src/server/manager/users/user_manager.hpp
+    src/server/manager/users/user_api.hpp
+    src/server/manager/users/user_routes.hpp
+    src/server/app/viewer/viewer.hpp
+    src/server/app/memo/memo.hpp
+    src/server/manager/config.hpp
     src/server/headers.hpp
     src/server/server_systemd.hpp
 )

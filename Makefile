@@ -15,7 +15,7 @@ VIEWER_HDRS=$(SRCDIR)/app/viewer/viewer.hpp $(SRCDIR)/app/viewer/viewer_routes.h
 APP_HDRS=$(MEMO_HDRS) $(VIEWER_HDRS)
 
 CONFIG_HDRS=$(SRCDIR)/manager/config.hpp
-AUTH_HDRS=$(SRCDIR)/manager/auth/auth.hpp $(SRCDIR)/manager/auth/auth_routes.hpp $(SRCDIR)/manager/auth/middleware.hpp
+AUTH_HDRS=$(SRCDIR)/manager/auth/auth.hpp $(SRCDIR)/manager/auth/auth_routes.hpp $(SRCDIR)/manager/auth/middleware.hpp $(SRCDIR)/manager/auth/jwt.hpp
 USER_HDRS=$(SRCDIR)/manager/users/user_manager.hpp $(SRCDIR)/manager/users/user_api.hpp $(SRCDIR)/manager/users/user_routes.hpp
 MANAGER_HDRS=$(CONFIG_HDRS) $(AUTH_HDRS) $(USER_HDRS)
 

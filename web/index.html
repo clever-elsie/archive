@@ -535,14 +535,13 @@
 	</main>
 
 	<script>
-	let sessionId = localStorage.getItem('sessionId');
-	let csrfToken = localStorage.getItem('csrfToken');
+	let token = localStorage.getItem('token');
 	let username = localStorage.getItem('username');
 	let isFirstUser = false;
 
 	window.onload = async function() {
 		const first = await checkFirstUser();
-		if (sessionId) {
+		if (token) {
 			checkAuth();
 		} else {
 			showLoginForm(first);
@@ -645,11 +644,9 @@
 			});
 			const data = await response.json();
 			if (data.success) {
-				sessionId = data.session_id;
-				csrfToken = data.csrf_token;
+				token = data.token;
 				username = data.username;
-				localStorage.setItem('sessionId', sessionId);
-				localStorage.setItem('csrfToken', csrfToken);
+				localStorage.setItem('token', token);
 				localStorage.setItem('username', username);
 				messageDiv.innerHTML = '<div class="message success-message">ログインに成功しました</div>';
 				setTimeout(() => {
@@ -673,11 +670,9 @@
 			});
 			const data = await response.json();
 			if (data.success) {
-				sessionId = data.session_id;
-				csrfToken = data.csrf_token;
+				token = data.token;
 				username = data.username;
-				localStorage.setItem('sessionId', sessionId);
-				localStorage.setItem('csrfToken', csrfToken);
+				localStorage.setItem('token', token);
 				localStorage.setItem('username', username);
 				showMainContent();
 			} else {
@@ -696,7 +691,7 @@
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ session_id: sessionId })
+				body: JSON.stringify({ token: token })
 			});
 
 			const data = await response.json();
@@ -706,20 +701,16 @@
 				localStorage.setItem('username', username);
 				showMainContent();
 			} else {
-				localStorage.removeItem('sessionId');
-				localStorage.removeItem('csrfToken');
+				localStorage.removeItem('token');
 				localStorage.removeItem('username');
-				sessionId = null;
-				csrfToken = null;
+				token = null;
 				username = null;
 				showLoginForm();
 			}
 		} catch (error) {
-			localStorage.removeItem('sessionId');
-			localStorage.removeItem('csrfToken');
+			localStorage.removeItem('token');
 			localStorage.removeItem('username');
-			sessionId = null;
-			csrfToken = null;
+			token = null;
 			username = null;
 			showLoginForm();
 		}
@@ -733,17 +724,15 @@
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ session_id: sessionId })
+				body: JSON.stringify({ token: token })
 			});
 		} catch (error) {
 			// エラーは無視
 		}
 		
-		localStorage.removeItem('sessionId');
-		localStorage.removeItem('csrfToken');
+		localStorage.removeItem('token');
 		localStorage.removeItem('username');
-		sessionId = null;
-		csrfToken = null;
+		token = null;
 		username = null;
 		showLoginForm();
 	}

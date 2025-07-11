@@ -17,7 +17,8 @@ inline bool requires_auth(const string& path) {
         "/req/auth/login",
         "/req/auth/check",
         "/req/user/check_first",
-        "/req/user/register"
+        "/req/user/register",
+        "/req/user/permissions"
     };
     
     // HTMLファイルのパス
@@ -34,43 +35,26 @@ inline bool requires_auth(const string& path) {
     return true;
 }
 
-// リクエストからセッションIDを抽出
-inline string extract_session_id(const crow::request& req) {
-    // ヘッダーからセッションIDを取得
-    auto session_header = req.get_header_value("X-Session-ID");
-    if (!session_header.empty()) {
-        return session_header;
+// リクエストからJWTトークンを抽出
+inline string extract_token(const crow::request& req) {
+    // ヘッダーからJWTトークンを取得
+    auto auth_header = req.get_header_value("Authorization");
+    if (!auth_header.empty() && auth_header.substr(0, 7) == "Bearer ") {
+        return auth_header.substr(7);
     }
     
-    // JSONボディからセッションIDを取得（POSTリクエストの場合）
+    // ヘッダーからトークンを取得（旧形式との互換性）
+    auto token_header = req.get_header_value("X-Token");
+    if (!token_header.empty()) {
+        return token_header;
+    }
+    
+    // JSONボディからトークンを取得（POSTリクエストの場合）
     if (req.method == crow::HTTPMethod::POST && !req.body.empty()) {
         try {
             auto data = crow::json::load(req.body);
-            if (data.has("session_id")) {
-                return data["session_id"].s();
-            }
-        } catch (...) {
-            // JSONパースエラーは無視
-        }
-    }
-    
-    return "";
-}
-
-// リクエストからCSRFトークンを抽出
-inline string extract_csrf_token(const crow::request& req) {
-    // ヘッダーからCSRFトークンを取得
-    auto csrf_header = req.get_header_value("X-CSRF-Token");
-    if (!csrf_header.empty()) {
-        return csrf_header;
-    }
-    
-    // JSONボディからCSRFトークンを取得（POSTリクエストの場合）
-    if (req.method == crow::HTTPMethod::POST && !req.body.empty()) {
-        try {
-            auto data = crow::json::load(req.body);
-            if (data.has("csrf_token")) {
-                return data["csrf_token"].s();
+            if (data.has("token")) {
+                return data["token"].s();
             }
         } catch (...) {
             // JSONパースエラーは無視
@@ -135,11 +119,11 @@ struct AuthMiddleware {
             return;
         }
         
-        // セッションIDを抽出
-        string session_id = extract_session_id(req);
+        // JWTトークンを抽出
+        string token = extract_token(req);
         
-        // セッションIDが空または無効な場合
-        if (session_id.empty() || !AUTH::validate_session(session_id)) {
+        // トークンが空または無効な場合
+        if (token.empty() || !AUTH::validate_token_wrapper(token)) {
             crow::json::wvalue error_response;
             error_response["error"] = "認証が必要です";
             error_response["code"] = "AUTH_REQUIRED";
@@ -147,22 +131,6 @@ struct AuthMiddleware {
             res = crow::response(401, error_response);
             res.end();
             return;
-        }
-        
-        // CSRF検証が必要な場合
-        if (requires_csrf_validation(path, req.method)) {
-            string csrf_token = extract_csrf_token(req);
-            
-            // CSRFトークンが空または無効な場合
-            if (csrf_token.empty() || !AUTH::validate_csrf_token(session_id, csrf_token)) {
-                crow::json::wvalue error_response;
-                error_response["error"] = "CSRFトークンが無効です";
-                error_response["code"] = "CSRF_INVALID";
-                
-                res = crow::response(403, error_response);
-                res.end();
-                return;
-            }
         }
     }
     

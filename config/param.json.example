@@ -3,6 +3,7 @@
   "SERVER_PORT": 3000,
   "SSL_CERT_PATH": "/etc/nginx/ssl/s.crt",
   "SSL_KEY_PATH": "/etc/nginx/ssl/s.key",
+  "JWT_SECRET_KEY": "your-super-secret-jwt-key-change-this-in-production",
   "IS_DEVELOPMENT": true,
   "ALLOWED_ORIGINS": [
     "https://192.168.10.108:443",
@@ -16,14 +17,15 @@
     "https://127.0.0.1:8080"
   ],
   "ALLOWED_METHODS": "GET, POST, OPTIONS",
-  "ALLOWED_HEADERS": "Content-Type, X-Session-ID, X-CSRF-Token"
+  "ALLOWED_HEADERS": "Content-Type, Authorization, X-Token, X-CSRF-Token"
 }
 
 # 設定項目の説明:
-# SESSION_TIMEOUT_MINUTES: セッションタイムアウト時間（分）
+# SESSION_TIMEOUT_MINUTES: JWTトークンの有効期限（分）
 # SERVER_PORT: サーバーのポート番号
 # SSL_CERT_PATH: SSL証明書のパス
 # SSL_KEY_PATH: SSL秘密鍵のパス
+# JWT_SECRET_KEY: JWTトークンの署名に使用する秘密鍵（本番環境では必ず変更してください）
 # IS_DEVELOPMENT: 開発環境フラグ（true: 開発環境, false: 本番環境）
 # ALLOWED_ORIGINS: CORSで許可するオリジンのリスト
 # ALLOWED_METHODS: CORSで許可するHTTPメソッド（カンマ区切り）
@@ -32,4 +34,5 @@
 # 本番環境では以下を設定してください:
 # - IS_DEVELOPMENT: false
 # - ALLOWED_ORIGINS: 実際のドメインのみ
-# - SSL_CERT_PATH, SSL_KEY_PATH: 実際の証明書パス 
+# - SSL_CERT_PATH, SSL_KEY_PATH: 実際の証明書パス
+# - JWT_SECRET_KEY: 強力な秘密鍵に変更 

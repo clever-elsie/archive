@@ -1,6 +1,7 @@
 #pragma once
 #include "../../headers.hpp"
 #include "user_manager.hpp"
+#include "../auth/middleware.hpp"
 #include <sstream>
 
 using namespace std;
@@ -186,14 +187,24 @@ inline crow::response check_first_user(const crow::request& req) {
 // ユーザー権限確認API
 inline crow::response get_user_permissions(const crow::request& req) {
     try {
-        auto data = crow::json::load(req.body);
-        string username = data["username"].s();
-        
+        string token = MIDDLEWARE::extract_token(req);
+        if (token.empty() || !AUTH::validate_token_wrapper(token)) {
+            crow::json::wvalue response;
+            response["success"] = false;
+            response["message"] = "認証が必要です";
+            return crow::response(401, response);
+        }
+        string username = AUTH::get_username_from_token(token);
+        if (username.empty()) {
+            crow::json::wvalue response;
+            response["success"] = false;
+            response["message"] = "ユーザー情報が取得できません";
+            return crow::response(400, response);
+        }
         bool is_admin = USER_MANAGER::user_manager.is_admin(username);
         bool can_register_admin = USER_MANAGER::user_manager.can_register_admin(username);
         bool can_register_user = USER_MANAGER::user_manager.can_register_user(username);
         bool can_manage_users = USER_MANAGER::user_manager.can_manage_users(username);
-        
         crow::json::wvalue response;
         response["success"] = true;
         response["username"] = username;
@@ -201,7 +212,6 @@ inline crow::response get_user_permissions(const crow::request& req) {
         response["can_register_admin"] = can_register_admin;
         response["can_register_user"] = can_register_user;
         response["can_manage_users"] = can_manage_users;
-        
         return crow::response(response);
     } catch (const std::exception& e) {
         crow::json::wvalue response;

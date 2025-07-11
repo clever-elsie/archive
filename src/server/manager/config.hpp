@@ -13,6 +13,7 @@ namespace CONFIG {
     int SERVER_PORT;
     std::string SSL_CERT_PATH;
     std::string SSL_KEY_PATH;
+    std::string JWT_SECRET_KEY;
     bool IS_DEVELOPMENT;
     std::vector<std::string> ALLOWED_ORIGINS;
     std::string ALLOWED_METHODS;
@@ -46,6 +47,7 @@ namespace CONFIG {
       params.SERVER_PORT = data["SERVER_PORT"].i();
       params.SSL_CERT_PATH = data["SSL_CERT_PATH"].s();
       params.SSL_KEY_PATH = data["SSL_KEY_PATH"].s();
+      params.JWT_SECRET_KEY = data["JWT_SECRET_KEY"].s();
       params.IS_DEVELOPMENT = data["IS_DEVELOPMENT"].b();
       
       // ALLOWED_ORIGINS配列を読み込み

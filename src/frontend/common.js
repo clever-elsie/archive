@@ -4,38 +4,31 @@
 
 let userPermissions = null; // ユーザー権限
 
-function getSessionId() { // セッションIDを取得
-  return localStorage.getItem('sessionId');
-}
-
-function getCsrfToken() { // CSRFトークンを取得
-  return localStorage.getItem('csrfToken');
+function getToken() { // JWTトークンを取得
+  return localStorage.getItem('token');
 }
 
 // 認証ヘッダー付きのfetch関数
 async function authenticatedFetch(url, options = {}) {
-  const sessionId = getSessionId();
-  const csrfToken = getCsrfToken();
-  if (!sessionId) { // セッションIDがない場合はログインページにリダイレクト
+  const token = getToken();
+  if (!token) { // トークンがない場合はログインページにリダイレクト
     window.location.href = '/web/index.html';
     return;
   }
-  const headers = { // ヘッダーにセッションIDとCSRFトークンを追加
+  const headers = { // ヘッダーにJWTトークンを追加
     'Content-Type': 'application/json',
-    'X-Session-ID': sessionId,
-    'X-CSRF-Token': csrfToken,
+    'Authorization': `Bearer ${token}`,
     ...options.headers
   };
-  // リクエストボディにセッションIDとCSRFトークンを追加（POSTリクエストの場合）
+  // リクエストボディにトークンを追加（POSTリクエストの場合）
   if (options.body && typeof options.body === 'string') {
     try {
       const bodyObj = JSON.parse(options.body);
-      bodyObj.session_id = sessionId;
-      bodyObj.csrf_token = csrfToken;
+      bodyObj.token = token;
       options.body = JSON.stringify(bodyObj);
     } catch (e) {
       // JSONパースエラーの場合は新しいオブジェクトを作成
-      const bodyObj = { session_id: sessionId, csrf_token: csrfToken };
+      const bodyObj = { token: token };
       if (options.body) {
         try {
           Object.assign(bodyObj, JSON.parse(options.body));
@@ -47,8 +40,8 @@ async function authenticatedFetch(url, options = {}) {
       options.body = JSON.stringify(bodyObj);
     }
   } else if (options.method === 'POST') {
-    // POSTリクエストでボディがない場合はセッションIDとCSRFトークンを送信
-    options.body = JSON.stringify({ session_id: sessionId, csrf_token: csrfToken });
+    // POSTリクエストでボディがない場合はトークンを送信
+    options.body = JSON.stringify({ token: token });
   }
   try {
     const response = await fetch(url, {
@@ -57,8 +50,7 @@ async function authenticatedFetch(url, options = {}) {
     });
     // 認証エラーの場合はログインページにリダイレクト
     if (response.status === 401) {
-      localStorage.removeItem('sessionId');
-      localStorage.removeItem('csrfToken');
+      localStorage.removeItem('token');
       window.location.href = '/web/index.html';
       return;
     }
@@ -71,11 +63,8 @@ async function authenticatedFetch(url, options = {}) {
 
 async function checkUserPermissions() {
   try {
-    const username = localStorage.getItem('username');
-    if (!username) return null;
     const response = await authenticatedFetch('/req/user/permissions', {
-      method: 'POST',
-      body: JSON.stringify({ username: username })
+      method: 'POST'
     });
     if (response && response.ok) {
       const data = await response.json();

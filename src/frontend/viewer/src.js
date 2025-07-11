@@ -207,8 +207,10 @@ function media_class(src){
 
 // ディレクトリ操作
 let par_id=0,cur_id=0;
-function cd(id){
-	event.preventDefault();
+function cd(eventOrIndex) {
+	if (typeof eventOrIndex === 'object' && eventOrIndex !== null && typeof eventOrIndex.preventDefault === 'function') {
+		eventOrIndex.preventDefault();
+	}
 	let par = document.getElementById('thumbnailContainer');
 	par.innerHTML='';
 	document.getElementById('jmpControll').innerHTML='';
@@ -223,7 +225,7 @@ function cd(id){
 	
 	authenticatedFetch("/req/img/dir_access",{
 		method:'POST',
-		body:JSON.stringify({ 'id':id, })
+		body:JSON.stringify({ 'id':eventOrIndex, })
 	})
 	.then(response=>response.json())
 	.then(data=>{
