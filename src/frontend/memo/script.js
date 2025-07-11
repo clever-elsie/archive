@@ -18,16 +18,16 @@ function updateMemoCounter() {
 }
 
 // メモ一覧アイテムを作成
-function add_memo_item(filename, stem, tags = [], format = "txt", created_at = "", updated_at = "") {
+function add_memo_item(filename, stem, tag = [], format = "txt", created_at = "", updated_at = "") {
 	// メモアイテムコンテナを作成
 	const memoItem = document.createElement('div');
 	memoItem.className = 'memo-item';
 	memoItem.dataset.filename = stem;
 	
 	// タグ表示用のHTMLを作成
-	let tagsHtml = '';
-	if (tags && tags.length > 0) {
-		tagsHtml = tags.map(tag => `<span class="tag">${tag}</span>`).join('');
+	let tagHtml = '';
+	if (tag && tag.length > 0) {
+		tagHtml = tag.map(t => `<span class="tag">${t}</span>`).join('');
 	}
 	
 	// 日時フォーマット
@@ -45,7 +45,7 @@ function add_memo_item(filename, stem, tags = [], format = "txt", created_at = "
 					<button class="btn-edit" onclick="edit_memo('${filename}')">
 						<i class="fas fa-edit"></i> 編集
 					</button>
-					<button class="btn-tags" onclick="edit_tags('${filename}', ${JSON.stringify(tags).replace(/"/g, '&quot;')})">
+					<button class="btn-tags" onclick="edit_tags('${filename}', ${JSON.stringify(tag).replace(/"/g, '&quot;')})">
 						<i class="fas fa-tags"></i> タグ
 					</button>
 					<button class="btn-rename" onclick="rename_memo('${filename}', '${stem}')">
@@ -57,7 +57,7 @@ function add_memo_item(filename, stem, tags = [], format = "txt", created_at = "
 				</div>
 			</div>
 			<div class="memo-meta">
-				<div class="memo-tags">${tagsHtml}</div>
+				<div class="memo-tags">${tagHtml}</div>
 				<div class="memo-dates">
 					<span class="created-date">作成: ${formatDate(created_at)}</span>
 					<span class="updated-date">更新: ${formatDate(updated_at)}</span>
@@ -163,27 +163,27 @@ function save_memo(filename) {
 }
 
 // タグ編集ダイアログを表示
-function edit_tags(filename, currentTags) {
-	const tags = currentTags || [];
-	const tagsStr = tags.join(', ');
+function edit_tags(filename, currentTag) {
+	const tag = currentTag || [];
+	const tagStr = tag.join(', ');
 	
-	const newTagsStr = prompt('タグをカンマ区切りで入力してください:', tagsStr);
-	if (newTagsStr === null) return;
+	const newTagStr = prompt('タグをカンマ区切りで入力してください:', tagStr);
+	if (newTagStr === null) return;
 	
-	const newTags = newTagsStr.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0);
+	const newTag = newTagStr.split(',').map(t => t.trim()).filter(t => t.length > 0);
 	
 	authenticatedFetch('/req/memo/update_tags', {
 		method: 'POST',
 		body: JSON.stringify({ 
 			"filename": filename, 
-			"tags": newTags 
+			"tag": newTag 
 		})
 	})
 	.then(response => {
 		if (response.ok) {
 			showSuccess('タグを更新しました');
 			// メモ一覧を再読み込み
-			loadMemos();
+			fetch_server();
 		} else {
 			throw new Error('タグの更新に失敗しました');
 		}
@@ -200,7 +200,7 @@ function fetch_server() {
 		.then(response => response.json())
 		.then(data => {
 			data.forEach(item => {
-				add_memo_item(item.filename, item.stem, item.tags || [], item.format || "txt", item.created_at, item.updated_at);
+				add_memo_item(item.filename, item.stem, item.tag || [], item.format || "txt", item.created_at, item.updated_at);
 			});
 		})
 		.catch(error => {
@@ -231,7 +231,7 @@ function search_memos() {
 	.then(response => response.json())
 	.then(data => {
 		data.forEach(item => {
-			add_memo_item(item.filename, item.stem, item.tags || [], item.format || "txt", item.created_at, item.updated_at);
+			add_memo_item(item.filename, item.stem, item.tag || [], item.format || "txt", item.created_at, item.updated_at);
 		});
 	})
 	.catch(error => {
@@ -316,7 +316,7 @@ function showTitleDialog(format) {
 	document.body.appendChild(modal);
 	
 	const titleInput = document.getElementById('title-input');
-	const tagsInput = document.getElementById('tags-input');
+	const tagInput = document.getElementById('tags-input');
 	const titleStatus = document.getElementById('title-status');
 	const createBtn = document.getElementById('create-btn');
 	
@@ -356,21 +356,21 @@ function showTitleDialog(format) {
 	// 作成ボタンの処理
 	createBtn.addEventListener('click', () => {
 		const title = titleInput.value.trim();
-		const tagsStr = tagsInput.value.trim();
+		const tagStr = tagInput.value.trim();
 		
 		if (!title) {
 			showError('タイトルを入力してください');
 			return;
 		}
 		
-		const tags = tagsStr ? tagsStr.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [];
+		const tag = tagStr ? tagStr.split(',').map(t => t.trim()).filter(t => t.length > 0) : [];
 		
 		// メモ作成
 		authenticatedFetch('/req/memo/create_with_title', {
 			method: 'POST',
 			body: JSON.stringify({ 
 				"title": title,
-				"tags": tags,
+				"tag": tag,
 				"format": format
 			})
 		})
@@ -384,7 +384,7 @@ function showTitleDialog(format) {
 		})
 		.then(data => {
 			// 新しいメモアイテムを追加
-			add_memo_item(data.filename, data.stem, data.tags || [], data.format || "txt", data.created_at, data.updated_at);
+			add_memo_item(data.filename, data.stem, data.tag || [], data.format || "txt", data.created_at, data.updated_at);
 			showSuccess('新しいメモを作成しました');
 			document.body.removeChild(modal);
 		})
@@ -413,7 +413,7 @@ function showTitleDialog(format) {
 		}
 	});
 	
-	tagsInput.addEventListener('keypress', (e) => {
+	tagInput.addEventListener('keypress', (e) => {
 		if (e.key === 'Enter' && !createBtn.disabled) {
 			createBtn.click();
 		}
@@ -511,20 +511,20 @@ function showFormatDialog() {
 
 // 新しいメモを作成（旧バージョン - 後方互換性のため残す）
 function createNewMemo(format) {
-	const tagsStr = prompt('タグをカンマ区切りで入力してください（省略可）:');
-	const tags = tagsStr ? tagsStr.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [];
+	const tagStr = prompt('タグをカンマ区切りで入力してください（省略可）:');
+	const tag = tagStr ? tagStr.split(',').map(t => t.trim()).filter(t => t.length > 0) : [];
 	
 	authenticatedFetch('/req/memo/create', {
 		method: 'POST',
 		body: JSON.stringify({ 
-			"tags": tags,
+			"tag": tag,
 			"format": format
 		})
 	})
 	.then(response => response.json())
 	.then(data => {
 		// 新しいメモアイテムを追加
-		add_memo_item(data.filename, data.stem, data.tags || [], data.format || "txt", data.created_at, data.updated_at);
+		add_memo_item(data.filename, data.stem, data.tag || [], data.format || "txt", data.created_at, data.updated_at);
 		showSuccess('新しいメモを作成しました');
 	})
 	.catch(error => {
@@ -605,7 +605,7 @@ function rename_memo(old_filename, old_stem) {
 		.then(response => response.json())
 		.then(memoData => {
 			// 新しいメモアイテムを作成
-			add_memo_item(data.new_filename, data.new_stem, memoData.tags || [], memoData.format || "txt", memoData.created_at, memoData.updated_at);
+			add_memo_item(data.new_filename, data.new_stem, memoData.tag || [], memoData.format || "txt", memoData.created_at, memoData.updated_at);
 			showSuccess('メモの名前を変更しました');
 		})
 		.catch(error => {

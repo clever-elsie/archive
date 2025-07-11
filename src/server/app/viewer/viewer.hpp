@@ -3,7 +3,7 @@
 #include "../../manager/auth/middleware.hpp"
 #include "../../manager/auth/auth.hpp"
 #include "../../manager/users/user_manager.hpp"
-#include <ranges>
+#include "../retrieve.hpp"
 
 namespace VIEWER{
 using namespace std;
@@ -207,56 +207,13 @@ inline crow::json::wvalue get_imgs(const crow::request&req){
 	return crow::json::wvalue(ret);
 }
 
-// return not views_size, but offset to next token head
-inline pair<size_t,string> get_token(size_t idx,const string&s){
-	size_t cnt=0;
-	string ret;
-	bool token=true;
-	for(const auto&x:s|views::drop(idx)){
-		if(token){
-			if(x==' ') token=false;
-			else if(x=='('||x==')'||x=='!')break;
-			else ret.push_back(x);
-		}else if(x!=' ')break;
-		++cnt;
-	}
-	return{cnt,ret};
-}
-
-template<bool or_exp=false>
-inline bool parse_query(size_t&idx,const Info&tar,const string&s){
-	bool nx_not=false;
-	while(idx<s.size()){
-		if(s[idx]=='!'){
-			nx_not=!nx_not;
-			++idx;
-			continue;
-		}
-		bool r;
-		switch(s[idx]){
-			case '(': r=parse_query<!or_exp>(++idx,tar,s); break;
-			case ')': ++idx;return !or_exp;
-			default:{
-				auto[cnt,token]=get_token(idx,s);
-				idx+=cnt;
-				r=tar.tag.contains(token)||tar.path.contains(token);
-			}break;
-		}
-		if(nx_not) r=!r;
-		if constexpr(or_exp){
-			if(r) return true;
-		}else{ if(!r) return false; }
-	}
-	return !or_exp;
-}
-
 inline crow::json::wvalue retrieve_query(const crow::request& req){
 	lock_guard<mutex> lock(imtex);
 	const string querys = crow::json::load(req.body).s();
 	crow::json::wvalue::list ret;
 	vector<Info*>dirs;
 	for(auto const &dir:leaf_dirs)
-		if(size_t idx=0;parse_query(idx,*dir,querys))
+		if(size_t idx=0;RETRIEVE::parse_query(idx,*dir,querys))
 			dirs.push_back(dir);
 	sort(dirs.begin(),dirs.end(),[](const Info*a,const Info*b){
 		return a->path<b->path;

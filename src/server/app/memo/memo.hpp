@@ -1,8 +1,10 @@
 #pragma once
 #include "../../headers.hpp"
 #include "../../manager/auth/auth.hpp"
-#include <algorithm>
+#include "../retrieve.hpp"
+#include <set>
 #include <cctype>
+#include <algorithm>
 
 namespace MEMO{
 using namespace std;
@@ -18,11 +20,12 @@ inline vector<string> supported_formats = {"md", "txt", "json"};
 
 // メモのJSON構造
 struct MemoData {
-    vector<string> tags;
+    set<string> tag;
     string data;
     string format;  // "md", "txt", "json"のいずれか
     string created_at;
     string updated_at;
+    string path; // 追加: メモのファイルパス
 };
 
 // ユーザーのメモディレクトリパスを取得
@@ -93,10 +96,10 @@ inline MemoData load_memo_data(const string& file_path) {
         auto json_data = crow::json::load(json_str);
         if (json_data) {
             // タグを読み込み
-            if (json_data.has("tags")) {
-                auto tags_array = json_data["tags"];
-                for (size_t i = 0; i < tags_array.size(); i++) {
-                    memo.tags.push_back(tags_array[i].s());
+            if (json_data.has("tag")) {
+                auto tag_array = json_data["tag"];
+                for (size_t i = 0; i < tag_array.size(); i++) {
+                    memo.tag.insert(tag_array[i].s());
                 }
             }
             // データを読み込み
@@ -117,6 +120,10 @@ inline MemoData load_memo_data(const string& file_path) {
             if (json_data.has("updated_at")) {
                 memo.updated_at = json_data["updated_at"].s();
             }
+            // パスを読み込み
+            if (json_data.has("path")) {
+                memo.path = json_data["path"].s();
+            }
         }
     }
     return memo;
@@ -127,11 +134,11 @@ inline bool save_memo_data(const string& file_path, const MemoData& memo) {
     crow::json::wvalue json_data;
     
     // タグを保存
-    crow::json::wvalue::list tags_list;
-    for (const auto& tag : memo.tags) {
-        tags_list.push_back(tag);
+    crow::json::wvalue::list tag_list;
+    for (const auto& t : memo.tag) {
+        tag_list.push_back(t);
     }
-    json_data["tags"] = std::move(tags_list);
+    json_data["tag"] = std::move(tag_list);
     
     // データを保存
     json_data["data"] = memo.data;
@@ -142,6 +149,7 @@ inline bool save_memo_data(const string& file_path, const MemoData& memo) {
     // 日時を保存
     json_data["created_at"] = memo.created_at;
     json_data["updated_at"] = memo.updated_at;
+    json_data["path"] = memo.path; // パスも保存
     
     ofstream ofs(file_path);
     if (!ofs) {
@@ -259,9 +267,10 @@ inline crow::response memo_fetch_all(const crow::request &req) {
                 x["stem"] = stem;
                 x["extension"] = ".json";
                 x["format"] = memo.format;
-                x["tags"] = memo.tags;
+                x["tag"] = crow::json::wvalue::list(memo.tag.begin(), memo.tag.end());
                 x["created_at"] = memo.created_at;
                 x["updated_at"] = memo.updated_at;
+                x["path"] = memo.path;
                 v.push_back(std::move(x));
             }
         }
@@ -297,22 +306,19 @@ inline crow::response memo_search(const crow::request &req) {
         for (const auto &file : filesystem::directory_iterator(user_path)) {
             filesystem::path path = file.path();
             if (path.extension().string() == ".json") {
-                string filename = path.filename().string();
-                string stem = filename.substr(0, filename.find_last_of('.'));
-                
-                // メモデータを読み込み
                 MemoData memo = load_memo_data(path.string());
-                
-                // 検索クエリにマッチするかチェック
-                if (matches_search_query(query, stem, memo.tags, memo.data)) {
+                if (size_t idx = 0;RETRIEVE::parse_query(idx, memo, query)) {
+                    string filename = path.filename().string();
+                    string stem = filename.substr(0, filename.find_last_of('.'));
                     crow::json::wvalue x;
                     x["filename"] = filename;
                     x["stem"] = stem;
                     x["extension"] = ".json";
                     x["format"] = memo.format;
-                    x["tags"] = memo.tags;
+                    x["tag"] = crow::json::wvalue::list(memo.tag.begin(), memo.tag.end());
                     x["created_at"] = memo.created_at;
                     x["updated_at"] = memo.updated_at;
+                    x["path"] = memo.path;
                     v.push_back(std::move(x));
                 }
             }
@@ -340,14 +346,14 @@ inline crow::response memo_create_new(const crow::request &req) {
     lock_guard<mutex> lock(mmtex);
     
     auto data = crow::json::load(req.body);
-    vector<string> tags;
+    set<string> tag;
     string format = "txt"; // デフォルトはtxt
     
     // タグを読み込み
-    if (data.has("tags")) {
-        auto tags_array = data["tags"];
-        for (size_t i = 0; i < tags_array.size(); i++) {
-            tags.push_back(tags_array[i].s());
+    if (data.has("tag")) {
+        auto tag_array = data["tag"];
+        for (size_t i = 0; i < tag_array.size(); i++) {
+            tag.insert(tag_array[i].s());
         }
     }
     
@@ -382,11 +388,12 @@ inline crow::response memo_create_new(const crow::request &req) {
     
     // 新しいメモデータを作成
     MemoData memo;
-    memo.tags = tags;
+    memo.tag = tag;
     memo.data = "";
     memo.format = format;
     memo.created_at = timestamp;
     memo.updated_at = timestamp;
+    memo.path = file_path; // パスを設定
     
     // JSONファイルとして保存
     if (!save_memo_data(file_path, memo)) {
@@ -400,10 +407,11 @@ inline crow::response memo_create_new(const crow::request &req) {
     ret["stem"] = stem;
     ret["extension"] = ".json";
     ret["format"] = format;
-    ret["tags"] = tags;
+    ret["tag"] = crow::json::wvalue::list(tag.begin(), tag.end());
     ret["data"] = "";
     ret["created_at"] = timestamp;
     ret["updated_at"] = timestamp;
+    ret["path"] = memo.path;
     return crow::response(200, std::move(ret));
 }
 
@@ -505,10 +513,11 @@ inline crow::response memo_now(const crow::request& req) {
     ret["stem"] = stem;
     ret["extension"] = ".json";
     ret["format"] = memo.format;
-    ret["tags"] = memo.tags;
+    ret["tag"] = crow::json::wvalue::list(memo.tag.begin(), memo.tag.end());
     ret["data"] = memo.data;
     ret["created_at"] = memo.created_at;
     ret["updated_at"] = memo.updated_at;
+    ret["path"] = memo.path;
     return crow::response(ret);
 }
 
@@ -638,13 +647,13 @@ inline crow::response memo_update_tags(const crow::request &req) {
     
     auto data = crow::json::load(req.body);
     string filename = data["filename"].s();
-    vector<string> new_tags;
+    set<string> new_tag;
     
     // 新しいタグを読み込み
-    if (data.has("tags")) {
-        auto tags_array = data["tags"];
-        for (size_t i = 0; i < tags_array.size(); i++) {
-            new_tags.push_back(tags_array[i].s());
+    if (data.has("tag")) {
+        auto tag_array = data["tag"];
+        for (size_t i = 0; i < tag_array.size(); i++) {
+            new_tag.insert(tag_array[i].s());
         }
     }
     
@@ -667,7 +676,7 @@ inline crow::response memo_update_tags(const crow::request &req) {
     MemoData memo = load_memo_data(file_path);
     
     // タグを更新
-    memo.tags = new_tags;
+    memo.tag = new_tag;
     memo.updated_at = get_current_timestamp();
     
     // 保存
@@ -764,7 +773,7 @@ inline crow::response memo_create_with_title(const crow::request &req) {
     
     auto data = crow::json::load(req.body);
     string title = data["title"].s();
-    vector<string> tags;
+    set<string> tag;
     string format = "txt"; // デフォルトはtxt
     
     // タイトルの安全性をチェック
@@ -782,10 +791,10 @@ inline crow::response memo_create_with_title(const crow::request &req) {
     }
     
     // タグを読み込み
-    if (data.has("tags")) {
-        auto tags_array = data["tags"];
-        for (size_t i = 0; i < tags_array.size(); i++) {
-            tags.push_back(tags_array[i].s());
+    if (data.has("tag")) {
+        auto tag_array = data["tag"];
+        for (size_t i = 0; i < tag_array.size(); i++) {
+            tag.insert(tag_array[i].s());
         }
     }
     
@@ -821,11 +830,12 @@ inline crow::response memo_create_with_title(const crow::request &req) {
     
     // 新しいメモデータを作成
     MemoData memo;
-    memo.tags = tags;
+    memo.tag = tag;
     memo.data = "";
     memo.format = format;
     memo.created_at = timestamp;
     memo.updated_at = timestamp;
+    memo.path = file_path; // パスを設定
     
     // JSONファイルとして保存
     if (!save_memo_data(file_path, memo)) {
@@ -839,10 +849,11 @@ inline crow::response memo_create_with_title(const crow::request &req) {
     ret["stem"] = title;
     ret["extension"] = ".json";
     ret["format"] = format;
-    ret["tags"] = tags;
+    ret["tag"] = crow::json::wvalue::list(tag.begin(), tag.end());
     ret["data"] = "";
     ret["created_at"] = timestamp;
     ret["updated_at"] = timestamp;
+    ret["path"] = memo.path;
     return crow::response(200, std::move(ret));
 }
 
