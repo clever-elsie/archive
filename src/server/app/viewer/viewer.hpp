@@ -4,6 +4,8 @@
 #include "../../manager/auth/auth.hpp"
 #include "../../manager/users/user_manager.hpp"
 #include "../retrieve.hpp"
+#include <fstream>
+#include <crow/multipart.h>
 
 namespace VIEWER{
 using namespace std;
@@ -297,6 +299,48 @@ inline crow::response info_renew(const crow::request&req){
 			ofs<<x<<'\n';
 	}
 	return crow::response(200);
+}
+
+inline crow::response get_file_binary(const crow::request&req){
+    // 認証不要（公開リソースとして）
+    auto data = crow::json::load(req.body);
+    if (!data) return crow::response(400, "Invalid JSON");
+    std::string type = data["type"].s();
+    int64_t id = data["id"].i();
+    std::string filename = data["filename"].s();
+    std::string fullpath;
+    if(type=="image"||type=="video"||type=="audio"||type=="text"){
+        if(id < 0 || id >= (int64_t)leaf_dirs.size()) return crow::response(404);
+        fullpath = (type=="image"?leaf_dirs:dirs_tree)[id]->path + "/" + filename;
+    }else{
+        return crow::response(400, "Unknown type");
+    }
+    std::ifstream ifs(fullpath, std::ios::binary);
+    if(!ifs) return crow::response(404, "File not found");
+    std::vector<char> buffer((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
+    crow::response res;
+    // Content-Type判定
+    if(type=="image"){
+        if(filename.ends_with(".jpg")||filename.ends_with(".jpeg")) res.set_header("Content-Type","image/jpeg");
+        else if(filename.ends_with(".png")) res.set_header("Content-Type","image/png");
+        else if(filename.ends_with(".webp")) res.set_header("Content-Type","image/webp");
+        else if(filename.ends_with(".gif")) res.set_header("Content-Type","image/gif");
+        else res.set_header("Content-Type","application/octet-stream");
+    }else if(type=="video"){
+        if(filename.ends_with(".mp4")) res.set_header("Content-Type","video/mp4");
+        else res.set_header("Content-Type","application/octet-stream");
+    }else if(type=="audio"){
+        if(filename.ends_with(".mp3")) res.set_header("Content-Type","audio/mpeg");
+        else if(filename.ends_with(".flac")) res.set_header("Content-Type","audio/flac");
+        else if(filename.ends_with(".aac")) res.set_header("Content-Type","audio/aac");
+        else if(filename.ends_with(".wav")) res.set_header("Content-Type","audio/wav");
+        else res.set_header("Content-Type","application/octet-stream");
+    }else if(type=="text"){
+        res.set_header("Content-Type","text/plain; charset=utf-8");
+    }
+    res.body.assign(buffer.begin(), buffer.end());
+    res.code = 200;
+    return res;
 }
 
 }// namespace comic

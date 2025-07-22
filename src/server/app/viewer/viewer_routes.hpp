@@ -38,6 +38,9 @@ inline void setup_viewer_routes(crow::App<Middleware>& app){
   CROW_ROUTE(app,"/req/img/info_renew")
     .methods(crow::HTTPMethod::POST)
       (VIEWER::info_renew);
+  CROW_ROUTE(app,"/req/img/file")
+    .methods(crow::HTTPMethod::POST)
+      (VIEWER::get_file_binary);
 }
 
 } // namespace VIEWER_ROUTES
