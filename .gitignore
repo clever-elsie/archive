@@ -22,9 +22,8 @@ cmake_install.cmake
 docker-compose.override.yml
 
 # データファイル（プライベート）
-data/**
-DL/
-memo/**
+data/
+memo/
 
 # 機密情報
 users.json

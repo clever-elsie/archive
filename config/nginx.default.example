@@ -1,0 +1,34 @@
+server{
+  server_tokens off;
+  listen 443 ssl;
+  ssl_certificate /etc/nginx/ssl/s.crt;
+  ssl_sertificate_key /etc/nginx/ssl/s.key;
+  ssl_protocols TLSv1.2 TLSv1.3;
+  ssl_session_timeout 30m;
+  ssl_ciphers 'EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH';
+  disable_symlinks off;
+
+  location / {
+    proxy_set_header Host $host;
+    proxy_set_header X-RealIP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-User $remote_user;
+    root /app;
+    index web/index/html;
+    try_files $uri $uri/ =404;
+  }
+
+  location /req{
+    proxy_pass https://localhost:3000;
+    proxy_set_header Host $host;
+    proxy_set_header X-RealIP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-User $remote_user;
+  }
+
+  location /favicon{
+    empty_gif;
+    access_log off;
+    log_not_found off;
+  }
+}
