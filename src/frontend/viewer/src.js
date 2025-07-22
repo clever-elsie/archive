@@ -248,12 +248,16 @@ function cd(eventOrIndex) {
 					dir.addEventListener('click',function(){ cd(item.id); });
 					dir.className='btn btn-directory';
 				}else if(mediaType=="video"){
-					const vIdx = videoList.findIndex(v=>v.path===item.path);
-					dir.addEventListener('click',function(){ displayVideoFrame(item.path, videoList, par_id); });
+					const vIdx = videoList.findIndex(v => v.path === item.path);
+					dir.addEventListener('click', function() {
+						displayVideoFrame(item.path, videoList, vIdx);
+					});
 					dir.className='btn btn-video';
 				}else if(mediaType=="audio"){
-					const aIdx = audioList.findIndex(a=>a.path===item.path);
-					dir.addEventListener('click',function(){ displayAudioFrame(item.path, audioList, par_id); });
+					const aIdx = audioList.findIndex(a => a.path === item.path);
+					dir.addEventListener('click', function() {
+						displayAudioFrame(item.path, audioList, aIdx);
+					});
 					dir.className='btn btn-audio';
 				}else if(mediaType=="text"){
 					const tIdx = textList.findIndex(t=>t.path===item.path);
@@ -358,6 +362,14 @@ function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex = null
 			fig.appendChild(figcap);
 			fig.appendChild(media);
 			elem = fig;
+		}
+		// ダウンロード完了後、再生準備中表示
+		if (type === 'video' || type === 'audio') {
+			updateMediaLoadingPopup(100, '再生準備中...');
+			const hidePopup = () => hideMediaLoadingPopup();
+			media.addEventListener('canplay', hidePopup, { once: true });
+			media.addEventListener('loadeddata', hidePopup, { once: true });
+			media.addEventListener('loadedmetadata', hidePopup, { once: true });
 		}
 		document.getElementById('title').innerHTML = remove_prefix(mediaURL);
 		document.getElementById('counter').innerHTML = 1;
@@ -671,6 +683,22 @@ function fetchImageList(id) {
 					.then(imageInfo => ({ fileName, imageInfo, objUrl })));
 		});
 
+		const tags=document.getElementById('tags');
+		tags.innerHTML='';
+		if(data["tags"] && data["tags"].length > 0) {
+			data["tags"].forEach(tag=>{
+				if(tags.innerHTML==='') tags.innerHTML=tag;
+				else tags.innerHTML+=' '+tag;
+			});
+		}
+		info_path=data["info"];
+
+		// メタデータ編集セクションの表示制御を更新
+		// 権限情報が読み込まれている場合のみ実行
+		if (userPermissions !== null) {
+			updateMetadataEditSection();
+		}
+
 		Promise.all(imagePromises).then(combinedData => {
 			// ローディング表示を削除
 			container.innerHTML = '';
@@ -747,21 +775,6 @@ function fetchImageList(id) {
 			displayThumbnailImages(parentContainer, data['parent'], id, true);
 		else parentContainer.innerHTML='';
 
-		const tags=document.getElementById('tags');
-		tags.innerHTML='';
-		if(data["tags"] && data["tags"].length > 0) {
-			data["tags"].forEach(tag=>{
-				if(tags.innerHTML==='') tags.innerHTML=tag;
-				else tags.innerHTML+=' '+tag;
-			});
-		}
-		info_path=data["info"];
-
-		// メタデータ編集セクションの表示制御を更新
-		// 権限情報が読み込まれている場合のみ実行
-		if (userPermissions !== null) {
-			updateMetadataEditSection();
-		}
 	});
 }
 
@@ -900,11 +913,142 @@ window.addEventListener('resize', resizeImages);
 
 // メディアバイナリ取得API
 async function fetchMediaBinary(type, id, filename) {
-	const response = await authenticatedFetch('/req/img/file', {
-		method: 'POST',
-		body: JSON.stringify({ type, id, filename })
-	});
-	if (!response.ok) throw new Error('メディア取得失敗');
-	const blob = await response.blob();
-	return URL.createObjectURL(blob);
+    if (type === 'video' || type === 'audio') {
+        showMediaLoadingPopup('メディアをダウンロード中...');
+        return new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', '/req/img/file', true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            // JWTトークンをlocalStorageから取得しAuthorizationヘッダーに付与
+            const token = localStorage.getItem('token');
+            if (token) {
+                xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+            }
+            xhr.responseType = 'blob';
+            xhr.withCredentials = true;
+            xhr.upload.onprogress = xhr.onprogress = function (event) {
+                if (event.lengthComputable) {
+                    const percent = (event.loaded / event.total) * 100;
+                    updateMediaLoadingPopup(percent, 'メディアをダウンロード中...');
+                }
+            };
+            xhr.onload = function () {
+                // ここではhideしない（再生準備中に切り替える）
+                if (xhr.status === 200) {
+                    resolve(URL.createObjectURL(xhr.response));
+                } else {
+                    hideMediaLoadingPopup();
+                    reject(new Error('メディア取得失敗'));
+                }
+            };
+            xhr.onerror = function () {
+                hideMediaLoadingPopup();
+                reject(new Error('メディア取得失敗'));
+            };
+            xhr.send(JSON.stringify({ type, id, filename }));
+        });
+    } else {
+        // 画像・テキストは従来通り
+        const response = await authenticatedFetch('/req/img/file', {
+            method: 'POST',
+            body: JSON.stringify({ type, id, filename })
+        });
+        if (!response.ok) throw new Error('メディア取得失敗');
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+    }
 }
+
+// --- メディア読み込み進捗ポップアップ ---
+function showMediaLoadingPopup(message = 'メディアを読み込み中...') {
+    let popup = document.getElementById('media-loading-popup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'media-loading-popup';
+        popup.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            color: #64ffda;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            z-index: 2000;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            min-width: 300px;
+            text-align: center;
+        `;
+        document.body.appendChild(popup);
+    }
+    popup.innerHTML = `
+        <div id="media-popup-message" style="margin-bottom:0.5em;">${message}</div>
+        <div id="media-progress-bar" style="background:#222;height:10px;border-radius:5px;overflow:hidden;">
+            <div id="media-progress-inner" style="background:#64ffda;width:0%;height:100%;transition:width 0.2s;"></div>
+        </div>
+        <div id="media-progress-text" style="margin-top:0.5em;">0%</div>
+    `;
+}
+function updateMediaLoadingPopup(percent, message) {
+    showMediaLoadingPopup(message);
+    const inner = document.getElementById('media-progress-inner');
+    const text = document.getElementById('media-progress-text');
+    if (inner) inner.style.width = percent + '%';
+    if (text) text.textContent = Math.floor(percent) + '%';
+    if (message) {
+        const msg = document.getElementById('media-popup-message');
+        if (msg) msg.textContent = message;
+    }
+}
+function hideMediaLoadingPopup() {
+    const popup = document.getElementById('media-loading-popup');
+    if (popup) popup.remove();
+}
+
+function showImageLoadingPopup(message = '画像を読み込み中...') {
+    let popup = document.getElementById('image-loading-popup');
+    if (!popup) {
+        popup = document.createElement('div');
+        popup.id = 'image-loading-popup';
+        popup.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            color: #64ffda;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            z-index: 2000;
+            font-size: 1.1rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            min-width: 300px;
+            text-align: center;
+        `;
+        document.body.appendChild(popup);
+    }
+    popup.innerHTML = `
+        <div id="image-popup-message" style="margin-bottom:0.5em;">${message}</div>
+        <div id="image-progress-bar" style="background:#222;height:10px;border-radius:5px;overflow:hidden;">
+            <div id="image-progress-inner" style="background:#64ffda;width:0%;height:100%;transition:width 0.2s;"></div>
+        </div>
+        <div id="image-progress-text" style="margin-top:0.5em;">0%</div>
+    `;
+}
+function updateImageLoadingPopup(percent, message) {
+    showImageLoadingPopup(message);
+    const inner = document.getElementById('image-progress-inner');
+    const text = document.getElementById('image-progress-text');
+    if (inner) inner.style.width = percent + '%';
+    if (text) text.textContent = Math.floor(percent) + '%';
+    if (message) {
+        const msg = document.getElementById('image-popup-message');
+        if (msg) msg.textContent = message;
+    }
+}
+function hideImageLoadingPopup() {
+    const popup = document.getElementById('image-loading-popup');
+    if (popup) popup.remove();
+}
+
