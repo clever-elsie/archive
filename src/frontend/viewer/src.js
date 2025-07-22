@@ -205,6 +205,39 @@ function media_class(src){
 	return 'directory';
 }
 
+// 並び替え用グローバル変数
+let order_key = 'name';
+let order = 'ascendant';
+
+// 並び替えUIを追加
+window.addEventListener('DOMContentLoaded', function() {
+	const controls = document.createElement('div');
+	controls.id = 'sort-controls';
+	controls.style.margin = '1em 0';
+	controls.innerHTML = `
+		<label style="margin-right:0.5em;">並び替え:</label>
+		<select id="order_key">
+			<option value="name">名前</option>
+			<option value="last_write_time">最終更新日</option>
+		</select>
+		<select id="order">
+			<option value="ascendant">昇順</option>
+			<option value="descendant">降順</option>
+		</select>
+	`;
+	const container = document.getElementById('thumbnailContainer');
+	container.parentNode.insertBefore(controls, container);
+
+	document.getElementById('order_key').addEventListener('change', function() {
+		order_key = this.value;
+		cd(cur_id);
+	});
+	document.getElementById('order').addEventListener('change', function() {
+		order = this.value;
+		cd(cur_id);
+	});
+});
+
 // ディレクトリ操作
 let par_id=0,cur_id=0;
 function cd(eventOrIndex) {
@@ -225,7 +258,11 @@ function cd(eventOrIndex) {
 	
 	authenticatedFetch("/req/img/dir_access",{
 		method:'POST',
-		body:JSON.stringify({ 'id':eventOrIndex, })
+		body:JSON.stringify({
+			'id': eventOrIndex,
+			'order_key': order_key,
+			'order': order
+		})
 	})
 	.then(response=>response.json())
 	.then(data=>{

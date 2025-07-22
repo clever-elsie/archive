@@ -29,14 +29,15 @@ struct Info{
 	set<string>tag;
 	vector<Info*>dirs;
 	vector<string>imgs;
-	filesystem::file_time_type img_time;
+	filesystem::file_time_type last_write_time;
 	uint64_t id;
 	Info*par;
 	bool has_only_img;
 	
 	inline Info(const string&dir,Info*par_)
 	:path(dir),tag(),
-	dirs(),imgs(),img_time(base_time),id(UINT64_MAX),par(par_),has_only_img(0){
+	dirs(),imgs(),id(UINT64_MAX),par(par_),has_only_img(0){
+		last_write_time=filesystem::last_write_time(dir);
 		if(!filesystem::is_directory(dir))return;
 		const string info=dir+"/.info";
 		if(filesystem::exists(info)){
@@ -76,18 +77,14 @@ struct Info{
 						break;
 					}
 			}
-			if(imgs.size()){
-				sort(imgs.begin(),imgs.end());
-				img_time=filesystem::last_write_time(path+"/"+filesystem::path(imgs[0]).filename().string());
-			}
-			if(dirs.size()){
-				sort(dirs.begin(),dirs.end(),[](const Info*a,const Info*b){
-					bool c1=filesystem::is_directory(a->path);
-					bool c2=filesystem::is_directory(b->path);
-					if(c1==c2) return a->path<b->path;
-					return c1;
-				});
-			}
+			if(imgs.size()) last_write_time=filesystem::last_write_time(filesystem::path(path)/imgs[0]);
+			sort(imgs.begin(),imgs.end());
+			sort(dirs.begin(),dirs.end(),[](const Info*a,const Info*b){
+				bool c1=filesystem::is_directory(a->path);
+				bool c2=filesystem::is_directory(b->path);
+				if(c1==c2) return a->path<b->path;
+				return c1;
+			});
 			has_only_img=!dirs.size();
 		}
 };
@@ -99,9 +96,9 @@ inline void make_page_list(){
 	uint64_t count=0;
 	vector<Info*>cp(leaf_dirs);
 	sort(cp.begin(),cp.end(),[](const Info*a,const Info*b){
-		if(a->img_time==b->img_time)
+		if(a->last_write_time==b->last_write_time)
 			return a->path<b->path;
-		return a->img_time>b->img_time;
+		return a->last_write_time>b->last_write_time;
 	});
 	for(auto const & dir:cp){
 		pages.back()[count++]=dir;
@@ -248,21 +245,40 @@ inline crow::json::wvalue get_dir_list(const crow::request&req){
 	namespace F = std::filesystem;
 	auto data = crow::json::load(req.body);
 	const int64_t id=data["id"].i();
+	std::string order_key = data.has("order_key") ? data["order_key"].s() : std::string("name");
+	std::string order = data.has("order") ? data["order"].s() : std::string("ascendant");
 	Info* tar=dirs_tree[id];
 	crow::json::wvalue ret;
 	ret["cur"]=id;
 	ret["par"]=tar->par->id;
 
+	// vectorに詰め替え
+	std::vector<Info*> dirvec,imgvec;
+	for(const auto&d:tar->dirs)
+		(d->has_only_img?imgvec:dirvec).push_back(d);
+	// ソート 元々名前昇順
+	if(order_key=="last_write_time"){
+		auto cmp=[](const Info*a,const Info*b){
+			if(a->last_write_time==b->last_write_time)
+				return a->path<b->path;
+			return a->last_write_time<b->last_write_time;
+		};
+		std::sort(dirvec.begin(), dirvec.end(), cmp);
+		std::sort(imgvec.begin(), imgvec.end(), cmp);
+	}
+	if(order=="descendant"){
+		std::reverse(dirvec.begin(), dirvec.end());
+		std::reverse(imgvec.begin(), imgvec.end());
+	}
+
 	crow::json::wvalue::list dir,img;
-	for(const auto&d:tar->dirs){
-		if(d->has_only_img) pb_next(img,*d);
-		else{
-			crow::json::wvalue next;
-			next["path"]=(d->path);
-			next["dirname"]=(filesystem::path(d->path).filename());
-			next["id"]=d->id;
-			dir.emplace_back(move(next));
-		}
+	for(const auto&d:imgvec) pb_next(img,*d);
+	for(const auto&d:dirvec){
+		crow::json::wvalue next;
+		next["path"]=(d->path);
+		next["dirname"]=(filesystem::path(d->path).filename());
+		next["id"]=d->id;
+		dir.emplace_back(move(next));
 	}
 	ret["imgs"]=crow::json::wvalue(move(img));
 	ret["dirs"]=crow::json::wvalue(move(dir));
