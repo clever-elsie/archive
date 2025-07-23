@@ -601,7 +601,7 @@ function displayThumbnailImages(container, images, currentId, clearContainer = t
 			};
 
 			const title = document.createElement('figcaption');
-			title.innerText = get_title_from_img_path(item.imageInfo.src);
+			title.innerText = get_title_from_img_path(item.img);
 			const figure = document.createElement('figure');
 			figure.appendChild(img);
 			figure.appendChild(title);
