@@ -691,3 +691,52 @@ figcaption {
 	margin-bottom: 2rem;
 	justify-content: center;
 }
+
+/* 並び替えセレクトボックス用モダンスタイル */
+#sort-controls select {
+	appearance: none;
+	-webkit-appearance: none;
+	-moz-appearance: none;
+	background: rgba(255,255,255,0.05);
+	border: 1px solid rgba(255,255,255,0.2);
+	border-radius: 8px;
+	color: #fff;
+	padding: 0.75rem 2.5rem 0.75rem 1rem;
+	font-size: 1rem;
+	margin-right: 0.5em;
+	transition: all 0.3s;
+	outline: none;
+	box-shadow: none;
+	min-width: 120px;
+	cursor: pointer;
+}
+#sort-controls select:focus {
+	border-color: #64ffda;
+	box-shadow: 0 0 0 3px rgba(100,255,218,0.1);
+}
+#sort-controls {
+	display: flex;
+	align-items: center;
+	gap: 0.5em;
+	margin-bottom: 1.5em;
+}
+#sort-controls label {
+	color: #64ffda;
+	font-weight: 500;
+	font-size: 1rem;
+	margin-right: 0.5em;
+}
+#sort-controls select::-ms-expand {
+	display: none;
+}
+#sort-controls select option {
+	background: #222b;
+	color: #fff;
+}
+/* セレクトボックスの下矢印アイコンを追加 */
+#sort-controls select {
+	background-image: url('data:image/svg+xml;utf8,<svg fill="%2364ffda" height="20" viewBox="0 0 20 20" width="20" xmlns="http://www.w3.org/2000/svg"><path d="M7.293 7.293a1 1 0 011.414 0L10 8.586l1.293-1.293a1 1 0 111.414 1.414l-2 2a1 1 0 01-1.414 0l-2-2a1 1 0 010-1.414z"/></svg>');
+	background-repeat: no-repeat;
+	background-position: right 1rem center;
+	background-size: 1.2em;
+}

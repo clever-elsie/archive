@@ -238,6 +238,15 @@ window.addEventListener('DOMContentLoaded', function() {
 	});
 });
 
+// グローバルで前回の動画/音声/画像ObjectURLを配列で保持
+let lastMediaObjectUrls = [];
+function revokeAllMediaObjectUrls() {
+	for (const url of lastMediaObjectUrls) {
+		URL.revokeObjectURL(url);
+	}
+	lastMediaObjectUrls = [];
+}
+
 // ディレクトリ操作
 let par_id=0,cur_id=0;
 function cd(eventOrIndex) {
@@ -253,6 +262,8 @@ function cd(eventOrIndex) {
 	document.getElementById('counter').innerHTML='';
 	document.getElementById('parentContainer').innerHTML='';
 	document.getElementById('tags').innerHTML='';
+	// すべてのObjectURLの解放
+	revokeAllMediaObjectUrls();
 	document.getElementById('imageContainer').innerHTML='';
 	document.getElementById('parentContainer').innerHTML='';
 	
@@ -383,6 +394,9 @@ function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex = null
 	const id = cur_id;
 	const filename = mediaURL.split('/').pop();
 	fetchMediaBinary(type, id, filename).then(objUrl => {
+		// すべてのObjectURLの解放
+		revokeAllMediaObjectUrls();
+		lastMediaObjectUrls.push(objUrl);
 		let elem;
 		const media=document.createElement(type);
 		media.src=objUrl;
@@ -562,13 +576,21 @@ function displayThumbnailImages(container, images, currentId, clearContainer = t
 	loadingPopup.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 画像を読み込み中...';
 	document.body.appendChild(loadingPopup);
 
+	// 画像ObjectURLの解放（サムネイル再描画時）
+	if (clearContainer) {
+		revokeAllMediaObjectUrls();
+	}
+
 	// すべての画像を事前にバイナリAPI経由で取得
 	const imagePromises = images.map(item => {
 		const id = item.id !== undefined ? item.id : cur_id;
 		const filename = item.img.split('/').pop();
 		return fetchMediaBinary('image', id, filename)
-			.then(objUrl => preloadAndCalculateImageSize(objUrl)
-				.then(imageInfo => ({ ...item, imageInfo, objUrl })));
+			.then(objUrl => {
+				lastMediaObjectUrls.push(objUrl);
+				return preloadAndCalculateImageSize(objUrl)
+					.then(imageInfo => ({ ...item, imageInfo, objUrl }));
+			});
 	});
 
 	Promise.all(imagePromises).then(combinedData => {
@@ -695,6 +717,8 @@ function fetchRandomImage() {
 function fetchImageList(id) {
 	document.getElementById('jmpControll').innerHTML='';
 	document.getElementById('jmpControll2').innerHTML='';
+	// すべてのObjectURLの解放
+	revokeAllMediaObjectUrls();
 	authenticatedFetch('/req/img',{method:'POST',body:JSON.stringify({'id':id})})
 	.then(response => response.json())
 	.then(data => {
@@ -780,7 +804,7 @@ function fetchImageList(id) {
 							const prevImg = document.getElementById(String(index - 1));
 							console.log('Previous image element:', prevImg);
 							if (prevImg) {
-								prevImg.scrollIntoView({behavior: 'smooth', block: 'center'});
+								prevImg.scrollIntoView({behavior: 'auto', block: 'center'});
 								console.log('Scrolling to previous image');
 							}
 						}
@@ -790,7 +814,7 @@ function fetchImageList(id) {
 							const nextImg = document.getElementById(String(index + 1));
 							console.log('Next image element:', nextImg);
 							if (nextImg) {
-								nextImg.scrollIntoView({behavior: 'smooth', block: 'center'});
+								nextImg.scrollIntoView({behavior: 'auto', block: 'center'});
 								console.log('Scrolling to next image');
 							}
 						}
@@ -951,7 +975,6 @@ window.addEventListener('resize', resizeImages);
 // メディアバイナリ取得API
 async function fetchMediaBinary(type, id, filename) {
     if (type === 'video' || type === 'audio') {
-        showMediaLoadingPopup('メディアをダウンロード中...');
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', '/req/img/file', true);
