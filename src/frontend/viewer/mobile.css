@@ -22,6 +22,12 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+body::after {
+    content: "";
+    display: block;
+    height: 150vh;
+}
+
 /* ヘッダー */
 .header {
     background: rgba(15, 15, 35, 0.95);

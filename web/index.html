@@ -422,6 +422,19 @@
 		*:focus {
 			outline: none;
 		}
+		#loginForm, #mainContent {
+			display: none;
+		}
+		#loadingSpinner {
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			min-height: 100vh;
+			font-size: 2rem;
+			color: #64ffda;
+			background: transparent;
+			z-index: 2000;
+		}
 	</style>
 </head>
 
@@ -458,6 +471,9 @@
 
 	<!-- メインコンテンツ -->
 	<main class="main-content">
+		<div id="loadingSpinner">
+			<i class="fas fa-spinner fa-spin"></i> 認証確認中...
+		</div>
 		<!-- ログインフォーム -->
 		<div id="loginForm" class="login-section">
 			<div class="login-card">
@@ -540,12 +556,16 @@
 	let isFirstUser = false;
 
 	window.onload = async function() {
+		document.getElementById('loadingSpinner').style.display = 'flex';
+		document.getElementById('loginForm').style.display = 'none';
+		document.getElementById('mainContent').style.display = 'none';
 		const first = await checkFirstUser();
 		if (token) {
-			checkAuth();
+			await checkAuth();
 		} else {
 			showLoginForm(first);
 		}
+		document.getElementById('loadingSpinner').style.display = 'none';
 	};
 
 	// ハンバーガーメニューの切り替え
@@ -577,6 +597,7 @@
 	}
 
 	function showLoginForm(first) {
+		document.getElementById('loadingSpinner').style.display = 'none';
 		document.getElementById('loginForm').style.display = 'flex';
 		document.getElementById('mainContent').style.display = 'none';
 		document.getElementById('hamburgerMenu').style.display = 'none';
@@ -739,6 +760,7 @@
 
 	// メインコンテンツ表示
 	function showMainContent() {
+		document.getElementById('loadingSpinner').style.display = 'none';
 		document.getElementById('loginForm').style.display = 'none';
 		document.getElementById('mainContent').style.display = 'block';
 		document.getElementById('hamburgerMenu').style.display = 'block';

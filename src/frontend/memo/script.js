@@ -39,30 +39,28 @@ function add_memo_item(filename, stem, tag = [], format = "txt", created_at = ""
 	
 	memoItem.innerHTML = `
 		<div class="memo-header">
-			<div class="memo-title">
-				<span class="filename-text">${stem}<span class="format-badge">.${format}</span></span>
-				<div class="memo-actions">
-					<button class="btn-edit" onclick="edit_memo('${filename}')">
-						<i class="fas fa-edit"></i> 編集
+			<div class="memo-title-row2">
+				<span class="filename-text view-memo-title" style="cursor:pointer;" onclick="view_memo('${filename}')">${stem}</span>
+				<span class="format-badge">.${format}</span>
+			</div>
+			<div class="memo-sub-row">
+				<div class="memo-actions-menu">
+					<button class="btn-menu" onclick="toggleMemoMenu(this)">
+						<i class="fas fa-ellipsis-v"></i>
 					</button>
-					<button class="btn-tags" onclick="edit_tags('${filename}', ${JSON.stringify(tag).replace(/"/g, '&quot;')})">
-						<i class="fas fa-tags"></i> タグ
-					</button>
-					<button class="btn-rename" onclick="rename_memo('${filename}', '${stem}')">
-						<i class="fas fa-edit"></i> リネーム
-					</button>
-					<button class="btn-delete" onclick="delete_memo('${filename}')">
-						<i class="fas fa-trash"></i> 削除
-					</button>
+					<div class="memo-popup-menu" style="display:none; position:absolute; z-index:10;">
+						<button class="btn-edit" onclick="edit_memo('${filename}')"><i class="fas fa-edit"></i> 編集</button>
+						<button class="btn-tags" onclick="edit_tags('${filename}', ${JSON.stringify(tag).replace(/\"/g, '&quot;')})"><i class="fas fa-tags"></i> タグ</button>
+						<button class="btn-rename" onclick="rename_memo('${filename}', '${stem}')"><i class="fas fa-edit"></i> リネーム</button>
+						<button class="btn-delete" onclick="delete_memo('${filename}')"><i class="fas fa-trash"></i> 削除</button>
+						<div class="popup-meta-dates">
+							<div class="created-date">作成: ${formatDate(created_at)}</div>
+							<div class="updated-date">更新: ${formatDate(updated_at)}</div>
+						</div>
+					</div>
 				</div>
 			</div>
-			<div class="memo-meta">
-				<div class="memo-tags">${tagHtml}</div>
-				<div class="memo-dates">
-					<span class="created-date">作成: ${formatDate(created_at)}</span>
-					<span class="updated-date">更新: ${formatDate(updated_at)}</span>
-				</div>
-			</div>
+			${tagHtml ? `<div class="memo-tags">${tagHtml}</div>` : ''}
 		</div>
 	`;
 	
@@ -387,6 +385,7 @@ function showTitleDialog(format) {
 			add_memo_item(data.filename, data.stem, data.tag || [], data.format || "txt", data.created_at, data.updated_at);
 			showSuccess('新しいメモを作成しました');
 			document.body.removeChild(modal);
+			edit_memo(data.filename); // 追加: 作成直後に自動で編集画面へ
 		})
 		.catch(error => {
 			console.error('メモの作成に失敗しました:', error);
@@ -733,3 +732,100 @@ style.textContent = `
 	}
 `;
 document.head.appendChild(style);
+
+// 3点ボタンのメニュー表示切り替え関数をグローバルに追加
+window.toggleMemoMenu = function(btn) {
+	// 既存のメニューを全て閉じる
+	document.querySelectorAll('.memo-popup-menu-global').forEach(m => m.remove());
+
+	const menu = btn.nextElementSibling;
+	const rect = btn.getBoundingClientRect();
+	const menuClone = menu.cloneNode(true);
+	menuClone.classList.add('memo-popup-menu-global');
+	menuClone.style.display = 'block';
+	menuClone.style.position = 'absolute';
+	menuClone.style.left = `${rect.left + window.scrollX}px`;
+	menuClone.style.top = `${rect.bottom + window.scrollY + 4}px`;
+	menuClone.style.zIndex = 2147483647;
+	document.body.appendChild(menuClone);
+
+	// 外側クリックで閉じる
+	const handler = function(e) {
+		if (!menuClone.contains(e.target) && e.target !== btn) {
+			menuClone.remove();
+			document.removeEventListener('mousedown', handler);
+		}
+	};
+	document.addEventListener('mousedown', handler);
+};
+
+// 閲覧用ポップアップを表示
+window.addEventListener('load', function() {
+	// markdown-it-texmathのグローバル変数名を補正
+	if (!window.markdownitTexmath) {
+		if (window.texmath) window.markdownitTexmath = window.texmath;
+		else if (window.markdownit_texmath) window.markdownitTexmath = window.markdownit_texmath;
+	}
+	// 既存の初期化処理があればここに移動
+	// 既存のコードはそのままでもOK
+});
+
+window.view_memo = function(filename) {
+	authenticatedFetch('/req/memo/now', {
+		method: 'POST',
+		body: JSON.stringify({ "filename": filename })
+	})
+	.then(response => response.json())
+	.then(data => {
+		const modal = document.createElement('div');
+		modal.className = 'modal-overlay';
+		modal.style.cssText = `
+			position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+			background: rgba(0,0,0,0.6); z-index: 10000; display: flex; align-items: center; justify-content: center;`;
+		const dialog = document.createElement('div');
+		dialog.className = 'view-memo-dialog';
+		dialog.style.cssText = `
+			background: #23263a; color: #fff; border-radius: 16px; padding: 2rem; min-width: 320px; max-width: 90vw; max-height: 80vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.3); position: relative;`;
+		dialog.innerHTML = `
+			<div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+				<h3 style="margin:0;">${data.stem}<span class='format-badge'>.${data.format}</span></h3>
+				<button onclick="this.closest('.modal-overlay').remove()" style="background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;"><i class='fas fa-times'></i></button>
+			</div>
+		`;
+		if (data.format === "md") {
+			if (!window.katex) {
+				dialog.innerHTML += '<div style="color:#f66">KaTeXがロードされていません</div>';
+			} else if (!window.markdownit) {
+				dialog.innerHTML += '<div style="color:#f66">markdown-itがロードされていません</div>';
+			} else if (!window.markdownitTexmath) {
+				dialog.innerHTML += '<div style="color:#f66">markdown-it-texmathがロードされていません</div>';
+			} else {
+				const md = window.markdownit({
+					html: true,
+					linkify: true,
+					breaks: true
+				}).use(window.markdownitTexmath, { engine: window.katex, delimiters: "dollars" });
+				const mdHtml = md.render(data.data || '');
+				dialog.innerHTML += `
+				<div style=\"margin:1.5rem 0; background:rgba(255,255,255,0.04);padding:1rem;border-radius:8px;\">${mdHtml}</div>
+				`;
+			}
+		} else {
+			dialog.innerHTML += `
+			<div style="margin:1.5rem 0;white-space:pre-wrap;background:rgba(255,255,255,0.04);padding:1rem;border-radius:8px;">${data.data ? escapeHtml(data.data) : '<span style=\'color:#888\'>（内容なし）</span>'}</div>
+		`;
+		}
+		modal.appendChild(dialog);
+		document.body.appendChild(modal);
+		modal.addEventListener('click', e => { if(e.target === modal) modal.remove(); });
+	})
+	.catch(() => { showError('メモの読み込みに失敗しました'); });
+};
+
+// HTMLエスケープ関数
+function escapeHtml(str) {
+	return str.replace(/[&<>'"]/g, function(tag) {
+		const chars = { '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' };
+		return chars[tag] || tag;
+	});
+}

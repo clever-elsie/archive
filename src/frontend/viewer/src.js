@@ -309,7 +309,7 @@ function cd(eventOrIndex) {
 					dir.className='btn btn-audio';
 				}else if(mediaType=="text"){
 					const tIdx = textList.findIndex(t=>t.path===item.path);
-					dir.addEventListener('click',function(){ displayTextFrame(item.path, textList, par_id); });
+					dir.addEventListener('click',function(){ displayTextFrame(item.path, textList, tIdx); });
 					dir.className='btn btn-text';
 				}
 				
@@ -465,20 +465,24 @@ function displayTextFrame(textURL, textList = null, currentIndex = null) {
 }
 
 function formatTextToHTML(text) {
-  // テキスト内の改行を<br>に置換
-  let ft = text.replace(/\r\n/g, '<br>');
-  ft=ft.replace(
-    /([0123456789０１２３４５６７８９一二三四五六七八九零〇十百]+[\u4e00-\u9fff]+)/g,
-    '<span style="color:#9cdcfe">$1</span>');
-  ft=ft.replace(
-    /([0123456789０１２３４５６７８９一二三四五六七八九零〇十百]+)([\u4e00-\u9fff]+)/g,
-    '<span style="color:#b5cea8">$1</span>$2');
-  ft = ft.replace(/\|([^《]*?)《(.*?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
-  ft=ft.replace(/([「]+)([^」]*)([」]+)/g,'<span style="color:#CE9178">$1</span><span style="color:#6A9955">$2</span><span style="color:#CE9178">$3</span>');
-  ft=ft.replace(/([『]+)([^』]*)([』]+)/g,'<span style="color:#ffc934">$1</span><span style="color:#5191c6">$2</span><span style="color:#ffc934">$3</span>');
-  ft=ft.replace(/([（【]+)([^）]*)([）】]+)/g,'<span style="color:#ce9178">$1</span><span style="color:#5191c6">$2</span><span style="color:#ce9178">$3</span>');
-  
-  return ft;
+  // 段落ごとに分割（2つ以上の改行で区切る）
+  const paragraphs = text.split(/\r?\n\r?\n+/);
+  return paragraphs.map(par => {
+    // 各段落内の1つの改行は<br>に
+    let html = par.replace(/\r?\n/g, '<br>');
+    // 既存のspan装飾などの置換を適用
+    html = html.replace(
+      /([0123456789０１２３４５６７８９一二三四五六七八九零〇十百]+[\u4e00-\u9fff]+)/g,
+      '<span style="color:#9cdcfe">$1</span>');
+    html = html.replace(
+      /([0123456789０１２３４５６７８９一二三四五六七八九零〇十百]+)([\u4e00-\u9fff]+)/g,
+      '<span style="color:#b5cea8">$1</span>$2');
+    html = html.replace(/\|([^《]*?)《(.*?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+    html = html.replace(/([「]+)([^」]*)([」]+)/g,'<span style="color:#CE9178">$1</span><span style="color:#6A9955">$2</span><span style="color:#CE9178">$3</span>');
+    html = html.replace(/([『]+)([^』]*)([』]+)/g,'<span style="color:#ffc934">$1</span><span style="color:#5191c6">$2</span><span style="color:#ffc934">$3</span>');
+    html = html.replace(/([（【]+)([^）]*)([）】]+)/g,'<span style="color:#ce9178">$1</span><span style="color:#5191c6">$2</span><span style="color:#ce9178">$3</span>');
+    return `<p>${html}</p><br>`;
+  }).join('');
 }
 
 
