@@ -50,9 +50,9 @@ function updatePageButtons(currentPage = 0) {
 	if (!page_size) return;
 
 	const buttons = new Set();
-	for (let i = 0; i < Math.min(5, page_size); i++) 
+	for (let i = 0; i < Math.min(2, page_size); i++) 
 		buttons.add(i);
-	for (let i = Math.max(0, page_size - 5); i < page_size; i++)
+	for (let i = Math.max(0, page_size - 2); i < page_size; i++)
 		buttons.add(i);
 	for (let i = Math.max(0, currentPage - 2); i<= Math.min(page_size-1, currentPage + 2); i++)
 		buttons.add(i);
