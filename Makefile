@@ -1,6 +1,9 @@
 # デフォルト値の定義
 SERVICE ?= myservice
 OUT ?= server_systemd.out
+# viewer のベースディレクトリ
+# 空の場合はカレントからの data を使用（従来動作）
+VIEWER_DIR ?=
 
 # パラメータファイルの読み込み（存在すれば上書き）
 -include makefile.env
@@ -47,7 +50,7 @@ build:
 	make all && make install
 
 $(OUT): $(target) Makefile $(HDRS)
-	$(CC) $(target) -o $(OUT) $(OPT)
+	$(CC) $(target) -o $(OUT) $(OPT) -DVIEWER_DIR=\"$(VIEWER_DIR)\"
 	
 stop:
 	sudo systemctl stop $(SERVICE)

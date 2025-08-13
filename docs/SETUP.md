@@ -66,25 +66,10 @@ sudo apt install cmake pkg-config
 ./scripts/build.sh --install
 ```
 
-#### 方法2: Docker環境
-```bash
-# 本番環境での実行
-docker-compose up --build
-
-# 開発環境での実行
-docker-compose --profile dev up --build
-
-# バックグラウンド実行
-docker-compose up -d --build
-```
-
 ### 6. 開発環境での起動
 ```bash
 # ローカルビルドの場合
 ./build/home-server
-
-# Docker開発環境の場合
-docker-compose --profile dev run --rm home-server-dev
 ```
 
 ### 7. 本番環境での設定
@@ -152,3 +137,24 @@ server {
     OUT=yourbinary.out
     ```
 - `makefile.env` は `.gitignore` に含まれており、リポジトリにはコミットされません。 
+
+### Viewer の参照ディレクトリを変更する
+
+`makefile.env` で `VIEWER_DIR` を定義すると、ビルド時にビューアのベースディレクトリを差し替えられます。
+
+- 空文字列（未定義を含む）の場合: 従来どおり、カレントディレクトリからの `data` を使用
+- 非空の場合: 指定された絶対パスをそのまま使用
+
+```
+# 例: 絶対パスを指定
+VIEWER_DIR=/mnt/storage/pictures
+
+# 既定（空）の場合は data を使用
+# VIEWER_DIR=
+```
+
+上記を設定後、通常どおり `make` でビルド・起動してください。
+
+注意:
+- サーバーはファイルをバイナリで返すため、フロントエンドの取得処理には影響しません（ID とファイル名で解決）。
+- `web/viewer.html` 上部に表示するパス整形の都合で、画面表示用のパスが新しいベースディレクトリに合わない場合があります（`src/frontend/viewer/src.js` の `remove_prefix()` が固定値のため）。表示のみの問題で、機能には影響しません。

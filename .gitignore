@@ -17,9 +17,9 @@ cmake_install.cmake
 *.cmake
 !CMakeLists.txt
 
-# Docker
-.dockerignore
-docker-compose.override.yml
+## Docker (不要)
+# .dockerignore
+# docker-compose.override.yml
 
 # データファイル（プライベート）
 data/

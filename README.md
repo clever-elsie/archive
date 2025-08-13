@@ -3,7 +3,6 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++](https://img.shields.io/badge/C%2B%2B-23-blue.svg)](https://isocpp.org/std/the-standard)
 [![CMake](https://img.shields.io/badge/CMake-3.25+-green.svg)](https://cmake.org/)
-[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://www.docker.com/)
 
 HOME-SERVERは、画像ビューアー、メモ管理、ユーザー管理機能を統合したWebベースのホームサーバーシステムです。セッションIDベースの認証システムとモダンなUIデザインを採用しています。
 
@@ -66,20 +65,6 @@ HOME-SERVERは、画像ビューアー、メモ管理、ユーザー管理機能
 
 ## 🚀 クイックスタート
 
-### Docker での実行（推奨）
-
-```bash
-# リポジトリのクローン
-git clone https://github.com/clever-elsie/home-server.git
-cd home-server
-
-# Docker Compose での起動
-cd docker
-docker-compose up --build
-
-# ブラウザで http://localhost:8080 にアクセス
-```
-
 ### ローカルビルド
 
 ```bash
@@ -130,14 +115,6 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 130 \
 ./scripts/build.sh --install
 ```
 
-#### 方法2: Docker環境
-```bash
-# 本番環境での実行
-docker-compose up --build
-
-# 開発環境での実行
-docker-compose --profile dev up --build
-```
 
 ### 3. パラメータ設定
 
@@ -195,9 +172,6 @@ nano config/param.json
 ```bash
 # ローカルビルドの場合
 ./build/home-server
-
-# Docker開発環境の場合
-docker-compose --profile dev run --rm home-server-dev
 ```
 
 #### 本番環境 (systemd)
@@ -220,186 +194,7 @@ make reload
 ```
 
 ## テスト
-
-HOME-SERVERでは、本番環境を保護するため、Docker環境でのローカルCI/CDテストを推奨しています。
-
-### 🧪 テストの種類
-
-#### Docker環境でのテスト（推奨）
-- **完全テスト**: すべてのビルド、品質チェック、セキュリティスキャンを実行
-- **クイックテスト**: 基本的なビルドとコード品質チェックのみ実行
-- **詳細ログテスト**: 詳細なログ出力付きでテスト実行
-
-#### ホスト環境でのテスト（非推奨）
-- 本番環境を汚す可能性があるため、開発時のみ使用
-
-### 🚀 クイックスタート
-
-#### 基本的なテスト実行
-```bash
-# 全テストを実行（推奨）
-make test-ci-local
-
-# クイックテスト（日常的な開発で使用）
-make test-ci-local-quick
-
-# 詳細ログ付きテスト
-make test-ci-local-verbose
-```
-
-#### テストイメージの再ビルド
-```bash
-# テストイメージを再ビルドしてからテスト
-make test-ci-local-build
-```
-
-### 📋 テスト内容
-
-#### 1. 依存関係チェック
-- 必要なツールの存在確認
-- バージョン確認
-
-#### 2. プロジェクト構造検証
-- 必要なファイルの存在確認
-- ディレクトリ構造の確認
-
-#### 3. ビルドテスト
-- **Makefileビルド**: `server_systemd.out`の生成
-- **CMakeビルド**: `home-server`の生成
-- **ビルドスクリプト**: `scripts/build.sh`のテスト
-
-#### 4. コード品質チェック
-- cppcheckによる静的解析
-- コードフォーマットチェック
-
-#### 5. ドキュメントチェック
-- README.mdの構造確認
-- HTMLファイルの構文チェック
-
-#### 6. セキュリティチェック（オプション）
-- 基本的なセキュリティチェック
-- ハードコードされたパスワードの確認
-
-#### 7. 統合テスト
-- 実行ファイルの基本テスト
-- テスト用設定ファイルの確認
-
-### 🔧 詳細な使用方法
-
-#### スクリプト直接実行
-```bash
-# 基本的なテスト
-./scripts/docker-ci-runner.sh
-
-# クイックテスト
-./scripts/docker-ci-runner.sh --quick
-
-# イメージ再ビルド
-./scripts/docker-ci-runner.sh --build
-
-# 詳細ログ
-./scripts/docker-ci-runner.sh --verbose
-
-# クリーンアップをスキップ
-./scripts/docker-ci-runner.sh --no-cleanup
-```
-
-#### 個別テスト
-```bash
-# Makefileビルドのみ
-make test-makefile
-
-# CMakeビルドのみ
-make test-cmake
-
-# Dockerビルドのみ
-make test-docker
-
-# ドキュメントチェックのみ
-make test-docs
-```
-
-### 🐳 Dockerテスト環境
-
-#### アーキテクチャ
-```
-ホスト環境 (Ubuntu 24.04)
-├── Docker Engine
-└── テストコンテナ (Ubuntu 24.04)
-    ├── ビルドツール (GCC, CMake, Make)
-    ├── 依存関係 (Crow, OpenSSL)
-    ├── テストツール (cppcheck)
-    └── プロジェクトコード (マウント)
-```
-
-#### 必要なツール
-- **ホスト環境**: `docker`, `make`
-- **コンテナ環境**: 自動インストール（`build-essential`, `cmake`, `cppcheck`, `Crow framework`など）
-
-### 🔄 開発ワークフロー
-
-#### 日常的な開発
-```bash
-# 1. コード変更
-git add .
-git commit -m "Your changes"
-
-# 2. クイックテスト
-make test-ci-local-quick
-
-# 3. 問題がなければpush
-git push origin main
-```
-
-#### プルリクエスト前
-```bash
-# 完全テストを実行
-make test-ci-local-verbose
-```
-
-#### 定期的な完全テスト
-```bash
-# 週1回程度、完全テストを実行
-make test-ci-local
-```
-
-### 🛠️ トラブルシューティング
-
-#### Dockerがインストールされていない
-```bash
-# Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install -y docker.io
-sudo systemctl start docker
-sudo systemctl enable docker
-
-# ユーザーをdockerグループに追加
-sudo usermod -aG docker $USER
-# ログアウトして再ログイン
-```
-
-#### 権限エラー
-```bash
-# ユーザーをdockerグループに追加
-sudo usermod -aG docker $USER
-
-# または一時的にsudoを使用
-sudo ./scripts/docker-ci-runner.sh
-```
-
-#### イメージビルドエラー
-```bash
-# 詳細ログでビルド
-./scripts/docker-ci-runner.sh --build --verbose
-
-# 手動でビルド
-docker build -f docker/Dockerfile.test -t home-server-ci-test .
-```
-
-### 📚 詳細ドキュメント
-
-- [Docker環境でのCI/CDテスト](docs/docker-ci-testing.md)
-- [ローカルCI/CDテスト](docs/local-ci-testing.md)
+（準備中）
 
 ### 🎯 テストのメリット
 
@@ -478,18 +273,15 @@ HOME-SERVER/
 │   └── user_register.html         # ユーザー管理ページ
 ├── config/                        # 設定ファイル
 │   └── users.json.example         # ユーザー設定テンプレート
-├── docker/                        # Docker関連ファイル
-│   ├── Dockerfile                 # 本番用Dockerfile
-│   ├── Dockerfile.dev             # 開発用Dockerfile
-│   └── docker-compose.yml         # Docker Compose設定
+├── docker/                        # （削除）
 ├── docs/                          # ドキュメント
 │   └── SETUP.md                   # セットアップガイド
 ├── scripts/                       # ビルド・デプロイスクリプト
 ├── data/                          # データディレクトリ
 ├── memo/                          # メモデータ
 ├── README.md                      # プロジェクト概要
-├── CONTRIBUTING.md                # 貢献ガイドライン
-├── SECURITY.md                    # セキュリティポリシー
+├── CONTRIBUTING.md                # （削除）
+├── SECURITY.md                    # （削除）
 ├── LICENSE                        # ライセンス
 ├── CMakeLists.txt                 # CMake設定
 ├── Makefile                       # ビルド設定
