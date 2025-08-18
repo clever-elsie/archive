@@ -17,7 +17,7 @@ inline string rel_base;
 inline Info*root_dir = nullptr;
 inline vector<Info*>leaf_dirs;
 inline vector<Info*>dirs_tree;
-inline constexpr uint64_t Info_page_size=9;
+inline constexpr uint64_t Info_page_size=12;
 inline vector<array<Info*,Info_page_size>>pages;
 inline mutex imtex;
 inline random_device rds;
@@ -169,7 +169,7 @@ inline vector<Info*> get_rand_dirs(const vector<Info*>&dirs,const int cnt){
 
 inline crow::json::wvalue get_rand_imgs(){
 	lock_guard<mutex> lock(imtex);
-	constexpr int cnt=9;
+	constexpr int cnt=Info_page_size;
 	crow::json::wvalue::list ret;
 	for(auto&dir:get_rand_dirs(leaf_dirs,cnt))
 		pb_next(ret,*dir);
