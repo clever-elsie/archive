@@ -60,6 +60,11 @@ inline string extract_token(const crow::request& req) {
             // JSONパースエラーは無視
         }
     }
+
+    // クエリからトークンを取得（GETクエリで ?token=... を許可）
+    if (const char* qt = req.url_params.get("token")) {
+        if (qt[0] != '\0') return string(qt);
+    }
     
     return "";
 }

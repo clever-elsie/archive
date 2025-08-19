@@ -48,6 +48,11 @@ inline void setup_viewer_routes(crow::App<Middleware>& app){
   CROW_ROUTE(app,"/req/img/file")
     .methods(crow::HTTPMethod::POST)
       (VIEWER::get_file_binary);
+
+  // X-Accel-Redirect を利用した配信用（GET）。
+  CROW_ROUTE(app,"/req/media")
+    .methods(crow::HTTPMethod::GET)
+      (VIEWER::redirect_media);
 }
 
 } // namespace VIEWER_ROUTES

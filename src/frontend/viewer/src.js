@@ -396,7 +396,7 @@ function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex = null
 	fetchMediaBinary(type, id, filename).then(objUrl => {
 		// すべてのObjectURLの解放
 		revokeAllMediaObjectUrls();
-		lastMediaObjectUrls.push(objUrl);
+		if (typeof objUrl === 'string' && objUrl.startsWith('blob:')) lastMediaObjectUrls.push(objUrl);
 		let elem;
 		const media=document.createElement(type);
 		media.src=objUrl;
@@ -979,38 +979,10 @@ window.addEventListener('resize', resizeImages);
 // メディアバイナリ取得API
 async function fetchMediaBinary(type, id, filename) {
     if (type === 'video' || type === 'audio') {
-        return new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', '/req/img/file', true);
-            xhr.setRequestHeader('Content-Type', 'application/json');
-            // JWTトークンをlocalStorageから取得しAuthorizationヘッダーに付与
-            const token = localStorage.getItem('token');
-            if (token) {
-                xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-            }
-            xhr.responseType = 'blob';
-            xhr.withCredentials = true;
-            xhr.upload.onprogress = xhr.onprogress = function (event) {
-                if (event.lengthComputable) {
-                    const percent = (event.loaded / event.total) * 100;
-                    updateMediaLoadingPopup(percent, 'メディアをダウンロード中...');
-                }
-            };
-            xhr.onload = function () {
-                // ここではhideしない（再生準備中に切り替える）
-                if (xhr.status === 200) {
-                    resolve(URL.createObjectURL(xhr.response));
-                } else {
-                    hideMediaLoadingPopup();
-                    reject(new Error('メディア取得失敗'));
-                }
-            };
-            xhr.onerror = function () {
-                hideMediaLoadingPopup();
-                reject(new Error('メディア取得失敗'));
-            };
-            xhr.send(JSON.stringify({ type, id, filename }));
-        });
+        // NGINX X-Accel-Redirect を使った直リンクストリーミング
+        const token = localStorage.getItem('token') || '';
+        const url = `/req/media?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}&filename=${encodeURIComponent(filename)}${token?`&token=${encodeURIComponent(token)}`:''}`;
+        return url;
     } else {
         // 画像・テキストは従来通り
         const response = await authenticatedFetch('/req/img/file', {
