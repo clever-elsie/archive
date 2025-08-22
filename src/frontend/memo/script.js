@@ -113,13 +113,68 @@ function edit_memo(filename) {
 		
 		// テキストエリアの高さを調整
 		const textarea = editor.querySelector('.memo-textarea');
-		textarea.style.height = 'auto';
-		textarea.style.height = `${textarea.scrollHeight}px`;
 		
-		// 自動リサイズ機能
+		// 高さ調整（最大高さを上限にして内側スクロールを維持）
+		function adjustTextareaHeight(el) {
+			const prevScrollTop = el.scrollTop;
+			const maxHeight = Math.floor(window.innerHeight * 0.6); // 画面の60%を上限
+			el.style.height = 'auto';
+			el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
+			el.scrollTop = prevScrollTop;
+		}
+		
+		adjustTextareaHeight(textarea);
+		
+		// 入力時の自動リサイズ（スクロール位置を保持）
 		textarea.addEventListener('input', function() {
-			this.style.height = 'auto';
-			this.style.height = `${this.scrollHeight}px`;
+			adjustTextareaHeight(this);
+		});
+		
+		// Tabキーでインデントを挿入/解除
+		textarea.addEventListener('keydown', function(e) {
+			if (e.key !== 'Tab') return;
+			e.preventDefault();
+			const value = this.value;
+			const start = this.selectionStart;
+			const end = this.selectionEnd;
+			
+			// 複数行選択時は行単位で処理
+			if (start !== end && value.slice(start, end).includes('\n')) {
+				const lineStart = value.lastIndexOf('\n', start - 1) + 1;
+				let lineEnd = value.indexOf('\n', end);
+				if (lineEnd === -1) lineEnd = value.length;
+				const before = value.slice(0, lineStart);
+				const after = value.slice(lineEnd);
+				const lines = value.slice(lineStart, lineEnd).split('\n');
+				
+				if (e.shiftKey) {
+					let removedCount = 0;
+					const newLines = lines.map(line => {
+						const m = line.match(/^(\t| {1,2})/);
+						if (m) { removedCount++; return line.slice(m[0].length); }
+						return line;
+					});
+					const newText = newLines.join('\n');
+					this.value = before + newText + after;
+					// 選択範囲を維持（先頭はそのまま、末尾は削除分を考慮）
+					this.setSelectionRange(start - (lines[0].match(/^(\t| {1,2})/) ? lines[0].match(/^(\t| {1,2})/)[0].length : 0), end - removedCount);
+				} else {
+					const newLines = lines.map(line => '\t' + line);
+					const newText = newLines.join('\n');
+					this.value = before + newText + after;
+					// 追加分を考慮して選択範囲を更新
+					this.setSelectionRange(start + 1, end + newLines.length);
+				}
+				adjustTextareaHeight(this);
+				return;
+			}
+			
+			// 単一位置のときはその場にタブ挿入
+			const before = value.substring(0, start);
+			const after = value.substring(end);
+			this.value = before + '\t' + after;
+			this.setSelectionRange(start + 1, start + 1);
+			adjustTextareaHeight(this);
 		});
 	})
 	.catch(error => {
