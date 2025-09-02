@@ -216,24 +216,40 @@ window.addEventListener('DOMContentLoaded', function() {
 	controls.style.margin = '1em 0';
 	controls.innerHTML = `
 		<label style="margin-right:0.5em;">並び替え:</label>
-		<select id="order_key">
-			<option value="name">名前</option>
-			<option value="last_write_time">最終更新日</option>
-		</select>
-		<select id="order">
-			<option value="ascendant">昇順</option>
-			<option value="descendant">降順</option>
+		<select id="sort_mode">
+			<option value="name_asc">名前順</option>
+			<option value="mtime_desc">新しい順</option>
+			<option value="mtime_asc">古い順</option>
 		</select>
 	`;
 	const container = document.getElementById('thumbnailContainer');
 	container.parentNode.insertBefore(controls, container);
 
-	document.getElementById('order_key').addEventListener('change', function() {
-		order_key = this.value;
-		cd(cur_id);
-	});
-	document.getElementById('order').addEventListener('change', function() {
-		order = this.value;
+	const sortSelect = document.getElementById('sort_mode');
+	function setSortFromMode(mode) {
+		switch(mode){
+			case 'name_asc':
+				order_key = 'name';
+				order = 'ascendant';
+				break;
+			case 'mtime_desc':
+				order_key = 'last_write_time';
+				order = 'descendant';
+				break;
+			case 'mtime_asc':
+				order_key = 'last_write_time';
+				order = 'ascendant';
+				break;
+		}
+	}
+	function getModeFromSort() {
+		if (order_key === 'name') return 'name_asc';
+		if (order_key === 'last_write_time' && order === 'descendant') return 'mtime_desc';
+		return 'mtime_asc';
+	}
+	sortSelect.value = getModeFromSort();
+	sortSelect.addEventListener('change', function(){
+		setSortFromMode(this.value);
 		cd(cur_id);
 	});
 });
@@ -732,8 +748,10 @@ function fetchImageList(id) {
 
 		const titlediv=document.getElementById("title");
 		const container = document.getElementById('imageContainer');
+		const parentContainer = document.getElementById('parentContainer');
 		container.innerHTML = ''; // 画像を表示するエリアをクリア
 		titlediv.innerHTML='';
+		parentContainer.innerHTML='';
 
 		// ローディング表示
 		const loadingDiv = document.createElement('div');
@@ -835,7 +853,6 @@ function fetchImageList(id) {
 		});
 
 		// 親ディレクトリのサムネイル（data['parent']）を表示
-		const parentContainer = document.getElementById('parentContainer');
 		if (parentContainer && data['parent'])
 			displayThumbnailImages(parentContainer, data['parent'], id, true);
 		else parentContainer.innerHTML='';
