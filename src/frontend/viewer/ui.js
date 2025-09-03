@@ -1,0 +1,89 @@
+import { State } from './state.js';
+import { fetchPageList } from './pagination.js';
+import { cd } from './directory.js';
+import { updateMetadataEditSection } from './metadata.js';
+import { calculateOptimalImageSize } from './media.js';
+import { displayThumbnailImages } from './thumbnails.js';
+
+export async function initializePage() {
+	try {
+		const permissions = await checkUserPermissions();
+		if (permissions !== null) {
+			updateSystemReloadButton();
+			updateMetadataEditSection();
+		} else {
+			console.warn('権限情報の取得に失敗しました');
+		}
+		setTimeout(() => { cd(0); }, 500);
+		setTimeout(fetchPageList, 500);
+	} catch (error) {
+		console.error('初期化エラー:', error);
+		setTimeout(() => { cd(0); }, 500);
+		setTimeout(fetchPageList, 500);
+	}
+}
+
+export function updateSystemReloadButton() {
+	const systemSection = document.querySelector('.system-section');
+	if (systemSection) {
+		if (isAdmin()) systemSection.style.display = 'block';
+		else systemSection.style.display = 'none';
+	}
+}
+
+export function reload_leaf_req(e) {
+	if (e && e.preventDefault) e.preventDefault();
+	if (!isAdmin()) { alert('システムリロードは管理者のみ実行できます'); return; }
+	State.pagination.prev = 0; State.pagination.next = 0; State.pagination.size = 0;
+	State.directory.parentId = 0; State.directory.currentId = 0;
+	document.getElementById('page_list').innerHTML = '';
+	document.getElementById('parentContainer').innerHTML = '';
+	document.getElementById('imageContainer').innerHTML = '';
+	document.getElementById('thumbnailContainer').innerHTML = '';
+	document.getElementById('title').innerHTML = '';
+	document.getElementById('counter').innerHTML = '';
+	document.getElementById('parentContainer').innerHTML = '';
+	document.getElementById('tags').innerHTML = '';
+	document.getElementById('jmpControll').innerHTML = '';
+	document.getElementById('jmpControll2').innerHTML = '';
+	authenticatedFetch('/req/img/reload', { method: 'GET' })
+		.then(() => { fetchPageList(); });
+}
+
+export function jmpImg2() {
+	const id = document.getElementById('jmpImg').value;
+	if (id) {
+		const tar = document.getElementById(id);
+		if (tar) tar.scrollIntoView({ behavior: 'smooth' });
+		else alert('ID ' + id + ' does not exist.');
+	} else alert('ページ番号を指定してください．');
+}
+
+export function handleJumpImgKeyPress(event) {
+	if (event.key === 'Enter') jmpImg2();
+}
+
+export function toggleNav() {
+	const nav = document.querySelector('.floating-nav');
+	const toggle = document.querySelector('.nav-toggle i');
+	if (nav.classList.contains('show')) { nav.classList.remove('show'); toggle.className = 'fas fa-chevron-right'; }
+	else { nav.classList.add('show'); toggle.className = 'fas fa-chevron-left'; }
+}
+
+export function resizeImages() {
+	const mainImages = document.querySelectorAll('.main-image');
+	mainImages.forEach(img => {
+		const originalWidth = img.dataset.originalWidth;
+		const originalHeight = img.dataset.originalHeight;
+		if (originalWidth && originalHeight) {
+			const imageInfo = { width: parseInt(originalWidth), height: parseInt(originalHeight) };
+			const optimalSize = calculateOptimalImageSize(imageInfo);
+			img.style.width = optimalSize.width + 'px';
+			img.style.height = optimalSize.height + 'px';
+			img.style.maxWidth = optimalSize.maxWidth + 'px';
+			img.style.maxHeight = optimalSize.maxHeight + 'px';
+		}
+	});
+}
+
+export function attachResizeListener() { window.addEventListener('resize', resizeImages); }
