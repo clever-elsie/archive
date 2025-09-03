@@ -607,7 +607,9 @@ function displayThumbnailImages(container, images, currentId, clearContainer = t
 		const filename = item.img.split('/').pop();
 		return fetchMediaBinary('image', id, filename)
 			.then(objUrl => {
-				lastMediaObjectUrls.push(objUrl);
+				if (typeof objUrl === 'string' && objUrl.startsWith('blob:')) {
+					lastMediaObjectUrls.push(objUrl);
+				}
 				return preloadAndCalculateImageSize(objUrl)
 					.then(imageInfo => ({ ...item, imageInfo, objUrl }));
 			});
@@ -995,13 +997,13 @@ window.addEventListener('resize', resizeImages);
 
 // メディアバイナリ取得API
 async function fetchMediaBinary(type, id, filename) {
-    if (type === 'video' || type === 'audio') {
-        // NGINX X-Accel-Redirect を使った直リンクストリーミング
+    if (type === 'video' || type === 'audio' || type === 'image') {
+        // NGINX X-Accel-Redirect を使った直リンクストリーミング（画像も含む）
         const token = localStorage.getItem('token') || '';
         const url = `/req/media?type=${encodeURIComponent(type)}&id=${encodeURIComponent(id)}&filename=${encodeURIComponent(filename)}${token?`&token=${encodeURIComponent(token)}`:''}`;
         return url;
     } else {
-        // 画像・テキストは従来通り
+        // テキスト等は従来通り（必要に応じて切替検討）
         const response = await authenticatedFetch('/req/img/file', {
             method: 'POST',
             body: JSON.stringify({ type, id, filename })

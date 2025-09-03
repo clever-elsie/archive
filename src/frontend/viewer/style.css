@@ -67,6 +67,12 @@
 	transition: all 0.3s ease;
 }
 
+/* select のプルダウンが白地に白文字になるのを防ぐ */
+select.modern-input option {
+	color: #111111;
+	background: #ffffff;
+}
+
 .modern-input:focus {
 	outline: none;
 	border-color: #64ffda;
