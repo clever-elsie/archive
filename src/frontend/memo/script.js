@@ -40,7 +40,7 @@ function add_memo_item(filename, stem, tag = [], format = "txt", created_at = ""
 	memoItem.innerHTML = `
 		<div class="memo-header">
 			<div class="memo-title-row2">
-				<span class="filename-text view-memo-title" style="cursor:pointer;" onclick="view_memo('${filename}')">${stem}</span>
+				<span class="filename-text view-memo-title" style="cursor:pointer;" onclick="open_tab('${filename}')">${stem}</span>
 				<span class="format-badge">.${format}</span>
 			</div>
 			<div class="memo-sub-row">
@@ -49,7 +49,6 @@ function add_memo_item(filename, stem, tag = [], format = "txt", created_at = ""
 						<i class="fas fa-ellipsis-v"></i>
 					</button>
 					<div class="memo-popup-menu" style="display:none; position:absolute; z-index:10;">
-						<button class="btn-edit" onclick="edit_memo('${filename}')"><i class="fas fa-edit"></i> 編集</button>
 						<button class="btn-tags" onclick="edit_tags('${filename}', ${JSON.stringify(tag).replace(/\"/g, '&quot;')})"><i class="fas fa-tags"></i> タグ</button>
 						<button class="btn-rename" onclick="rename_memo('${filename}', '${stem}')"><i class="fas fa-edit"></i> リネーム</button>
 						<button class="btn-delete" onclick="delete_memo('${filename}')"><i class="fas fa-trash"></i> 削除</button>
@@ -66,79 +65,88 @@ function add_memo_item(filename, stem, tag = [], format = "txt", created_at = ""
 	
 	// メインコンテナに追加
 	document.getElementById('memoList').appendChild(memoItem);
+
+	// アイテム全体クリックで開く（メニュー類は除外）
+	memoItem.addEventListener('click', function(e) {
+		if (e.target.closest('.memo-actions-menu') || e.target.closest('.memo-popup-menu-global')) return;
+		open_tab(filename);
+	});
 	
 	// カウンターを更新
 	updateMemoCounter();
 }
 
-// メモ編集画面を表示
-function edit_memo(filename) {
-	// 既存の編集画面を削除
-	const existingEditor = document.querySelector('.memo-editor');
-	if (existingEditor) {
-		existingEditor.remove();
+// VSCode風: タブエディタ管理
+const openTabs = new Map(); // filename -> { tabEl, paneEl, textarea, dirty, stem, format }
+
+function activate_tab(filename) {
+	const tabs = document.querySelectorAll('.editor-tab');
+	tabs.forEach(t => t.classList.remove('active'));
+	const panes = document.querySelectorAll('.editor-pane');
+	panes.forEach(p => p.classList.remove('active'));
+	const entry = openTabs.get(filename);
+	if (entry) {
+		entry.tabEl.classList.add('active');
+		entry.paneEl.classList.add('active');
+		entry.textarea.focus();
 	}
-	
-	// メモデータを読み込み
-	authenticatedFetch('/req/memo/now', {
-		method: 'POST',
-		body: JSON.stringify({ "filename": filename })
-	})
+}
+
+function close_tab(filename) {
+	const entry = openTabs.get(filename);
+	if (!entry) return;
+	entry.tabEl.remove();
+	entry.paneEl.remove();
+	openTabs.delete(filename);
+	const last = Array.from(openTabs.keys()).pop();
+	if (last) activate_tab(last);
+}
+
+function mark_dirty(filename, dirty) {
+	const entry = openTabs.get(filename);
+	if (!entry) return;
+	entry.dirty = dirty;
+	const label = entry.tabEl.querySelector('.tab-label');
+	if (label) label.textContent = dirty ? `${entry.stem} •` : entry.stem;
+}
+
+function open_tab(filename) {
+	if (openTabs.has(filename)) { activate_tab(filename); return; }
+	authenticatedFetch('/req/memo/now', { method: 'POST', body: JSON.stringify({ "filename": filename }) })
 	.then(response => response.json())
 	.then(data => {
-		// 編集画面を作成
-		const editor = document.createElement('div');
-		editor.className = 'memo-editor';
-		editor.innerHTML = `
-			<div class="editor-header">
-				<h3>${data.stem}<span class="format-badge">.${data.format}</span></h3>
-				<button class="btn-close" onclick="close_editor()">
-					<i class="fas fa-times"></i>
-				</button>
-			</div>
-			<div class="editor-content">
-				<textarea class="memo-textarea" data-filename="${filename}">${data.data || ''}</textarea>
-				<div class="editor-actions">
-					<button class="btn-save" onclick="save_memo('${filename}')">
-						<i class="fas fa-save"></i> 保存
-					</button>
-					<button class="btn-cancel" onclick="close_editor()">
-						<i class="fas fa-times"></i> キャンセル
-					</button>
-				</div>
-			</div>
-		`;
-		
-		document.body.appendChild(editor);
-		
-		// テキストエリアの高さを調整
-		const textarea = editor.querySelector('.memo-textarea');
-		
-		// 高さ調整（最大高さを上限にして内側スクロールを維持）
-		function adjustTextareaHeight(el) {
-			const prevScrollTop = el.scrollTop;
-			const maxHeight = Math.floor(window.innerHeight * 0.6); // 画面の60%を上限
-			el.style.height = 'auto';
-			el.style.height = `${Math.min(el.scrollHeight, maxHeight)}px`;
-			el.scrollTop = prevScrollTop;
-		}
-		
-		adjustTextareaHeight(textarea);
-		
-		// 入力時の自動リサイズ（スクロール位置を保持）
-		textarea.addEventListener('input', function() {
-			adjustTextareaHeight(this);
+		const tabs = document.getElementById('editorTabs');
+		const area = document.getElementById('editorArea');
+		if (!tabs || !area) return;
+		const tab = document.createElement('button');
+		tab.className = 'editor-tab active';
+		tab.innerHTML = `<span class="tab-label">${data.stem}</span><span class="format-badge">.${data.format}</span><button class="close-btn" title="閉じる">✕</button>`;
+		const pane = document.createElement('div');
+		pane.className = 'editor-pane active';
+		pane.innerHTML = `<div class="editor-pane-inner"><textarea class="memo-textarea" data-filename="${filename}">${data.data || ''}</textarea></div>`;
+		document.querySelectorAll('.editor-tab').forEach(el => el.classList.remove('active'));
+		document.querySelectorAll('.editor-pane').forEach(el => el.classList.remove('active'));
+		tabs.appendChild(tab);
+		area.appendChild(pane);
+		const textarea = pane.querySelector('textarea');
+		const entry = { tabEl: tab, paneEl: pane, textarea, dirty: false, stem: data.stem, format: data.format };
+		openTabs.set(filename, entry);
+		tab.addEventListener('click', (e) => {
+			if ((e.target).classList && (e.target).classList.contains('close-btn')) return;
+			activate_tab(filename);
 		});
-		
-		// Tabキーでインデントを挿入/解除
+		tab.querySelector('.close-btn').addEventListener('click', (e) => {
+			e.stopPropagation();
+			if (entry.dirty && !confirm('未保存の変更があります。閉じますか？')) return;
+			close_tab(filename);
+		});
+		textarea.addEventListener('input', () => mark_dirty(filename, true));
 		textarea.addEventListener('keydown', function(e) {
 			if (e.key !== 'Tab') return;
 			e.preventDefault();
 			const value = this.value;
 			const start = this.selectionStart;
 			const end = this.selectionEnd;
-			
-			// 複数行選択時は行単位で処理
 			if (start !== end && value.slice(start, end).includes('\n')) {
 				const lineStart = value.lastIndexOf('\n', start - 1) + 1;
 				let lineEnd = value.indexOf('\n', end);
@@ -146,7 +154,6 @@ function edit_memo(filename) {
 				const before = value.slice(0, lineStart);
 				const after = value.slice(lineEnd);
 				const lines = value.slice(lineStart, lineEnd).split('\n');
-				
 				if (e.shiftKey) {
 					let removedCount = 0;
 					const newLines = lines.map(line => {
@@ -154,57 +161,44 @@ function edit_memo(filename) {
 						if (m) { removedCount++; return line.slice(m[0].length); }
 						return line;
 					});
-					const newText = newLines.join('\n');
-					this.value = before + newText + after;
-					// 選択範囲を維持（先頭はそのまま、末尾は削除分を考慮）
+					this.value = before + newLines.join('\n') + after;
 					this.setSelectionRange(start - (lines[0].match(/^(\t| {1,2})/) ? lines[0].match(/^(\t| {1,2})/)[0].length : 0), end - removedCount);
 				} else {
 					const newLines = lines.map(line => '\t' + line);
-					const newText = newLines.join('\n');
-					this.value = before + newText + after;
-					// 追加分を考慮して選択範囲を更新
+					this.value = before + newLines.join('\n') + after;
 					this.setSelectionRange(start + 1, end + newLines.length);
 				}
-				adjustTextareaHeight(this);
 				return;
 			}
-			
-			// 単一位置のときはその場にタブ挿入
 			const before = value.substring(0, start);
 			const after = value.substring(end);
 			this.value = before + '\t' + after;
 			this.setSelectionRange(start + 1, start + 1);
-			adjustTextareaHeight(this);
 		});
+		activate_tab(filename);
 	})
-	.catch(error => {
-		console.error('メモの読み込みに失敗しました:', error);
-		showError('メモの読み込みに失敗しました');
-	});
+	.catch(() => { showError('メモの読み込みに失敗しました'); });
 }
 
-// 編集画面を閉じる
-function close_editor() {
-	const editor = document.querySelector('.memo-editor');
-	if (editor) {
-		editor.remove();
-	}
+// 互換: 旧UI用APIを残す
+function edit_memo(filename) {
+	open_tab(filename);
 }
 
-// メモを保存
+function close_editor() { /* タブUI移行のため未使用 */ }
+
 function save_memo(filename) {
-	const textarea = document.querySelector('.memo-editor textarea');
-	if (!textarea) return;
-	
-	const text = textarea.value;
+	const entry = openTabs.get(filename);
+	if (!entry) return;
+	const text = entry.textarea.value;
 	authenticatedFetch('/req/memo/renew', {
 		method: 'POST',
 		body: JSON.stringify({ "filename": filename, "memo": text })
 	})
 	.then(response => {
-		if (response.ok) {
+		if (response && response.ok) {
 			showSuccess('メモを保存しました');
-			close_editor();
+			mark_dirty(filename, false);
 		} else {
 			throw new Error('保存に失敗しました');
 		}
@@ -759,6 +753,20 @@ document.addEventListener('DOMContentLoaded', function() {
 			searchTimeout = setTimeout(search_memos, 300); // 300ms遅延で検索実行
 		});
 	}
+
+	// Ctrl+S でアクティブタブ保存
+	document.addEventListener('keydown', function(e) {
+		if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+			e.preventDefault();
+			const activeTab = document.querySelector('.editor-tab.active');
+			if (!activeTab) return;
+			const entry = Array.from(openTabs.entries()).find(([fn, v]) => v.tabEl === activeTab);
+			if (entry) {
+				const [filename] = entry;
+				save_memo(filename);
+			}
+		}
+	});
 });
 
 // 通知アニメーション用CSS
@@ -803,6 +811,13 @@ window.toggleMemoMenu = function(btn) {
 	menuClone.style.top = `${rect.bottom + window.scrollY + 4}px`;
 	menuClone.style.zIndex = 2147483647;
 	document.body.appendChild(menuClone);
+
+	// メニューのいずれかをクリックしたら即クローズ
+	menuClone.querySelectorAll('button').forEach(b => {
+		b.addEventListener('click', () => {
+			menuClone.remove();
+		});
+	});
 
 	// 外側クリックで閉じる
 	const handler = function(e) {

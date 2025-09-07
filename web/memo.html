@@ -30,41 +30,29 @@
 		</div>
 	</header>
 
-	<!-- メインコンテンツ -->
-	<main class="main-content">
-		<!-- 検索セクション -->
-		<section class="search-section">
-			<div class="search-card">
-				<h3><i class="fas fa-search"></i> メモ検索</h3>
-				<p class="section-description">タイトル、タグ、内容で検索できます。複数の単語を入力するとAND検索になります。</p>
+	<!-- メインレイアウト（VSCode風） -->
+	<main class="memo-app">
+		<aside class="memo-sidebar">
+			<div class="sidebar-header">
 				<div class="search-input-container">
 					<input type="text" id="searchInput" class="search-input" placeholder="検索キーワードを入力...">
 					<button class="btn btn-secondary" onclick="search_memos()">
 						<i class="fas fa-search"></i>
-						検索
+					</button>
+				</div>
+				<div class="sidebar-actions">
+					<button class="btn btn-primary" onclick="new_memo()">
+						<i class="fas fa-plus"></i>
+						新規
 					</button>
 				</div>
 			</div>
-		</section>
+			<div id="memoList" class="memo-list-vertical"></div>
+		</aside>
 
-		<!-- 新規作成セクション -->
-		<section class="create-section">
-			<div class="create-card">
-				<h3><i class="fas fa-plus-circle"></i> 新規メモ作成</h3>
-				<p class="section-description">新しいメモを作成して、アイデアやタスクを記録しましょう。タグを付けることで整理しやすくなります。</p>
-				<button class="btn btn-primary" onclick="new_memo()">
-					<i class="fas fa-plus"></i>
-					新規作成
-				</button>
-			</div>
-		</section>
-
-		<!-- メモ一覧セクション -->
-		<section class="memo-section">
-			<h3><i class="fas fa-sticky-note"></i> メモ一覧</h3>
-			<div id="memoList" class="memo-container">
-				<!-- メモが動的にここに追加されます -->
-			</div>
+		<section class="memo-editor-pane">
+			<div id="editorTabs" class="editor-tabs"></div>
+			<div id="editorArea" class="editor-area"></div>
 		</section>
 	</main>
 

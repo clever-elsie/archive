@@ -934,3 +934,165 @@
 	border-top: 1px solid rgba(255,255,255,0.08);
 	font-size: 0.95em;
 }
+
+/* ========================= */
+/* VSCode風 メモアプリ追加 */
+/* ========================= */
+.memo-app {
+	display: grid;
+	grid-template-columns: 300px 1fr;
+	grid-template-rows: calc(100vh - 72px);
+	gap: 0;
+	height: calc(100vh - 72px);
+}
+
+.memo-sidebar {
+	border-right: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(255, 255, 255, 0.03);
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.sidebar-header {
+	padding: 0.75rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.75rem;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.sidebar-actions {
+	display: flex;
+	gap: 0.5rem;
+}
+
+/* サイドバー内 検索UIのレイアウト安定化 */
+.memo-sidebar .search-input-container {
+	display: flex;
+	gap: 0.5rem;
+}
+.memo-sidebar .search-input {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+.memo-sidebar .btn {
+	min-width: auto;
+	padding: 0.5rem 0.8rem;
+}
+
+.memo-list-vertical {
+	overflow: auto;
+	padding: 0.5rem 0.75rem;
+}
+
+.memo-editor-pane {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+.editor-tabs {
+	display: flex;
+	gap: 0.25rem;
+	align-items: center;
+	padding: 0.25rem 0.5rem;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+	background: rgba(255, 255, 255, 0.03);
+	overflow-x: auto;
+	white-space: nowrap;
+}
+
+.editor-tab {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.4rem 0.6rem;
+	border-radius: 6px 6px 0 0;
+	background: transparent;
+	border: 1px solid transparent;
+	cursor: pointer;
+	color: #b2fff6;
+}
+
+.editor-tab.active {
+	background: rgba(15, 15, 35, 0.9);
+	border-color: rgba(255, 255, 255, 0.08);
+	border-bottom-color: transparent;
+}
+
+.editor-tab .close-btn {
+	background: none;
+	border: none;
+	color: inherit;
+	cursor: pointer;
+}
+
+.editor-area {
+	position: relative;
+	flex: 1;
+	overflow: hidden;
+	background: rgba(15, 15, 35, 0.95);
+}
+
+.editor-pane {
+	position: absolute;
+	inset: 0;
+	display: none;
+	overflow: auto;
+}
+
+.editor-pane.active {
+	display: block;
+}
+
+.editor-pane-inner {
+	padding: 1rem 1.25rem 2rem 1.25rem;
+	max-width: 1100px; /* 横幅上限 */
+	margin: 0 auto;
+}
+
+.editor-pane-inner .memo-textarea {
+	width: 100%;
+	min-height: calc(100vh - 220px);
+	resize: vertical;
+	box-sizing: border-box;
+}
+
+/* サイドバー用リスト調整 */
+.memo-list-vertical .memo-item {
+	border-radius: 10px;
+	padding: 0.6rem 0.8rem;
+	margin-bottom: 0.5rem;
+	max-width: none;
+}
+
+.memo-list-vertical .memo-header {
+	margin-bottom: 0.25rem;
+	align-items: center;
+}
+
+.memo-list-vertical .memo-title-row2 {
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+@media (max-width: 1024px) {
+	.memo-app {
+		grid-template-columns: 260px 1fr;
+	}
+}
+
+@media (max-width: 768px) {
+	.memo-app {
+		display: block;
+		height: auto;
+	}
+	.memo-sidebar { height: auto; }
+	.editor-area { position: relative; height: auto; }
+	.editor-pane { position: relative; }
+}
