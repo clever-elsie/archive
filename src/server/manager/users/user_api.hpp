@@ -3,6 +3,7 @@
 #include "user_manager.hpp"
 #include "../auth/middleware.hpp"
 #include <sstream>
+#include <regex>
 
 using namespace std;
 
@@ -37,6 +38,16 @@ inline crow::response register_user(const crow::request& req) {
             }
         }
         
+        // 入力バリデーション
+        static const std::regex re_user("^[A-Za-z0-9]{1,32}$");
+        static const std::regex re_pass("^[A-Za-z0-9_-]{10,64}$");
+        if (!std::regex_match(username, re_user) || !std::regex_match(password, re_pass)) {
+            crow::json::wvalue response;
+            response["success"] = false;
+            response["message"] = "ユーザー名/パスワードの形式が不正です";
+            return crow::response(400, response);
+        }
+
         // ユーザー登録
         if (USER_MANAGER::user_manager.add_user(username, password, role, created_by)) {
             crow::json::wvalue response;

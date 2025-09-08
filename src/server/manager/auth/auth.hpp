@@ -7,6 +7,7 @@
 #include <chrono>
 #include <sstream>
 #include <iomanip>
+#include <regex>
 
 namespace AUTH {
 using namespace std;
@@ -63,6 +64,15 @@ inline crow::response login_response(const crow::request& req) {
         string username = data["username"].s();
         string password = data["password"].s();
         
+        static const std::regex re_user("^[A-Za-z0-9]{1,32}$");
+        static const std::regex re_pass("^[A-Za-z0-9_-]{10,64}$");
+        if (!std::regex_match(username, re_user) || !std::regex_match(password, re_pass)) {
+            crow::json::wvalue response;
+            response["success"] = false;
+            response["message"] = "ユーザー名/パスワードの形式が不正です";
+            return crow::response(400, response);
+        }
+
         if (authenticate_user(username, password)) {
             string token = create_token(username);
             

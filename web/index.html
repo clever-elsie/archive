@@ -554,6 +554,8 @@
 	let token = localStorage.getItem('token');
 	let username = localStorage.getItem('username');
 	let isFirstUser = false;
+	const RE_USERNAME = /^[A-Za-z0-9]{1,32}$/;
+	const RE_PASSWORD = /^[A-Za-z0-9_-]{10,64}$/;
 
 	window.onload = async function() {
 		document.getElementById('loadingSpinner').style.display = 'flex';
@@ -629,8 +631,20 @@
 			messageDiv.innerHTML = '<div class="message error-message">ユーザー名とパスワードを入力してください</div>';
 			return;
 		}
+		if (!RE_USERNAME.test(inputUsername)) {
+			messageDiv.innerHTML = '<div class="message error-message">ユーザー名は1〜32文字の英数字のみです</div>';
+			return;
+		}
+		if (!RE_PASSWORD.test(inputPassword)) {
+			messageDiv.innerHTML = '<div class="message error-message">パスワードは10〜64文字の英数字・アンダーバー・ハイフンのみです</div>';
+			return;
+		}
 		if (isFirstUser) {
 			const inputPassword2 = document.getElementById('passwordInput2').value;
+			if (!RE_PASSWORD.test(inputPassword2)) {
+				messageDiv.innerHTML = '<div class="message error-message">確認用パスワードの形式が不正です</div>';
+				return;
+			}
 			if (inputPassword !== inputPassword2) {
 				messageDiv.innerHTML = '<div class="message error-message">パスワードが一致しません</div>';
 				return;

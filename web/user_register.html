@@ -266,11 +266,11 @@
             <form id="loginForm">
                 <div class="form-group">
                     <label for="loginUsername">ユーザー名</label>
-                    <input type="text" id="loginUsername" required>
+                    <input type="text" id="loginUsername" required pattern="^[A-Za-z0-9]{1,32}$" minlength="1" maxlength="32" title="ユーザー名は1〜32文字の英数字のみ">
                 </div>
                 <div class="form-group">
                     <label for="loginPassword">パスワード</label>
-                    <input type="password" id="loginPassword" required>
+                    <input type="password" id="loginPassword" required pattern="^[A-Za-z0-9_-]{10,64}$" minlength="10" maxlength="64" title="パスワードは10〜64文字の英数字・アンダーバー・ハイフンのみ">
                 </div>
                 <button type="submit" class="btn btn-primary">
                     <i class="fas fa-sign-in-alt"></i> ログイン
@@ -286,15 +286,15 @@
                 <form id="registerForm">
                     <div class="form-group">
                         <label for="newUsername">ユーザー名</label>
-                        <input type="text" id="newUsername" required>
+                        <input type="text" id="newUsername" required pattern="^[A-Za-z0-9]{1,32}$" minlength="1" maxlength="32" title="ユーザー名は1〜32文字の英数字のみ">
                     </div>
                     <div class="form-group">
                         <label for="newPassword">パスワード</label>
-                        <input type="password" id="newPassword" required>
+                        <input type="password" id="newPassword" required pattern="^[A-Za-z0-9_-]{10,64}$" minlength="10" maxlength="64" title="パスワードは10〜64文字の英数字・アンダーバー・ハイフンのみ">
                     </div>
                     <div class="form-group">
                         <label for="confirmPassword">パスワード（確認）</label>
-                        <input type="password" id="confirmPassword" required>
+                        <input type="password" id="confirmPassword" required pattern="^[A-Za-z0-9_-]{10,64}$" minlength="10" maxlength="64" title="パスワードは10〜64文字の英数字・アンダーバー・ハイフンのみ">
                     </div>
                     <div class="form-group">
                         <label for="userRole">権限</label>
@@ -358,6 +358,8 @@
     <script>
         let currentUser = '';
         let currentPermissions = {};
+        const RE_USERNAME = /^[A-Za-z0-9]{1,32}$/;
+        const RE_PASSWORD = /^[A-Za-z0-9_-]{10,64}$/;
 
         // ページ読み込み時の処理
         window.onload = function() {
@@ -384,6 +386,14 @@
             
             const username = document.getElementById('loginUsername').value;
             const password = document.getElementById('loginPassword').value;
+            if (!RE_USERNAME.test(username)) {
+                showMessage('loginMessage', 'ユーザー名は1〜32文字の英数字のみです', 'error');
+                return;
+            }
+            if (!RE_PASSWORD.test(password)) {
+                showMessage('loginMessage', 'パスワードは10〜64文字の英数字・アンダーバー・ハイフンのみです', 'error');
+                return;
+            }
             
             try {
                 const response = await fetch('/req/auth/login', {
@@ -426,6 +436,18 @@
             const password = document.getElementById('newPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             const role = document.getElementById('userRole').value;
+            if (!RE_USERNAME.test(username)) {
+                showMessage('registerMessage', 'ユーザー名は1〜32文字の英数字のみです', 'error');
+                return;
+            }
+            if (!RE_PASSWORD.test(password)) {
+                showMessage('registerMessage', 'パスワードは10〜64文字の英数字・アンダーバー・ハイフンのみです', 'error');
+                return;
+            }
+            if (!RE_PASSWORD.test(confirmPassword)) {
+                showMessage('registerMessage', '確認用パスワードの形式が不正です', 'error');
+                return;
+            }
             
             if (password !== confirmPassword) {
                 showMessage('registerMessage', 'パスワードが一致しません', 'error');
