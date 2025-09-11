@@ -1,4 +1,7 @@
 #pragma once
+#include <ext/pb_ds/tree_policy.hpp>
+#include <ext/pb_ds/assoc_container.hpp>
+#include <unordered_set>
 #include "../../headers.hpp"
 #include "../../manager/auth/middleware.hpp"
 #include "../../manager/auth/auth.hpp"
@@ -8,21 +11,32 @@
 #include <crow/multipart.h>
 
 namespace VIEWER{
+template<class key, class value, class cmp=std::less<key>>
+using tree=__gnu_pbds::tree<key, value, cmp, __gnu_pbds::rb_tree_tag, __gnu_pbds::tree_order_statistics_node_update>;
 using namespace std;
 struct Info;
+// PBDS 比較子（実装は後方）
+struct LeafCmp{ static bool operator()(const Info* a,const Info* b) noexcept; };
+struct DirCmp { static bool operator()(const Info* a,const Info* b) noexcept; };
 
 // グローバル変数
 inline string base_dir;
 inline string rel_base;
 inline Info*root_dir = nullptr;
-inline vector<Info*>leaf_dirs;
-inline vector<Info*>dirs_tree;
+// 可乱択二分木（順序統計木）に変更
+inline tree<Info*, __gnu_pbds::null_type, LeafCmp> leaf_dirs;
+inline tree<Info*, __gnu_pbds::null_type, DirCmp> dirs_tree;
 inline constexpr uint64_t Info_page_size=12;
-inline vector<array<Info*,Info_page_size>>pages;
 inline mutex imtex;
 inline random_device rds;
 inline mt19937_64 R(rds());
 inline filesystem::file_time_type base_time{};
+inline unordered_set<Info*> valid_info_ptrs; // 有効ポインタ集合
+
+// id(数値) → Info* 変換（0 は root_dir のエイリアス）
+inline Info* get_info_from_id(uint64_t idv) noexcept{
+	return idv==0 ? root_dir : reinterpret_cast<Info*>(idv);
+}
 
 struct Info{
 	string path;
@@ -56,13 +70,10 @@ struct Info{
 				Info *n=new Info(itr.path().string(),this);
 				if(n!=nullptr&&(n->imgs.size()||n->dirs.size())){
 					dirs.push_back(n);
-					if(n->dirs.size()){
-						n->id=dirs_tree.size();
-						dirs_tree.push_back(n);
-					}else{
-						n->id=leaf_dirs.size();
-						leaf_dirs.push_back(n);
-					}
+					n->id=reinterpret_cast<uint64_t>(n);
+					valid_info_ptrs.insert(n);
+					if(n->dirs.size()) dirs_tree.insert(n);
+					else leaf_dirs.insert(n);
 				}else delete n;
 			}else{
 				for(const auto&ext:exts)
@@ -89,39 +100,18 @@ struct Info{
 		}
 };
 
-inline void make_page_list(){
-	pages.clear();
-	pages.resize(1);
-	pages[0].fill(nullptr);
-	uint64_t count=0;
-	vector<Info*>cp(leaf_dirs);
-	sort(cp.begin(),cp.end(),[](const Info*a,const Info*b){
-		if(a->last_write_time==b->last_write_time)
-			return a->path<b->path;
-		return a->last_write_time>b->last_write_time;
-	});
-	for(auto const & dir:cp){
-		pages.back()[count++]=dir;
-		if(Info_page_size==count){
-			count=0;
-			pages.push_back({});
-		}
-	}
-	if(count==0) pages.pop_back();
-}
-
 inline void load_leaf_dir(const string&base){
 	namespace C = std::chrono;
 	namespace F = std::filesystem;
 	leaf_dirs.clear();
 	dirs_tree.clear();
+	valid_info_ptrs.clear();
 	delete root_dir;
-	dirs_tree.resize(1);
 	root_dir=new Info(base,nullptr);
-	dirs_tree[0]=root_dir;
 	root_dir->par=root_dir;
-	root_dir->id=0;
-	make_page_list();
+	root_dir->id=reinterpret_cast<uint64_t>(root_dir);
+	valid_info_ptrs.insert(root_dir);
+	dirs_tree.insert(root_dir);
 }
 
 inline string rel_join(const string&dir){
@@ -160,10 +150,27 @@ inline void pb_next(crow::json::wvalue::list&ret,const Info&info){
 		ret.push_back(next);
 	}
 }
+inline bool LeafCmp::operator()(const Info* a,const Info* b) noexcept{
+	if(a==b) return false;
+	if(a->last_write_time!=b->last_write_time) return a->last_write_time>b->last_write_time;
+	if(a->path!=b->path) return a->path<b->path;
+	return a<b;
+}
+inline bool DirCmp::operator()(const Info* a,const Info* b) noexcept{
+	if(a==b) return false;
+	if(a->path!=b->path) return a->path<b->path;
+	return a<b;
+}
 
-inline vector<Info*> get_rand_dirs(const vector<Info*>&dirs,const int cnt){
+inline vector<Info*> get_rand_dirs(const int cnt){
 	set<Info*>seen;
-	while(seen.size()<cnt) seen.insert(dirs[R()%dirs.size()]);
+	if(leaf_dirs.size()==0) return {};
+	while(seen.size()<static_cast<size_t>(cnt)){
+		auto k=R()%leaf_dirs.size();
+		auto it=leaf_dirs.find_by_order(k);
+		if(it==leaf_dirs.end()) break;
+		seen.insert(*it);
+	}
 	return vector(seen.begin(),seen.end());
 }
 
@@ -171,7 +178,7 @@ inline crow::json::wvalue get_rand_imgs(){
 	lock_guard<mutex> lock(imtex);
 	constexpr int cnt=Info_page_size;
 	crow::json::wvalue::list ret;
-	for(auto&dir:get_rand_dirs(leaf_dirs,cnt))
+	for(auto&dir:get_rand_dirs(cnt))
 		pb_next(ret,*dir);
 	return crow::json::wvalue(ret);
 }
@@ -179,9 +186,11 @@ inline crow::json::wvalue get_rand_imgs(){
 inline crow::json::wvalue get_imgs(const crow::request&req){
 	lock_guard<mutex> lock(imtex);
 	auto data = crow::json::load(req.body);
-	int64_t id = data["id"].i();
-	const std::string bpath(leaf_dirs[id]->path);
-	vector<string>& imgs=leaf_dirs[id]->imgs;
+	uint64_t idv = static_cast<uint64_t>(data["id"].i());
+	Info* node = get_info_from_id(idv);
+	if(!node || !valid_info_ptrs.contains(node) || !node->has_only_img) return crow::json::wvalue();
+	const std::string bpath(node->path);
+	vector<string>& imgs=node->imgs;
 	crow::json::wvalue::list img_list;
 	crow::json::wvalue ret;
 	for(auto const & img:imgs){
@@ -190,17 +199,17 @@ inline crow::json::wvalue get_imgs(const crow::request&req){
 		img_list.push_back(move(next));
 	}
 	ret["img"]=move(img_list);
-	const string info=leaf_dirs[id]->path+"/.info";
+	const string info=node->path+"/.info";
 	if(!filesystem::exists(info))
 		ofstream ofs(info);
 	crow::json::wvalue::list ts;
-	ret["id"]=id;
-	for(const auto&x:leaf_dirs[id]->tag)
+	ret["id"]=idv;
+	for(const auto&x:node->tag)
 		ts.push_back(html_escape(x));
 	ret["tags"]=crow::json::wvalue(ts);
 	// 追加: 親ディレクトリの全画像ディレクトリサムネイル
 	crow::json::wvalue::list parent_list;
-	Info* parent = leaf_dirs[id]->par;
+	Info* parent = node->par;
 	for(const auto &dir : parent->dirs) pb_next(parent_list, *dir);
 	ret["parent"] = std::move(parent_list);
 	return crow::json::wvalue(ret);
@@ -211,9 +220,9 @@ inline crow::json::wvalue retrieve_query(const crow::request& req){
 	const string querys = crow::json::load(req.body).s();
 	crow::json::wvalue::list ret;
 	vector<Info*>dirs;
-	for(auto const &dir:leaf_dirs)
-		if(size_t idx=0;RETRIEVE::parse_query(idx,*dir,querys))
-			dirs.push_back(dir);
+	for(auto it=leaf_dirs.begin();it!=leaf_dirs.end();++it)
+		if(size_t idx=0;RETRIEVE::parse_query(idx,**it,querys))
+			dirs.push_back(*it);
 	sort(dirs.begin(),dirs.end(),[](const Info*a,const Info*b){
 		return a->path<b->path;
 	});
@@ -224,7 +233,8 @@ inline crow::json::wvalue retrieve_query(const crow::request& req){
 inline crow::json::wvalue get_page_list(const crow::request&req){
 	lock_guard<mutex> lock(imtex);
 	crow::json::wvalue ret;
-	ret["cnt"]=pages.size();
+	uint64_t n=leaf_dirs.size();
+	ret["cnt"]= (n+Info_page_size-1)/Info_page_size;
 	return ret;
 }
 
@@ -233,9 +243,15 @@ inline crow::json::wvalue get_page(const crow::request&req){
 	auto data = crow::json::load(req.body);
 	int64_t idx = data["idx"].i();
 	crow::json::wvalue::list ret;
-	if(0<=idx&&idx<pages.size()){
-		for(auto const &dir:pages[idx])
-			if(dir) pb_next(ret,*dir);
+	uint64_t n=leaf_dirs.size();
+	uint64_t page_cnt=(n+Info_page_size-1)/Info_page_size;
+	if(0<=idx && idx<(int64_t)page_cnt){
+		uint64_t start=(uint64_t)idx*Info_page_size;
+		uint64_t end=min(n,start+Info_page_size);
+		for(uint64_t k=start;k<end;++k){
+			auto it=leaf_dirs.find_by_order(k);
+			if(it!=leaf_dirs.end()) pb_next(ret,**it);
+		}
 	}
 	return crow::json::wvalue(ret);
 }
@@ -244,12 +260,13 @@ inline crow::json::wvalue get_dir_list(const crow::request&req){
 	lock_guard<mutex> lock(imtex);
 	namespace F = std::filesystem;
 	auto data = crow::json::load(req.body);
-	const int64_t id=data["id"].i();
+	const uint64_t idv=static_cast<uint64_t>(data["id"].i());
 	std::string order_key = data.has("order_key") ? data["order_key"].s() : std::string("name");
 	std::string order = data.has("order") ? data["order"].s() : std::string("ascendant");
-	Info* tar=dirs_tree[id];
+	Info* tar=get_info_from_id(idv);
+	if(!tar || !valid_info_ptrs.contains(tar)) return crow::json::wvalue();
 	crow::json::wvalue ret;
-	ret["cur"]=id;
+	ret["cur"]=idv;
 	ret["par"]=tar->par->id;
 
 	// vectorに詰め替え
@@ -300,18 +317,20 @@ inline crow::response info_renew(const crow::request&req){
 	}
 	lock_guard<mutex> lock(imtex);
 	const auto data=crow::json::load(req.body);
-	int64_t id=data["id"].i();
+	uint64_t idv=static_cast<uint64_t>(data["id"].i());
 	string tar=data["data"].s();
-	string info=leaf_dirs[id]->path+"/.info";
+	Info* node=get_info_from_id(idv);
+	if(!node || !valid_info_ptrs.contains(node) || !node->has_only_img) return crow::response(404);
+	string info=node->path+"/.info";
 	if(data["AD"].s()=="add"){
-		if(leaf_dirs[id]->tag.contains(tar)) return crow::response(200);
-		leaf_dirs[id]->tag.emplace(move(tar));
+		if(node->tag.contains(tar)) return crow::response(200);
+		node->tag.emplace(move(tar));
 		ofstream ofs(info,ios_base::app);
 		ofs<<tar<<'\n';
 	}else{ // delete
-		leaf_dirs[id]->tag.erase(tar);
+		node->tag.erase(tar);
 		ofstream ofs(info,ios_base::trunc);
-		for(const auto&x:leaf_dirs[id]->tag)
+		for(const auto&x:node->tag)
 			ofs<<x<<'\n';
 	}
 	return crow::response(200);
@@ -322,12 +341,14 @@ inline crow::response get_file_binary(const crow::request&req){
     auto data = crow::json::load(req.body);
     if (!data) return crow::response(400, "Invalid JSON");
     std::string type = data["type"].s();
-    int64_t id = data["id"].i();
+    uint64_t idv = static_cast<uint64_t>(data["id"].i());
     std::string filename = data["filename"].s();
     std::string fullpath;
     if(type=="image"||type=="video"||type=="audio"||type=="text"){
-        if(id < 0 || id >= (int64_t)leaf_dirs.size()) return crow::response(404);
-        fullpath = (type=="image"?leaf_dirs:dirs_tree)[id]->path + "/" + filename;
+        Info* node=get_info_from_id(idv);
+        if(!node || !valid_info_ptrs.contains(node)) return crow::response(404);
+        if(type=="image" && !node->has_only_img) return crow::response(404);
+        fullpath = node->path + "/" + filename;
     }else{
         return crow::response(400, "Unknown type");
     }
@@ -380,24 +401,20 @@ inline crow::response redirect_media(const crow::request& req){
 
     string type(type_c);
     string filename(fn_c);
-    int64_t id = -1;
-    try{ id = std::stoll(id_c); }catch(...){ return crow::response(400, "bad id"); }
+    uint64_t idv;
+    try{ idv = static_cast<uint64_t>(std::stoull(id_c)); }catch(...){ return crow::response(400, "bad id"); }
 
     // パス解決（サンドボックス: base_dir 配下）
     if(!(type=="image"||type=="video"||type=="audio"||type=="text"))
         return crow::response(400, "Unknown type");
-    if(id < 0) return crow::response(404);
 
     std::string base;
     {
         lock_guard<mutex> lock(imtex);
-        if(type=="image"){
-            if(id >= (int64_t)leaf_dirs.size()) return crow::response(404);
-            base = leaf_dirs[id]->path;
-        }else{
-            if(id >= (int64_t)dirs_tree.size()) return crow::response(404);
-            base = dirs_tree[id]->path;
-        }
+        Info* node=get_info_from_id(idv);
+        if(!node || !valid_info_ptrs.contains(node)) return crow::response(404);
+        if(type=="image" && !node->has_only_img) return crow::response(404);
+        base = node->path;
     }
 
     std::filesystem::path fullpath = std::filesystem::path(base) / filename;

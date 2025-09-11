@@ -6,6 +6,7 @@
 #include <iomanip>
 #include <sstream>
 #include <openssl/evp.h>
+#include <openssl/rand.h>
 #include <fstream>
 #include <algorithm>
 #include <iostream>
@@ -25,6 +26,8 @@ namespace USER_MANAGER {
 struct User {
     std::string username;
     std::string password_hash;
+    std::string password_salt; // hex encoded
+    int password_iter; // PBKDF2 iterations (0 for legacy)
     std::string role; // "admin" or "user"
     std::string created_by;
     std::string created_at;
@@ -41,33 +44,69 @@ private:
     // シグナルハンドラー用のグローバルインスタンスポインタ
     static UserManager* instance;
     
-    inline std::string hash_password(const std::string& password) {
+    // Legacy SHA-256 (no salt) - keep for backward compatibility and migration
+    inline std::string hash_password_legacy_sha256(const std::string& password) {
         EVP_MD_CTX* context = EVP_MD_CTX_new();
         if (context == nullptr) {
             return "";
         }
-        
         if (EVP_DigestInit_ex(context, EVP_sha256(), nullptr) != 1) {
             EVP_MD_CTX_free(context);
             return "";
         }
-        
         if (EVP_DigestUpdate(context, password.c_str(), password.length()) != 1) {
             EVP_MD_CTX_free(context);
             return "";
         }
-        
         unsigned char hash[EVP_MAX_MD_SIZE];
         unsigned int lengthOfHash = 0;
-        
         if (EVP_DigestFinal_ex(context, hash, &lengthOfHash) != 1) {
             EVP_MD_CTX_free(context);
             return "";
         }
-        
         EVP_MD_CTX_free(context);
         return bytes_to_hex(hash, lengthOfHash);
     }
+
+    inline std::vector<unsigned char> hex_to_bytes(const std::string& hex) {
+        std::vector<unsigned char> bytes;
+        if (hex.size() % 2 != 0) return bytes;
+        bytes.reserve(hex.size() / 2);
+        for (size_t i = 0; i < hex.size(); i += 2) {
+            unsigned int byte;
+            std::stringstream ss;
+            ss << std::hex << hex.substr(i, 2);
+            ss >> byte;
+            bytes.push_back(static_cast<unsigned char>(byte));
+        }
+        return bytes;
+    }
+
+    inline std::string generate_salt_hex(size_t num_bytes = 16) {
+        std::vector<unsigned char> salt(num_bytes);
+        if (RAND_bytes(salt.data(), static_cast<int>(num_bytes)) != 1) {
+            // fallback: pseudo-random (should rarely happen)
+            for (size_t i = 0; i < num_bytes; ++i) {
+                salt[i] = static_cast<unsigned char>(rand() % 256);
+            }
+        }
+        return bytes_to_hex(salt.data(), salt.size());
+    }
+
+    inline std::string hash_password_pbkdf2_sha256(const std::string& password, const std::string& salt_hex, int iterations) {
+        std::vector<unsigned char> salt = hex_to_bytes(salt_hex);
+        if (salt.empty() || iterations <= 0) return "";
+        const int keylen = 32; // 256-bit
+        unsigned char out[keylen];
+        if (PKCS5_PBKDF2_HMAC(password.c_str(), static_cast<int>(password.size()),
+                               salt.data(), static_cast<int>(salt.size()),
+                               iterations, EVP_sha256(), keylen, out) != 1) {
+            return "";
+        }
+        return bytes_to_hex(out, keylen);
+    }
+
+    static constexpr int DEFAULT_PBKDF2_ITERATIONS = 200000;
     
     inline std::string bytes_to_hex(const unsigned char* data, size_t len) {
         std::stringstream ss;
@@ -133,6 +172,17 @@ public:
                     User user;
                     user.username = user_data["username"].s();
                     user.password_hash = user_data["password_hash"].s();
+                    // optional fields for backward compatibility
+                    if (user_data.has("password_salt")) {
+                        user.password_salt = user_data["password_salt"].s();
+                    } else {
+                        user.password_salt = "";
+                    }
+                    if (user_data.has("password_iter")) {
+                        user.password_iter = static_cast<int>(user_data["password_iter"].i());
+                    } else {
+                        user.password_iter = 0;
+                    }
                     user.role = user_data["role"].s();
                     user.created_by = user_data["created_by"].s();
                     user.created_at = user_data["created_at"].s();
@@ -157,6 +207,8 @@ public:
                 crow::json::wvalue user_data;
                 user_data["username"] = user.username;
                 user_data["password_hash"] = user.password_hash;
+                user_data["password_salt"] = user.password_salt;
+                user_data["password_iter"] = user.password_iter;
                 user_data["role"] = user.role;
                 user_data["created_by"] = user.created_by;
                 user_data["created_at"] = user.created_at;
@@ -198,7 +250,9 @@ public:
         
         User new_user;
         new_user.username = username;
-        new_user.password_hash = hash_password(password);
+        new_user.password_salt = generate_salt_hex();
+        new_user.password_iter = DEFAULT_PBKDF2_ITERATIONS;
+        new_user.password_hash = hash_password_pbkdf2_sha256(password, new_user.password_salt, new_user.password_iter);
         new_user.role = role;
         new_user.created_by = created_by;
         new_user.created_at = get_current_timestamp();
@@ -278,8 +332,26 @@ public:
             return false;
         }
         
-        std::string input_hash = hash_password(password);
-        if (it->password_hash == input_hash) {
+        bool authenticated = false;
+        if (!it->password_salt.empty() && it->password_iter > 0) {
+            // PBKDF2 path
+            std::string input_hash = hash_password_pbkdf2_sha256(password, it->password_salt, it->password_iter);
+            if (!input_hash.empty() && it->password_hash == input_hash) {
+                authenticated = true;
+            }
+        } else {
+            // Legacy SHA-256 path
+            std::string input_hash = hash_password_legacy_sha256(password);
+            if (it->password_hash == input_hash) {
+                authenticated = true;
+                // migrate to PBKDF2
+                it->password_salt = generate_salt_hex();
+                it->password_iter = DEFAULT_PBKDF2_ITERATIONS;
+                it->password_hash = hash_password_pbkdf2_sha256(password, it->password_salt, it->password_iter);
+                save_users();
+            }
+        }
+        if (authenticated) {
             update_last_login(username);
             return true;
         }
