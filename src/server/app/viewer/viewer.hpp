@@ -304,11 +304,6 @@ inline crow::json::wvalue get_dir_list(const crow::request&req){
 
 inline crow::response info_renew(const crow::request&req){
 	string token = MIDDLEWARE::extract_token(req);
-	if (token.empty() || !AUTH::validate_token_wrapper(token)) {
-		crow::json::wvalue error_response;
-		error_response["error"] = "認証が必要です";
-		return crow::response(401, error_response);
-	}
 	string username = AUTH::get_username_from_token(token);
 	if (!USER_MANAGER::user_manager.is_admin(username)) {
 		crow::json::wvalue error_response;
@@ -383,17 +378,6 @@ inline crow::response get_file_binary(const crow::request&req){
 // NGINX に配信をオフロード（X-Accel-Redirect）するためのストリーミング用エンドポイント
 // GET /req/media?type=video|audio|image|text&id=<dir_or_leaf_id>&filename=<name>&token=<jwt>
 inline crow::response redirect_media(const crow::request& req){
-    // 認証（Authorizationヘッダ or クエリ token）
-    string token = MIDDLEWARE::extract_token(req);
-    if(token.empty()){
-        if(const char* t = req.url_params.get("token")) token = t;
-    }
-    if (token.empty() || !AUTH::validate_token_wrapper(token)) {
-        crow::json::wvalue error_response;
-        error_response["error"] = "認証が必要です";
-        return crow::response(401, error_response);
-    }
-
     const char* type_c = req.url_params.get("type");
     const char* id_c   = req.url_params.get("id");
     const char* fn_c   = req.url_params.get("filename");

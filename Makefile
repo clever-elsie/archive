@@ -14,6 +14,8 @@ SRCDIR = src/server
 target = $(SRCDIR)/main.cpp
 
 HDRS:=$(shell find $(SRCDIR) -type f -name "*.hpp")
+SRCS:=$(shell find $(SRCDIR) -type f -name "*.cpp" ! -name 'main.cpp')
+OBJS:=$(SRCS:.cpp=.o)
 
 all: $(OUT) Makefile
 
@@ -49,9 +51,12 @@ build:
 	fi
 	make all && make install
 
-$(OUT): $(target) Makefile $(HDRS)
-	$(CC) $(target) -o $(OUT) $(OPT) -DVIEWER_DIR=\"$(VIEWER_DIR)\"
-	
+$(OUT): $(target) Makefile $(HDRS) $(OBJS)
+	$(CC) $(target) -o $(OUT) $(OPT) -DVIEWER_DIR=\"$(VIEWER_DIR)\" $(OBJS)
+
+%.o: %.cpp Makefile $(HDRS)
+	$(CC) -c $< -o $@ $(OPT) -DVIEWER_DIR=\"$(VIEWER_DIR)\"
+
 stop:
 	sudo systemctl stop $(SERVICE)
 

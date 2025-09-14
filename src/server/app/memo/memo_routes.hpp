@@ -43,6 +43,23 @@ inline void setup_memo_routes(crow::App<Middleware>& app){
   CROW_ROUTE(app,"/req/memo/formats")
     .methods(crow::HTTPMethod::GET)
       (MEMO::memo_get_formats);
+  
+  // 共用メモ関連のルート
+  CROW_ROUTE(app,"/req/shared-memo/all")
+    .methods(crow::HTTPMethod::GET)
+      (MEMO::shared_memo_fetch_all);
+  CROW_ROUTE(app,"/req/shared-memo/create")
+    .methods(crow::HTTPMethod::POST)
+      (MEMO::shared_memo_create);
+  CROW_ROUTE(app,"/req/shared-memo/update")
+    .methods(crow::HTTPMethod::POST)
+      (MEMO::shared_memo_update);
+  CROW_ROUTE(app,"/req/shared-memo/delete")
+    .methods(crow::HTTPMethod::POST)
+      (MEMO::shared_memo_delete);
+  CROW_ROUTE(app,"/req/shared-memo/get")
+    .methods(crow::HTTPMethod::POST)
+      (MEMO::shared_memo_get);
 }
 
 } // namespace MEMO_ROUTES

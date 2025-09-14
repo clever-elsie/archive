@@ -77,7 +77,7 @@ function add_memo_item(filename, stem, tag = [], format = "txt", created_at = ""
 }
 
 // VSCode風: タブエディタ管理
-const openTabs = new Map(); // filename -> { tabEl, paneEl, textarea, dirty, stem, format }
+const openTabs = new Map(); // filename -> { tabEl, paneEl, textarea, dirty, stem, format, isShared }
 
 function activate_tab(filename) {
 	const tabs = document.querySelectorAll('.editor-tab');
@@ -123,13 +123,21 @@ function open_tab(filename) {
 		tab.innerHTML = `<span class="tab-label">${data.stem}</span><span class="format-badge">.${data.format}</span><button class="close-btn" title="閉じる">✕</button>`;
 		const pane = document.createElement('div');
 		pane.className = 'editor-pane active';
-		pane.innerHTML = `<div class="editor-pane-inner"><textarea class="memo-textarea" data-filename="${filename}">${data.data || ''}</textarea></div>`;
+		pane.innerHTML = `<div class="editor-pane-inner">
+			<div class="editor-toolbar">
+				<button class="btn btn-primary" onclick="save_memo('${filename}')" title="保存 (Ctrl+S)">
+					<i class="fas fa-save"></i>
+					保存
+				</button>
+			</div>
+			<textarea class="memo-textarea" data-filename="${filename}">${data.data || ''}</textarea>
+		</div>`;
 		document.querySelectorAll('.editor-tab').forEach(el => el.classList.remove('active'));
 		document.querySelectorAll('.editor-pane').forEach(el => el.classList.remove('active'));
 		tabs.appendChild(tab);
 		area.appendChild(pane);
 		const textarea = pane.querySelector('textarea');
-		const entry = { tabEl: tab, paneEl: pane, textarea, dirty: false, stem: data.stem, format: data.format };
+		const entry = { tabEl: tab, paneEl: pane, textarea, dirty: false, stem: data.stem, format: data.format, isShared: false };
 		openTabs.set(filename, entry);
 		tab.addEventListener('click', (e) => {
 			if ((e.target).classList && (e.target).classList.contains('close-btn')) return;
@@ -739,6 +747,246 @@ function showNotification(message, type = 'info') {
 	}, 3000);
 }
 
+// 共用メモ関連の機能
+
+// サイドバータブの切り替え
+function switchSidebarTab(tab) {
+	const personalTab = document.querySelector('.sidebar-tab[onclick*="personal"]');
+	const sharedTab = document.querySelector('.sidebar-tab[onclick*="shared"]');
+	const personalList = document.getElementById('memoList');
+	const sharedList = document.getElementById('sharedMemoList');
+	
+	if (tab === 'personal') {
+		personalTab.classList.add('active');
+		sharedTab.classList.remove('active');
+		personalList.style.display = 'block';
+		sharedList.style.display = 'none';
+	} else {
+		personalTab.classList.remove('active');
+		sharedTab.classList.add('active');
+		personalList.style.display = 'none';
+		sharedList.style.display = 'block';
+		loadSharedMemos();
+	}
+}
+
+// 共用メモ一覧を読み込み
+function loadSharedMemos() {
+	authenticatedFetch('/req/shared-memo/all', { method: 'GET' })
+		.then(response => response.json())
+		.then(data => {
+			const sharedList = document.getElementById('sharedMemoList');
+			sharedList.innerHTML = '';
+			data.forEach(item => {
+				add_shared_memo_item(item.id, item.title, item.body, item.author, item.created_at, item.updated_at);
+			});
+		})
+		.catch(error => {
+			console.error('共用メモの取得に失敗しました:', error);
+			showError('共用メモの取得に失敗しました');
+		});
+}
+
+// 共用メモアイテムを作成
+function add_shared_memo_item(id, title, body, author, created_at, updated_at) {
+	const memoItem = document.createElement('div');
+	memoItem.className = 'memo-item shared-memo-item';
+	memoItem.dataset.id = id;
+	
+	const formatDate = (dateStr) => {
+		if (!dateStr) return '';
+		const date = new Date(dateStr);
+		return date.toLocaleString('ja-JP');
+	};
+	
+	memoItem.innerHTML = `
+		<div class="memo-header">
+			<div class="memo-title-row2">
+				<span class="filename-text view-memo-title" style="cursor:pointer;" onclick="open_shared_tab('${id}')">${title}</span>
+				<span class="author-badge">by ${author}</span>
+			</div>
+			<div class="memo-sub-row">
+				<div class="memo-actions-menu">
+					<button class="btn-menu" onclick="toggleSharedMemoMenu(this)">
+						<i class="fas fa-ellipsis-v"></i>
+					</button>
+					<div class="memo-popup-menu" style="display:none; position:absolute; z-index:10;">
+						<button class="btn-edit" onclick="edit_shared_memo('${id}')"><i class="fas fa-edit"></i> 編集</button>
+						<button class="btn-delete" onclick="delete_shared_memo('${id}')"><i class="fas fa-trash"></i> 削除</button>
+						<div class="popup-meta-dates">
+							<div class="created-date">作成: ${formatDate(created_at)}</div>
+							<div class="updated-date">更新: ${formatDate(updated_at)}</div>
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	`;
+	
+	document.getElementById('sharedMemoList').appendChild(memoItem);
+}
+
+// 共用メモタブを開く
+function open_shared_tab(id) {
+	if (openTabs.has(id)) { activate_tab(id); return; }
+	authenticatedFetch('/req/shared-memo/get', { method: 'POST', body: JSON.stringify({ "id": id }) })
+	.then(response => response.json())
+	.then(data => {
+		const tabs = document.getElementById('editorTabs');
+		const area = document.getElementById('editorArea');
+		if (!tabs || !area) return;
+		const tab = document.createElement('button');
+		tab.className = 'editor-tab active';
+		tab.innerHTML = `<span class="tab-label">${data.title}</span><span class="author-badge">by ${data.author}</span><button class="close-btn" title="閉じる">✕</button>`;
+		const pane = document.createElement('div');
+		pane.className = 'editor-pane active';
+		pane.innerHTML = `<div class="editor-pane-inner">
+			<div class="editor-toolbar">
+				<button class="btn btn-primary" onclick="save_shared_memo('${id}')" title="保存 (Ctrl+S)">
+					<i class="fas fa-save"></i>
+					保存
+				</button>
+			</div>
+			<textarea class="memo-textarea" data-id="${id}">${data.body || ''}</textarea>
+		</div>`;
+		document.querySelectorAll('.editor-tab').forEach(el => el.classList.remove('active'));
+		document.querySelectorAll('.editor-pane').forEach(el => el.classList.remove('active'));
+		tabs.appendChild(tab);
+		area.appendChild(pane);
+		const textarea = pane.querySelector('textarea');
+		const entry = { tabEl: tab, paneEl: pane, textarea, dirty: false, stem: data.title, format: 'txt', isShared: true };
+		openTabs.set(id, entry);
+		tab.addEventListener('click', (e) => {
+			if ((e.target).classList && (e.target).classList.contains('close-btn')) return;
+			activate_tab(id);
+		});
+		tab.querySelector('.close-btn').addEventListener('click', (e) => {
+			e.stopPropagation();
+			if (entry.dirty && !confirm('未保存の変更があります。閉じますか？')) return;
+			close_tab(id);
+		});
+		textarea.addEventListener('input', () => mark_dirty(id, true));
+		activate_tab(id);
+	})
+	.catch(() => { showError('共用メモの読み込みに失敗しました'); });
+}
+
+// 共用メモの保存
+function save_shared_memo(id) {
+	const entry = openTabs.get(id);
+	if (!entry) return;
+	const title = entry.stem;
+	const body = entry.textarea.value;
+	authenticatedFetch('/req/shared-memo/update', {
+		method: 'POST',
+		body: JSON.stringify({ "id": id, "title": title, "body": body })
+	})
+	.then(response => {
+		if (response && response.ok) {
+			showSuccess('共用メモを保存しました');
+			mark_dirty(id, false);
+		} else {
+			throw new Error('保存に失敗しました');
+		}
+	})
+	.catch(error => {
+		console.error('共用メモの保存に失敗しました:', error);
+		showError('共用メモの保存に失敗しました');
+	});
+}
+
+// 新しい共用メモを作成
+function new_shared_memo() {
+	const title = prompt('共用メモのタイトルを入力してください:');
+	if (!title || title.trim() === '') return;
+	
+	const body = prompt('共用メモの内容を入力してください:');
+	
+	authenticatedFetch('/req/shared-memo/create', {
+		method: 'POST',
+		body: JSON.stringify({ 
+			"title": title.trim(),
+			"body": body || ''
+		})
+	})
+	.then(response => response.json())
+	.then(data => {
+		// 新しい共用メモアイテムを追加
+		add_shared_memo_item(data.id, data.title, data.body, data.author, data.created_at, data.updated_at);
+		showSuccess('新しい共用メモを作成しました');
+		open_shared_tab(data.id); // 作成直後に自動で編集画面へ
+	})
+	.catch(error => {
+		console.error('共用メモの作成に失敗しました:', error);
+		showError('共用メモの作成に失敗しました');
+	});
+}
+
+// 共用メモの編集
+function edit_shared_memo(id) {
+	open_shared_tab(id);
+}
+
+// 共用メモの削除
+function delete_shared_memo(id) {
+	if (!confirm('この共用メモを削除しますか？この操作は取り消せません。')) {
+		return;
+	}
+	
+	authenticatedFetch('/req/shared-memo/delete', {
+		method: 'POST',
+		body: JSON.stringify({ "id": id })
+	})
+	.then(response => {
+		if (response.ok) {
+			const memoItem = document.querySelector(`.shared-memo-item[data-id="${id}"]`);
+			if (memoItem) {
+				memoItem.remove();
+				showSuccess('共用メモを削除しました');
+			}
+		} else {
+			throw new Error('削除に失敗しました');
+		}
+	})
+	.catch(error => {
+		console.error('共用メモの削除に失敗しました:', error);
+		showError('共用メモの削除に失敗しました');
+	});
+}
+
+// 共用メモ用のメニュー表示切り替え
+window.toggleSharedMemoMenu = function(btn) {
+	// 既存のメニューを全て閉じる
+	document.querySelectorAll('.memo-popup-menu-global').forEach(m => m.remove());
+
+	const menu = btn.nextElementSibling;
+	const rect = btn.getBoundingClientRect();
+	const menuClone = menu.cloneNode(true);
+	menuClone.classList.add('memo-popup-menu-global');
+	menuClone.style.display = 'block';
+	menuClone.style.position = 'absolute';
+	menuClone.style.left = `${rect.left + window.scrollX}px`;
+	menuClone.style.top = `${rect.bottom + window.scrollY + 4}px`;
+	menuClone.style.zIndex = 2147483647;
+	document.body.appendChild(menuClone);
+
+	// メニューのいずれかをクリックしたら即クローズ
+	menuClone.querySelectorAll('button').forEach(b => {
+		b.addEventListener('click', () => {
+			menuClone.remove();
+		});
+	});
+
+	// 外側クリックで閉じる
+	const handler = function(e) {
+		if (!menuClone.contains(e.target) && e.target !== btn) {
+			menuClone.remove();
+			document.removeEventListener('mousedown', handler);
+		}
+	};
+	document.addEventListener('mousedown', handler);
+};
+
 // ページ読み込み時の初期化
 document.addEventListener('DOMContentLoaded', function() {
 	// メモ一覧を読み込み
@@ -763,7 +1011,11 @@ document.addEventListener('DOMContentLoaded', function() {
 			const entry = Array.from(openTabs.entries()).find(([fn, v]) => v.tabEl === activeTab);
 			if (entry) {
 				const [filename] = entry;
-				save_memo(filename);
+				if (entry[1].isShared) {
+					save_shared_memo(filename);
+				} else {
+					save_memo(filename);
+				}
 			}
 		}
 	});
