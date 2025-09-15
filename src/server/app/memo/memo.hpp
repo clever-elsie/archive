@@ -31,7 +31,7 @@ inline crow::response memo_fetch_all(const crow::request &req) {
       filesystem::path path = file.path();
       if (path.extension().string() == ".json") {
         MemoData memo = MemoData::load(path.string());
-        v.push_back(format_for_response(path.string(), memo));
+        v.push_back(format_for_response(path.string(), memo, true));
       }
     }
   }
@@ -59,7 +59,7 @@ inline crow::response memo_search(const crow::request &req) {
     if (path.extension().string() == ".json") {
       MemoData memo = MemoData::load(path.string());
       if (size_t idx = 0;RETRIEVE::parse_query(idx, memo, query))
-        v.push_back(format_for_response(path.string(), memo));
+        v.push_back(format_for_response(path.string(), memo, true));
     }
   }
   return crow::response(200, crow::json::wvalue(std::move(v)));
@@ -105,7 +105,7 @@ inline crow::response memo_create_new(const crow::request &req) {
   MemoData memo{tag, "", format, timestamp, timestamp, file_path};
   if (!memo.save(file_path))
     return error_response("メモの作成に失敗しました");
-  return crow::response(200, format_for_response(file_path, memo));
+  return crow::response(200, format_for_response(file_path, memo, true));
 }
 
 inline crow::response memo_renew(const crow::request &req) {
@@ -155,7 +155,7 @@ inline crow::response memo_now(const crow::request& req) {
     return error_response("ファイルが存在しません");
   
   MemoData memo = MemoData::load(file_path);
-  return crow::response(200, format_for_response(file_path, memo));
+  return crow::response(200, format_for_response(file_path, memo, false));
 }
 
 inline crow::response memo_rm(const crow::request &req) {
@@ -348,7 +348,7 @@ inline crow::response memo_create_with_title(const crow::request &req) {
   if (!memo.save(file_path))
     return error_response("メモの作成に失敗しました");
   
-  return crow::response(200, format_for_response(file_path, memo));
+  return crow::response(200, format_for_response(file_path, memo, true));
 }
 
 

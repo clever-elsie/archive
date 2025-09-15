@@ -83,16 +83,16 @@ inline string generate_unique_id() {
   return ss.str();
 }
 
-inline crow::json::wvalue format_for_response(const std::string& filepath, const MemoData&memo){
+inline crow::json::wvalue format_for_response(const std::filesystem::path& filepath, const MemoData&memo, bool header_only){
   crow::json::wvalue x;
-  x["filename"] = filepath;
-  const size_t pos = filepath.find_last_of('.');
-  x["stem"] = filepath.substr(0, pos);
-  x["extension"] = filepath.substr(pos);
+  x["filename"] = filepath.filename().string();
+  x["stem"] = filepath.stem().string();
+  x["extension"] = filepath.extension().string();
   x["format"] = memo.format;
   x["tag"] = crow::json::wvalue::list(memo.tag.begin(), memo.tag.end());
   x["created_at"] = memo.created_at;
   x["updated_at"] = memo.updated_at;
+  if(!header_only) x["data"] = memo.data;
   return x;
 }
 
