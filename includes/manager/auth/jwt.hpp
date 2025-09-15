@@ -1,10 +1,11 @@
 #pragma once
-#include "manager/config.hpp"
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
 #include <openssl/bio.h>
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
+
+#include <manager/config.hpp>
 
 namespace JWT {
 using namespace std;

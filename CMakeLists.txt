@@ -9,7 +9,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 
 # コンパイラフラグ
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -Wall -Wextra")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG -flto=auto -march=native")
 
 # 依存関係の検索
 find_package(OpenSSL REQUIRED)
@@ -31,6 +31,23 @@ target_link_libraries(home-server
     Threads::Threads
     Crow::Crow
     ZLIB::ZLIB
+)
+
+target_precompile_headers(home-server PRIVATE
+    <algorithm> <ranges>
+    <array> <vector>
+    <string> <string_view>
+    <set> <map> <unordered_set> <unordered_map>
+    <ext/pb_ds/tree_policy.hpp> <ext/pb_ds/assoc_container.hpp>
+    <mutex> <exception>
+    <chrono> <filesystem>
+    <fstream> <iostream> <sstream>
+    <cstddef> <cstdint> <cctype>
+    <crow.h> <crow/json.h> <crow/multipart.h>
+    <crow/http_response.h> <crow/http_request.h>
+    <openssl/ssl.h> <openssl/crypto.h>
+    <openssl/hmac.h> <openssl/sha.h> <openssl/rand.h>
+    <openssl/bio.h> <openssl/buffer.h> <openssl/evp.h>
 )
 
 # パッケージ設定

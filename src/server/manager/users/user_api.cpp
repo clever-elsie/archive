@@ -1,9 +1,10 @@
-#include "manager/users/user_api.hpp"
-#include "inline_helper.hpp"
-#include "manager/inline_helper.hpp"
-#include "manager/auth/auth.hpp"
-#include "manager/auth/middleware.hpp"
 #include <regex>
+
+#include <inline_helper.hpp>
+#include <manager/users/user_api.hpp>
+#include <manager/inline_helper.hpp>
+#include <manager/auth/auth.hpp>
+#include <manager/auth/middleware.hpp>
 
 namespace USER_API {
 using namespace std;

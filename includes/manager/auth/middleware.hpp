@@ -1,9 +1,11 @@
 #pragma once
-#include "manager/auth/auth.hpp"
-#include "manager/config.hpp"
-#include <string>
-#include <crow.h>
 #include <vector>
+#include <string>
+
+#include <crow.h>
+
+#include <manager/auth/auth.hpp>
+#include <manager/config.hpp>
 
 namespace MIDDLEWARE {
 using namespace std;

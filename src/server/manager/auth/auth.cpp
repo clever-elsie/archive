@@ -1,6 +1,7 @@
-#include "manager/auth/auth.hpp"
-#include "manager/inline_helper.hpp"
 #include <regex>
+
+#include <manager/auth/auth.hpp>
+#include <manager/inline_helper.hpp>
 
 namespace AUTH {
 using namespace std;

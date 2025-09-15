@@ -1,9 +1,10 @@
 #pragma once
-#include "manager/auth/auth.hpp"
-#include "app/retrieve.hpp"
-#include "shared_memo.hpp"
 #include <cctype>
 #include <algorithm>
+
+#include "shared_memo.hpp"
+#include <manager/auth/auth.hpp>
+#include <app/retrieve.hpp>
 
 namespace MEMO{
 using namespace std;

@@ -1,8 +1,9 @@
-#include "manager/auth/jwt.hpp"
 #include <random>
 #include <sstream>
 #include <iomanip>
 #include <chrono>
+
+#include <manager/auth/jwt.hpp>
 
 namespace JWT {
 using namespace std;

@@ -1,14 +1,16 @@
 #pragma once
+#include <fstream>
+#include <unordered_set>
 #include <ext/pb_ds/tree_policy.hpp>
 #include <ext/pb_ds/assoc_container.hpp>
-#include <unordered_set>
-#include "manager/auth/middleware.hpp"
-#include "manager/auth/auth.hpp"
-#include "manager/users/user_manager.hpp"
-#include "app/retrieve.hpp"
-#include <fstream>
+
 #include <crow/multipart.h>
-#include "inline_helper.hpp"
+
+#include <manager/auth/middleware.hpp>
+#include <manager/auth/auth.hpp>
+#include <manager/users/user_manager.hpp>
+#include <app/retrieve.hpp>
+#include <inline_helper.hpp>
 
 namespace VIEWER{
 template<class key, class value, class cmp=std::less<key>>

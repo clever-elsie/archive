@@ -1,7 +1,8 @@
-#include "manager/config.hpp"
 #include <fstream>
 #include <iostream>
-#include "crow/json.h"
+
+#include <crow/json.h>
+#include <manager/config.hpp>
 
 namespace CONFIG{
 using namespace std;

@@ -1,8 +1,8 @@
-#include "manager/auth/auth_routes.hpp"
-#include "manager/users/user_routes.hpp"
-#include "manager/config.hpp"
-#include "app/viewer/viewer_routes.hpp"
-#include "app/memo/memo_routes.hpp"
+#include <manager/auth/auth_routes.hpp>
+#include <manager/users/user_routes.hpp>
+#include <manager/config.hpp>
+#include <app/viewer/viewer_routes.hpp>
+#include <app/memo/memo_routes.hpp>
 
 int main(int argc, char* argv[]) {
 	if (!CONFIG::load_params("config/param.json")) {

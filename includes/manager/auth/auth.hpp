@@ -1,8 +1,9 @@
 #pragma once
-#include "manager/config.hpp"
-#include "manager/users/user_manager.hpp"
-#include "crow/http_response.h"
-#include "crow/http_request.h"
+#include <crow/http_response.h>
+#include <crow/http_request.h>
+
+#include <manager/config.hpp>
+#include <manager/users/user_manager.hpp>
 #include "jwt.hpp"
 
 namespace AUTH {
