@@ -1,6 +1,5 @@
 #pragma once
 #include "viewer.hpp"
-#include "headers.hpp"
 #include <crow.h>
 
 namespace VIEWER_ROUTES{

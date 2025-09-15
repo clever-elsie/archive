@@ -1,8 +1,13 @@
 #pragma once
-#include "headers.hpp"
+#include <algorithm>
 #include <ranges>
+#include <string>
 #include <string_view>
 #include <array>
+#include <set>
+#include <map>
+#include <mutex>
+#include <vector>
 
 namespace MEMO{
 using namespace std;

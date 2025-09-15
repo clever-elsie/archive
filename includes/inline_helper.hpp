@@ -1,20 +1,5 @@
 #pragma once
-#include<crow.h>
-#include<map>
-#include<set>
-#include<list>
-#include<cctype>
-#include<chrono>
-#include<vector>
-#include<string>
-#include<cstdint>
-#include<fstream>
-#include<sstream>
-#include<utility>
-#include<iostream>
-#include<filesystem>
-#include<mutex>
-#include<iterator>
+#include <string>
 
 // HTMLエスケープ関数
 inline std::string html_escape(const std::string& input) {

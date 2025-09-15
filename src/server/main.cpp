@@ -1,4 +1,3 @@
-#include "headers.hpp"
 #include "manager/auth/auth_routes.hpp"
 #include "manager/users/user_routes.hpp"
 #include "manager/config.hpp"

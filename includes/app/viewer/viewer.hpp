@@ -2,13 +2,13 @@
 #include <ext/pb_ds/tree_policy.hpp>
 #include <ext/pb_ds/assoc_container.hpp>
 #include <unordered_set>
-#include "headers.hpp"
 #include "manager/auth/middleware.hpp"
 #include "manager/auth/auth.hpp"
 #include "manager/users/user_manager.hpp"
 #include "app/retrieve.hpp"
 #include <fstream>
 #include <crow/multipart.h>
+#include "inline_helper.hpp"
 
 namespace VIEWER{
 template<class key, class value, class cmp=std::less<key>>
@@ -205,7 +205,7 @@ inline crow::json::wvalue get_imgs(const crow::request&req){
 	crow::json::wvalue::list ts;
 	ret["id"]=idv;
 	for(const auto&x:node->tag)
-		ts.push_back(html_escape(x));
+		ts.push_back(html_escape(x)); // #include "inline_helper.hpp"
 	ret["tags"]=crow::json::wvalue(ts);
 	// 追加: 親ディレクトリの全画像ディレクトリサムネイル
 	crow::json::wvalue::list parent_list;

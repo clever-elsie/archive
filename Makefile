@@ -32,7 +32,7 @@ watch:
 	watch systemctl status $(SERVICE)
 
 clean:
-	rm -f build/home-server
+	rm -rf build
 
 install: build
 	sudo systemctl daemon-reload

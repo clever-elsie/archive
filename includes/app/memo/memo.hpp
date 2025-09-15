@@ -1,5 +1,4 @@
 #pragma once
-#include "headers.hpp"
 #include "manager/auth/auth.hpp"
 #include "app/retrieve.hpp"
 #include "shared_memo.hpp"
