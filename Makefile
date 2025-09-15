@@ -1,6 +1,3 @@
-# デフォルト値の定義
-SERVICE ?= myservice
-
 # パラメータファイルの読み込み（存在すれば上書き）
 -include makefile.env
 
