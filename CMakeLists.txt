@@ -4,39 +4,24 @@ project(HOME-SERVER VERSION 1.0.0 LANGUAGES CXX)
 # C++23を要求
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# gnu++23を使う
+set(CMAKE_CXX_EXTENSIONS ON)
 
 # コンパイラフラグ
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -Wall -Wextra")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -O0 -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -DNDEBUG")
 
 # 依存関係の検索
 find_package(OpenSSL REQUIRED)
 find_package(Threads REQUIRED)
 find_package(Crow REQUIRED)
+find_package(ZLIB REQUIRED)
 
-# ソースファイル
-set(SOURCES
-    src/server/main.cpp
-)
+include_directories(includes)
 
-# ヘッダーファイル
-set(HEADERS
-    src/server/manager/auth/auth.hpp
-    src/server/manager/auth/middleware.hpp
-    src/server/manager/auth/jwt.hpp
-    src/server/manager/users/user_manager.hpp
-    src/server/manager/users/user_api.hpp
-    src/server/manager/users/user_routes.hpp
-    src/server/app/viewer/viewer.hpp
-    src/server/app/memo/memo.hpp
-    src/server/manager/config.hpp
-    src/server/headers.hpp
-    src/server/server_systemd.hpp
-)
+file(GLOB_RECURSE SOURCES "${CMAKE_SOURCE_DIR}/src/server/*.cpp")
 
-# 実行ファイルの作成
-add_executable(home-server ${SOURCES} ${HEADERS})
+add_executable(home-server ${SOURCES})
 
 # リンクライブラリ
 target_link_libraries(home-server
@@ -45,57 +30,13 @@ target_link_libraries(home-server
     OpenSSL::Crypto
     Threads::Threads
     Crow::Crow
+    ZLIB::ZLIB
 )
-
-# インストール設定
-install(TARGETS home-server
-    RUNTIME DESTINATION bin
-)
-
-# SSL証明書ディレクトリの作成と証明書の生成（既存ファイルがない場合のみ）
-add_custom_command(
-    TARGET home-server PRE_BUILD
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/config/ssl
-    COMMAND ${CMAKE_COMMAND} -E echo "Checking for existing SSL certificates..."
-    COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_SOURCE_DIR}/config/ssl/.ssl_check
-    COMMAND bash ${CMAKE_SOURCE_DIR}/scripts/generate-ssl.sh ${CMAKE_SOURCE_DIR}
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-    COMMENT "Checking and generating SSL certificate and key if needed"
-)
-
-# 設定ファイルのインストール
-install(FILES config/users.json.example
-    DESTINATION share/home-server
-    RENAME users.json
-)
-
-install(FILES config/domain.example
-    DESTINATION share/home-server
-    RENAME domain.example
-)
-
-# systemdサービスファイルのインストール
-configure_file(
-    ${CMAKE_SOURCE_DIR}/scripts/home-server.service.in
-    ${CMAKE_CURRENT_BINARY_DIR}/home-server.service
-    @ONLY
-)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/home-server.service
-    DESTINATION /etc/systemd/system
-)
-
-# テスト設定（将来の拡張用）
-option(BUILD_TESTS "Build tests" OFF)
-if(BUILD_TESTS)
-    enable_testing()
-    # テストの設定をここに追加
-endif()
 
 # パッケージ設定
 set(CPACK_PACKAGE_NAME "home-server")
 set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Web-based home server with image viewer and memo management")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Web-based home server with contents viewer and memo management")
 set(CPACK_PACKAGE_VENDOR "HOME-SERVER Project")
 set(CPACK_PACKAGE_CONTACT "https://github.com/clever-elsie/archive")
 set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/clever-elsie/archive")
@@ -108,3 +49,5 @@ message(STATUS "Build Type: ${CMAKE_BUILD_TYPE}")
 message(STATUS "OpenSSL Found: ${OPENSSL_FOUND}")
 message(STATUS "OpenSSL Version: ${OPENSSL_VERSION}")
 message(STATUS "Crow Found: ${Crow_FOUND}") 
+message(STATUS "Zlib Found: ${ZLIB_FOUND}")
+message(STATUS "Zlib Version: ${ZLIB_VERSION_STRING}")

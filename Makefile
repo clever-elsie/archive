@@ -1,66 +1,31 @@
 # デフォルト値の定義
 SERVICE ?= myservice
-OUT ?= server_systemd.out
-# viewer のベースディレクトリ
-# 空の場合はカレントからの data を使用（従来動作）
-VIEWER_DIR ?=
 
 # パラメータファイルの読み込み（存在すれば上書き）
 -include makefile.env
 
-CC = g++ -std=gnu++2b -O2 -I /usr/local/include
-OPT=-lssl -lcrypto
-SRCDIR = src/server
-target = $(SRCDIR)/main.cpp
+.PHONY: all run debug build debug_build stop reload see watch clean install
 
-HDRS:=$(shell find $(SRCDIR) -type f -name "*.hpp")
-SRCS:=$(shell find $(SRCDIR) -type f -name "*.cpp" ! -name 'main.cpp')
-OBJS:=$(SRCS:.cpp=.o)
+all: build Makefile
 
-all: $(OUT) Makefile
+run: build
+	./build/home-server
 
-run: all
-	./$(OUT)
+debug: debug_build
+	./build/home-server
 
 build:
-	if [[ -f $(SSL_CERT) && -f $(SSL_KEY) && -f $(NGINX_CONFIG) ]]; then
-		echo "[SUCCESS] All files for nginx are found"
-	else
-		if [ ! -f $(SSL_CERT) ]; then
-			echo "[ERROR] $(SSL_CERT) not found"
-		fi
-		if [ ! -f $(SSL_KEY) ]; then
-			echo "[ERROR] $(SSL_KEY) not found"
-		fi
-		if [ ! -f $(NGINX_CONFIG) ]; then
-			echo "[ERROR] $(NGINX_CONFIG) not found"
-		fi
-		exit 1
-	fi
-	if [ ! -f /etc/systemd/system/$(SERVICE).service ]; then
-		echo "[ERROR] $(SERVICE).service not found"
-		exit 1
-	fi
-	if [ ! -f config/param.json ]; then
-		echo "[ERROR] config/param.json not found"
-		exit 1
-	fi
-	if [ ! -f users.json ]; then
-		echo "[WARN] users.json not found. Creating..."
-		touch users.json
-	fi
-	make all && make install
+	cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+	cmake --build build -j$(nproc)
 
-$(OUT): $(target) Makefile $(HDRS) $(OBJS)
-	$(CC) $(target) -o $(OUT) $(OPT) -DVIEWER_DIR=\"$(VIEWER_DIR)\" $(OBJS)
-
-%.o: %.cpp Makefile $(HDRS)
-	$(CC) -c $< -o $@ $(OPT) -DVIEWER_DIR=\"$(VIEWER_DIR)\"
+debug_build:
+	cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+	cmake --build build -j$(nproc)
 
 stop:
 	sudo systemctl stop $(SERVICE)
 
-reload: $(OUT)
+reload: build
 	sudo systemctl restart $(SERVICE)
 
 see:
@@ -70,10 +35,9 @@ watch:
 	watch systemctl status $(SERVICE)
 
 clean:
-	rm -f $(OUT)
-	rm -f *.o
+	rm -f build/home-server
 
-install: $(OUT)
+install: build
 	sudo systemctl daemon-reload
 	sudo systemctl enable $(SERVICE)
 	sudo systemctl start $(SERVICE)

@@ -17,7 +17,8 @@
     "https://127.0.0.1:8080"
   ],
   "ALLOWED_METHODS": "GET, POST, OPTIONS",
-  "ALLOWED_HEADERS": "Content-Type, Authorization, X-Token, X-CSRF-Token"
+  "ALLOWED_HEADERS": "Content-Type, Authorization, X-Token, X-CSRF-Token",
+  "VIEWER_DIR": "/home/user/archive/data"
 }
 
 # 設定項目の説明:
@@ -30,6 +31,7 @@
 # ALLOWED_ORIGINS: CORSで許可するオリジンのリスト
 # ALLOWED_METHODS: CORSで許可するHTTPメソッド（カンマ区切り）
 # ALLOWED_HEADERS: CORSで許可するHTTPヘッダー（カンマ区切り）
+# VIEWER_DIR: viewerのベースディレクトリ
 #
 # 本番環境では以下を設定してください:
 # - IS_DEVELOPMENT: false

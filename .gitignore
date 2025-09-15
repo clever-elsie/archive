@@ -22,8 +22,8 @@ cmake_install.cmake
 # docker-compose.override.yml
 
 # データファイル（プライベート）
-data/
-memo/
+data
+./memo/
 
 # 機密情報
 users.json
@@ -39,7 +39,6 @@ users.json
 *.swp
 *.swo
 *~
-config/param.json
 
 # 設定ファイル（環境固有）
 config/param.json

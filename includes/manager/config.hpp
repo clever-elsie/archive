@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../headers.hpp"
+#include "headers.hpp"
 #include <string>
 #include <fstream>
 #include <iostream>
@@ -18,6 +18,7 @@ namespace CONFIG {
     std::vector<std::string> ALLOWED_ORIGINS;
     std::string ALLOWED_METHODS;
     std::string ALLOWED_HEADERS;
+    std::string VIEWER_DIR;
   };
 
   // グローバル設定パラメータ
@@ -49,7 +50,7 @@ namespace CONFIG {
       params.SSL_KEY_PATH = data["SSL_KEY_PATH"].s();
       params.JWT_SECRET_KEY = data["JWT_SECRET_KEY"].s();
       params.IS_DEVELOPMENT = data["IS_DEVELOPMENT"].b();
-      
+      params.VIEWER_DIR = data["VIEWER_DIR"].s();
       // ALLOWED_ORIGINS配列を読み込み
       params.ALLOWED_ORIGINS.clear();
       auto origins = data["ALLOWED_ORIGINS"];

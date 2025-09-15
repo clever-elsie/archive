@@ -1,7 +1,7 @@
 #pragma once
-#include "../../headers.hpp"
-#include "../config.hpp"
-#include "../users/user_manager.hpp"
+#include "headers.hpp"
+#include "manager/config.hpp"
+#include "manager/users/user_manager.hpp"
 #include "jwt.hpp"
 #include <random>
 #include <chrono>

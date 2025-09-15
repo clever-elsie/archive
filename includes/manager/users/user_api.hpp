@@ -1,7 +1,7 @@
 #pragma once
-#include "../../headers.hpp"
+#include "headers.hpp"
 #include "user_manager.hpp"
-#include "../auth/middleware.hpp"
+#include "manager/auth/middleware.hpp"
 #include <sstream>
 #include <regex>
 

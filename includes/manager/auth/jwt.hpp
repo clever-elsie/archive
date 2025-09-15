@@ -1,6 +1,6 @@
 #pragma once
-#include "../../headers.hpp"
-#include "../config.hpp"
+#include "headers.hpp"
+#include "manager/config.hpp"
 #include <openssl/hmac.h>
 #include <openssl/sha.h>
 #include <openssl/bio.h>

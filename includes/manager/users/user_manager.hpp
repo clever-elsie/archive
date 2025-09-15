@@ -10,7 +10,7 @@
 #include <fstream>
 #include <algorithm>
 #include <iostream>
-#include "../../headers.hpp"
+#include "headers.hpp"
 #include <thread>
 #include <atomic>
 #include <signal.h>

@@ -1,7 +1,7 @@
 #pragma once
-#include "../../headers.hpp"
-#include "../../manager/auth/auth.hpp"
-#include "../retrieve.hpp"
+#include "headers.hpp"
+#include "manager/auth/auth.hpp"
+#include "app/retrieve.hpp"
 #include "shared_memo.hpp"
 #include <cctype>
 #include <algorithm>

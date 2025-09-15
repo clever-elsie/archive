@@ -2,11 +2,11 @@
 #include <ext/pb_ds/tree_policy.hpp>
 #include <ext/pb_ds/assoc_container.hpp>
 #include <unordered_set>
-#include "../../headers.hpp"
-#include "../../manager/auth/middleware.hpp"
-#include "../../manager/auth/auth.hpp"
-#include "../../manager/users/user_manager.hpp"
-#include "../retrieve.hpp"
+#include "headers.hpp"
+#include "manager/auth/middleware.hpp"
+#include "manager/auth/auth.hpp"
+#include "manager/users/user_manager.hpp"
+#include "app/retrieve.hpp"
 #include <fstream>
 #include <crow/multipart.h>
 

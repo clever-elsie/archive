@@ -1,6 +1,6 @@
 #pragma once
 #include "auth.hpp"
-#include "../config.hpp"
+#include "manager/config.hpp"
 #include <crow.h>
 
 namespace AUTH{
