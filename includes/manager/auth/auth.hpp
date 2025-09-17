@@ -3,7 +3,7 @@
 #include <crow/http_request.h>
 
 #include <manager/config.hpp>
-#include <manager/users/user_manager.hpp>
+#include <manager/users/manager.hpp>
 #include "jwt.hpp"
 
 namespace AUTH {

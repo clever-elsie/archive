@@ -1,6 +1,6 @@
-#include <manager/auth/auth_routes.hpp>
-#include <manager/users/user_routes.hpp>
 #include <manager/config.hpp>
+#include <manager/auth/routes.hpp>
+#include <manager/users/routes.hpp>
 #include <app/viewer/viewer_routes.hpp>
 #include <app/memo/memo_routes.hpp>
 

@@ -1,15 +1,10 @@
-#pragma once
-#include <crow.h>
-
-#include "user_manager.hpp"
-#include "user_api.hpp"
-
-using namespace std;
+#include <manager/users/api.hpp>
+#include <manager/users/routes.hpp>
+#include <manager/auth/middleware.hpp>
 
 namespace USER_ROUTES {
 
-template<typename Middleware>
-inline void setup_user_routes(crow::App<Middleware>& app) {
+void setup_user_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app){
   CROW_ROUTE(app,"/req/user/register")
     .methods(crow::HTTPMethod::POST)
       (USER_API::register_user);
@@ -32,5 +27,4 @@ inline void setup_user_routes(crow::App<Middleware>& app) {
     .methods(crow::HTTPMethod::POST)
       (USER_API::get_user_permissions);
 }
-
-} // namespace USER_ROUTES 
+} // namespace USER_ROUTES

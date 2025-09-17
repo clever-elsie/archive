@@ -2,7 +2,7 @@
 #include <crow/http_request.h>
 #include <crow/http_response.h>
 
-#include "user_manager.hpp"
+#include "manager.hpp"
 
 namespace USER_API {
 using namespace std;

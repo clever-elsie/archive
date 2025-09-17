@@ -6,7 +6,7 @@
 #include <openssl/evp.h>
 #include <openssl/rand.h>
 
-#include <manager/users/user_manager.hpp>
+#include <manager/users/manager.hpp>
 
 namespace USER_MANAGER {
 using namespace std;

@@ -8,7 +8,7 @@
 
 #include <manager/auth/middleware.hpp>
 #include <manager/auth/auth.hpp>
-#include <manager/users/user_manager.hpp>
+#include <manager/users/manager.hpp>
 #include <app/retrieve.hpp>
 #include <inline_helper.hpp>
 

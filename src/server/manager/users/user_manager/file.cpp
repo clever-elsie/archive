@@ -1,7 +1,7 @@
 #include <fstream>
 #include <exception>
 
-#include <manager/users/user_manager.hpp>
+#include <manager/users/manager.hpp>
 
 namespace USER_MANAGER {
 using namespace std;
