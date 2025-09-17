@@ -197,77 +197,38 @@ make stop
 
 ```
 archive/
-├── build/
 ├── CMakeLists.txt
 ├── config
 │   ├── home-server.service.in
 │   ├── nginx.default.example
-│   ├── param.json -> /home/elsie/archive/config/param.json
+│   ├── param.json
 │   └── param.json.example
-├── data/
 ├── includes
 │   ├── app
-│   │   ├── memo
-│   │   │   ├── data_structure.hpp
-│   │   │   ├── helper.hpp
-│   │   │   ├── memo.hpp
-│   │   │   ├── memo_routes.hpp
-│   │   │   └── shared_memo.hpp
-│   │   ├── retrieve.hpp
-│   │   └── viewer
-│   │       ├── viewer.hpp
-│   │       └── viewer_routes.hpp
+│   │   ├── memo/
+│   │   └── viewer/
 │   ├── headers.hpp
 │   └── manager
-│       ├── auth
-│       │   ├── auth.hpp
-│       │   ├── auth_routes.hpp
-│       │   ├── jwt.hpp
-│       │   └── middleware.hpp
-│       ├── config.hpp
-│       └── users
-│           ├── user_api.hpp
-│           ├── user_manager.hpp
-│           └── user_routes.hpp
+│       ├── auth/
+│       └── users/
 ├── LICENSE
 ├── Makefile
 ├── makefile.env
-├── memo/
 ├── README.md
 ├── src
 │   ├── frontend
-│   │   ├── common.css
-│   │   ├── common.js
-│   │   ├── common_mobile.css
-│   │   ├── memo
-│   │   │   ├── mobile.css
-│   │   │   ├── script.js
-│   │   │   └── style.css
+│   │   ├── memo/
 │   │   └── viewer
-│   │       ├── api
-│   │       │   └── media.js
-│   │       ├── directory.js
-│   │       ├── main.js
-│   │       ├── media.js
-│   │       ├── metadata.js
-│   │       ├── mobile.css
-│   │       ├── pagination.js
-│   │       ├── src.js
-│   │       ├── state.js
-│   │       ├── style.css
-│   │       ├── thumbnails.js
-│   │       ├── ui.js
-│   │       └── utils.js
+│   │       └── api/
 │   └── server
 │       ├── app
-│       │   ├── memo
-│       │   │   └── data_structure.cpp
-│       │   └── viewer
+│       │   ├── memo/
+│       │   └── viewer/
 │       ├── main.cpp
 │       └── manager
-│           ├── auth
-│           └── users
-├── users.json -> /home/elsie/archive/users.json
+│           ├── auth/
+│           └── users/
+├── users.json
 └── web
     ├── index.html
     ├── memo.html
