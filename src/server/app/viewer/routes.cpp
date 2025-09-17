@@ -1,4 +1,11 @@
 #include <app/viewer/routes.hpp>
+#include <app/viewer/random.hpp>
+#include <app/viewer/page.hpp>
+#include <app/viewer/loader.hpp>
+#include <app/viewer/file_server.hpp>
+#include <app/viewer/retrieve.hpp>
+#include <app/viewer/tag.hpp>
+#include <app/viewer/diraccess.hpp>
 
 namespace VIEWER{
 void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir){
@@ -29,7 +36,7 @@ void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir)
   CROW_ROUTE(app,"/req/img/reload")
     .methods(crow::HTTPMethod::GET)
       (VIEWER::reload_leaf);
-  // タグ，作成者更新
+  // タグ更新
   CROW_ROUTE(app,"/req/img/info_renew")
     .methods(crow::HTTPMethod::POST)
       (VIEWER::info_renew);

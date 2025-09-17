@@ -1,6 +1,5 @@
 #pragma once
 #include <crow.h>
-#include "viewer.hpp"
 #include <manager/auth/middleware.hpp>
 
 namespace VIEWER{
