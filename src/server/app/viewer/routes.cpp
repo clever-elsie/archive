@@ -1,11 +1,7 @@
-#pragma once
-#include <crow.h>
-#include "viewer.hpp"
+#include <app/viewer/routes.hpp>
 
 namespace VIEWER_ROUTES{
-
-template<typename Middleware>
-inline void setup_viewer_routes(crow::App<Middleware>& app, std::string&& viewer_dir){
+void setup_viewer_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir){
   namespace fs = std::filesystem;
   VIEWER::base_dir = std::move(viewer_dir);
 	VIEWER::rel_base = fs::canonical(fs::current_path()).string()+'/';
@@ -46,5 +42,4 @@ inline void setup_viewer_routes(crow::App<Middleware>& app, std::string&& viewer
     .methods(crow::HTTPMethod::GET)
       (VIEWER::redirect_media);
 }
-
 } // namespace VIEWER_ROUTES

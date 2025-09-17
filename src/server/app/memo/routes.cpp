@@ -1,12 +1,8 @@
-#pragma once
-#include <crow.h>
-
-#include "memo.hpp"
+#include <app/memo/routes.hpp>
 
 namespace MEMO_ROUTES{
 
-template<typename Middleware>
-inline void setup_memo_routes(crow::App<Middleware>& app){
+void setup_memo_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app){
 	namespace fs = std::filesystem;
 	MEMO::memo_base_path = fs::canonical(fs::current_path() / "memo").string() + "/";
 

@@ -2,7 +2,7 @@
 #include <manager/auth/routes.hpp>
 #include <manager/users/routes.hpp>
 #include <app/viewer/viewer_routes.hpp>
-#include <app/memo/memo_routes.hpp>
+#include <app/memo/routes.hpp>
 
 int main(int argc, char* argv[]) {
 	if (!CONFIG::load_params("config/param.json")) {
