@@ -4,8 +4,8 @@
 #include "memo.hpp"
 #include <manager/auth/middleware.hpp>
 
-namespace MEMO_ROUTES{
+namespace MEMO{
 
-void setup_memo_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app);
+void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app);
 
-} // namespace MEMO_ROUTES
+} // namespace MEMO

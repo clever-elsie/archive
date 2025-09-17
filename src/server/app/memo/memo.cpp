@@ -1,4 +1,5 @@
 #include <app/memo/memo.hpp>
+#include <manager/auth/middleware.hpp>
 
 namespace MEMO{
 

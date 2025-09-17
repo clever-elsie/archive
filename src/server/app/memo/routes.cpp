@@ -1,8 +1,8 @@
 #include <app/memo/routes.hpp>
 
-namespace MEMO_ROUTES{
+namespace MEMO{
 
-void setup_memo_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app){
+void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app){
 	namespace fs = std::filesystem;
 	MEMO::memo_base_path = fs::canonical(fs::current_path() / "memo").string() + "/";
 
@@ -58,4 +58,4 @@ void setup_memo_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app){
       (MEMO::shared_memo_get);
 }
 
-} // namespace MEMO_ROUTES
+} // namespace MEMO

@@ -1,8 +1,10 @@
 #include <manager/config.hpp>
 #include <manager/auth/routes.hpp>
 #include <manager/users/routes.hpp>
-#include <app/viewer/viewer_routes.hpp>
+#include <app/viewer/routes.hpp>
 #include <app/memo/routes.hpp>
+
+static_assert(CROW_ENABLE_SSL, "CROW_ENABLE_SSL is not defined");
 
 int main(int argc, char* argv[]) {
 	if (!CONFIG::load_params("config/param.json")) {
@@ -12,14 +14,12 @@ int main(int argc, char* argv[]) {
 
 	crow::App<MIDDLEWARE::AuthMiddleware> app;
 	app.port(CONFIG::params.SERVER_PORT);
-	static_assert(CROW_ENABLE_SSL, "CROW_ENABLE_SSL is not defined");
 	app.ssl_file(CONFIG::params.SSL_CERT_PATH, CONFIG::params.SSL_KEY_PATH);
 	
-	AUTH::setup_auth_routes(app);
-	USER_ROUTES::setup_user_routes(app);
-	VIEWER_ROUTES::setup_viewer_routes(app, std::move(CONFIG::params.VIEWER_DIR));
-	MEMO_ROUTES::setup_memo_routes(app);
+	AUTH::setup(app);
+	USER::setup(app);
+	VIEWER::setup(app, std::move(CONFIG::params.VIEWER_DIR));
+	MEMO::setup(app);
 	
-	app.multithreaded()
-	.run();
+	app.multithreaded().run();
 } 

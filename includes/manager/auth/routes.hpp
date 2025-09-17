@@ -6,6 +6,6 @@
 
 namespace AUTH{
 
-void setup_auth_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app);
+void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app);
 
 } // namespace AUTH

@@ -2,9 +2,9 @@
 #include <manager/users/routes.hpp>
 #include <manager/auth/middleware.hpp>
 
-namespace USER_ROUTES {
+namespace USER {
 
-void setup_user_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app){
+void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app){
   CROW_ROUTE(app,"/req/user/register")
     .methods(crow::HTTPMethod::POST)
       (USER_API::register_user);
@@ -27,4 +27,4 @@ void setup_user_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app){
     .methods(crow::HTTPMethod::POST)
       (USER_API::get_user_permissions);
 }
-} // namespace USER_ROUTES
+} // namespace USER

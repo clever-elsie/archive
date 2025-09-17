@@ -3,8 +3,8 @@
 #include "viewer.hpp"
 #include <manager/auth/middleware.hpp>
 
-namespace VIEWER_ROUTES{
+namespace VIEWER{
 
-void setup_viewer_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir);
+void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir);
 
-} // namespace VIEWER_ROUTES
+} // namespace VIEWER

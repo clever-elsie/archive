@@ -6,8 +6,8 @@
 #include <manager/auth/middleware.hpp>
 
 
-namespace USER_ROUTES {
+namespace USER {
 
-void setup_user_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app);
+void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app);
 
-} // namespace USER_ROUTES 
+} // namespace USER 

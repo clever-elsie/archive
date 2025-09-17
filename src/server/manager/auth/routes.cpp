@@ -2,7 +2,7 @@
 
 namespace AUTH{
 
-void setup_auth_routes(crow::App<MIDDLEWARE::AuthMiddleware>& app){
+void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app){
   CROW_ROUTE(app,"/req/auth/login")
     .methods(crow::HTTPMethod::POST)
       (AUTH::login_response);
