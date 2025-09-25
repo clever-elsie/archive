@@ -34,10 +34,10 @@
 				<h3><i class="fas fa-tags"></i> タグ</h3>
 				<div class="input-group">
 					<input id="tag_input" type="text" placeholder="タグを入力" class="modern-input"/>
-					<button id="tag_add" class="btn btn-primary" onclick="Info('add');">
+					<button id="tag_add" class="btn btn-primary" onclick="window.location.href='#top';Info('add');">
 						<i class="fas fa-plus"></i> 追加
 					</button>
-					<button id="tag_erase" class="btn btn-danger" onclick="Info('delete');">
+					<button id="tag_erase" class="btn btn-danger" onclick="window.location.href='#top';Info('delete');">
 						<i class="fas fa-minus"></i> 削除
 					</button>
 				</div>
@@ -56,7 +56,7 @@
 		<section class="jump-section">
 			<div class="jump-controls">
 				<input id="jmpImg" type="number" placeholder="ページ番号" class="modern-input" onkeypress="handleJumpImgKeyPress(event)">
-				<button onclick="jmpImg2()" class="btn btn-secondary">
+				<button onclick="window.location.href='#parentdir';jmpImg2()" class="btn btn-secondary">
 					<i class="fas fa-arrow-right"></i> ジャンプ
 				</button>
 			</div>
@@ -73,7 +73,7 @@
 			<h3 id="THUM"><i class="fas fa-search"></i> その他の作品</h3>
 			<div class="search-controls">
 				<input id="query_box" type="text" placeholder="検索クエリを入力" class="modern-input"/>
-				<button onclick="throw_query()" class="btn btn-primary">
+				<button onclick="window.location.href='#THUM';throw_query()" class="btn btn-primary">
 					<i class="fas fa-search"></i> 検索
 				</button>
 			</div>
@@ -82,26 +82,26 @@
 		<!-- ナビゲーションコントロール -->
 		<section class="navigation-section">
 			<div class="nav-buttons">
-				<button class="btn btn-secondary" onclick="fetchRandomImage();">
+				<button class="btn btn-secondary" onclick="window.location.href='#THUM';fetchRandomImage();">
 					<i class="fas fa-random"></i> ランダムリロード
 				</button>
-				<button onclick="cd(par_id);" class="btn btn-secondary">
+				<button onclick="window.location.href='#THUM';cd(par_id);" class="btn btn-secondary">
 					<i class="fas fa-level-up-alt"></i> 上位ディレクトリ
 				</button>
-				<button onclick="cd(cur_id);" class="btn btn-secondary">
+				<button onclick="window.location.href='#THUM';cd(cur_id);" class="btn btn-secondary">
 					<i class="fas fa-folder"></i> 現在のディレクトリ
 				</button>
 			</div>
 			
 			<div class="page-navigation">
-				<button class="btn btn-secondary" id="prev_page">
+				<button class="btn btn-secondary" id="prev_page" onclick="window.location.href='#THUM';fetch_page(State.pagination.prev);">
 					<i class="fas fa-chevron-left"></i> 前へ
 				</button>
 				<input id="page_num" type="number" placeholder="ページ番号" class="modern-input">
-				<button class="btn btn-secondary" onclick="call_page_num()">
+				<button class="btn btn-secondary" onclick="window.location.href='#THUM';call_page_num()">
 					<i class="fas fa-arrow-right"></i> ページジャンプ
 				</button>
-				<button class="btn btn-secondary" id="next_page">
+				<button class="btn btn-secondary" id="next_page" onclick="window.location.href='#THUM';fetch_page(State.pagination.next);">
 					次へ <i class="fas fa-chevron-right"></i>
 				</button>
 			</div>

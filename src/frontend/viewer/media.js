@@ -145,6 +145,7 @@ export function displayPrevNextButtons(currentIndex, mediaList, displayFunc) {
 
 // メディア表示
 export function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex = null) {
+	window.location.href='#top';
 	document.getElementById('jmpControll').innerHTML = '';
 	document.getElementById('jmpControll2').innerHTML = '';
 	const id = State.directory.currentId;
@@ -209,6 +210,7 @@ export function formatTextToHTML(text) {
 }
 
 export function displayTextFrame(textURL, textList = null, currentIndex = null) {
+	window.location.href='#top';
 	document.getElementById('jmpControll').innerHTML = '';
 	document.getElementById('jmpControll2').innerHTML = '';
 	const id = State.directory.currentId;

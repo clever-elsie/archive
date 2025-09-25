@@ -11,6 +11,7 @@ export function media_class(src) {
 }
 
 export function cd(eventOrIndex) {
+	window.location.href='#THUM';
 	if (typeof eventOrIndex === 'object' && eventOrIndex !== null && typeof eventOrIndex.preventDefault === 'function') {
 		eventOrIndex.preventDefault();
 	}

@@ -85,6 +85,7 @@ export function fetchRandomImage() {
 }
 
 export function fetchImageList(id) {
+	window.location.href='#top';
 	document.getElementById('jmpControll').innerHTML = '';
 	document.getElementById('jmpControll2').innerHTML = '';
 	revokeAllMediaObjectUrls();
