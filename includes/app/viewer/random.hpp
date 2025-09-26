@@ -4,5 +4,5 @@
 #include <app/viewer/global.hpp>
 
 namespace VIEWER{
-crow::json::wvalue get_rand_imgs();
+crow::json::wvalue get_rand_imgs(int cnt);
 } // namespace VIEWER

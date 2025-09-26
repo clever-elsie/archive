@@ -16,9 +16,11 @@ vector<Info*> get_rand_dirs(const int cnt){
 	return vector(seen.begin(),seen.end());
 }
 
-crow::json::wvalue get_rand_imgs(){
+crow::json::wvalue get_rand_imgs(int cnt){
+	constexpr int max_limit=24;
+	if(cnt<0) return crow::json::wvalue();
+	if(cnt>max_limit) cnt=max_limit;
 	lock_guard<mutex> lock(imtex);
-	constexpr int cnt=Info_page_size;
 	crow::json::wvalue::list ret;
 	for(auto&dir:get_rand_dirs(cnt))
 		pb_next(ret,*dir);

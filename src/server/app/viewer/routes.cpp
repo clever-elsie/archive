@@ -14,7 +14,7 @@ void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir)
 	VIEWER::rel_base = fs::canonical(fs::current_path()).string()+'/';
 	VIEWER::base_time = fs::last_write_time(VIEWER::base_dir);
 	VIEWER::load_leaf_dir(VIEWER::base_dir);
-  CROW_ROUTE(app,"/req/img/rand")
+  CROW_ROUTE(app,"/req/img/rand/<int>")
     .methods(crow::HTTPMethod::GET)
       (VIEWER::get_rand_imgs);
   CROW_ROUTE(app,"/req/img")
