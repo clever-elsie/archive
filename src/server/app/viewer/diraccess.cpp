@@ -20,7 +20,7 @@ crow::json::wvalue get_imgs(const crow::request&req){
 	auto data = crow::json::load(req.body);
 	uint64_t idv = static_cast<uint64_t>(data["id"].i());
 	Info* node = mgr.get_info_from_id(idv);
-	if(!mgr.is_valid(node) || !node->has_only_img) return crow::json::wvalue();
+	if(!mgr.is_valid(node) || !node->has_only_img||!node->refresh(0)) return crow::json::wvalue();
 	const std::string bpath(node->path);
 	vector<string>& imgs=node->imgs;
 	crow::json::wvalue::list img_list;
@@ -31,7 +31,7 @@ crow::json::wvalue get_imgs(const crow::request&req){
 		img_list.push_back(move(next));
 	}
 	ret["img"]=move(img_list);
-	const string info=node->path+"/.info";
+	const string info=node->path/filesystem::path(".info");
 	if(!filesystem::exists(info))
 		ofstream ofs(info);
 	crow::json::wvalue::list ts;
@@ -56,7 +56,7 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	std::string order_key = data.has("order_key") ? data["order_key"].s() : std::string("name");
 	std::string order = data.has("order") ? data["order"].s() : std::string("ascendant");
 	Info* tar=mgr.get_info_from_id(idv);
-	if(!mgr.is_valid(tar)) return crow::json::wvalue();
+	if(!mgr.is_valid(tar)||!tar->refresh(1)) return crow::json::wvalue();
 	crow::json::wvalue ret;
 	ret["cur"]=idv;
 	ret["par"]=tar->par->id;

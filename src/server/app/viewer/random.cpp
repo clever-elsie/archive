@@ -12,7 +12,7 @@ vector<Info*> get_rand_dirs(const int cnt){
 		auto k=mgr.R()%mgr.leaf_dirs.size();
 		auto it=mgr.leaf_dirs.find_by_order(k);
 		if(it==mgr.leaf_dirs.end()) break;
-		seen.insert(*it);
+		if((*it)->refresh(0)) seen.insert(*it);
 	}
 	return vector(seen.begin(),seen.end());
 }

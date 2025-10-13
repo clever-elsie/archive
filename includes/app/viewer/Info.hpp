@@ -2,6 +2,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <set>
+#include <array>
 #include <vector>
 #include <string>
 #include <filesystem>
@@ -10,7 +11,7 @@ namespace VIEWER{
 using namespace std;
 
 struct Info{
-  string path;
+  filesystem::path path;
   set<string>tag;
   vector<Info*>dirs;
   vector<string>imgs;
@@ -18,8 +19,15 @@ struct Info{
   uint64_t id;
   Info*par;
   bool has_only_img;
-  Info(const string&dir,Info*par_);
+  Info(const filesystem::path&dir,Info*par_);
   ~Info();
+  bool refresh(size_t depth);
+  private:
+  constexpr static array<string,5> exts{".webp",".jpg",".jpeg",".png",".gif"};
+  constexpr static array<string,6> not_img{".mp4",".mp3",".flac",".aac",".wav",".txt"};
+  void reload_info();
+  void reload_leaf();
+  void reload_dir(size_t depth);
 };
 
 struct LeafCmp{

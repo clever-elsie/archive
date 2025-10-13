@@ -24,8 +24,8 @@ crow::response info_renew(const crow::request&req){
 	uint64_t idv=static_cast<uint64_t>(data["id"].i());
 	string tar=data["data"].s();
 	Info* node=mgr.get_info_from_id(idv);
-	if(!mgr.is_valid(node) || !node->has_only_img) return crow::response(404);
-	string info=node->path+"/.info";
+	if(!mgr.is_valid(node) || !node->has_only_img||!node->refresh(0)) return crow::response(404);
+	string info=node->path/filesystem::path(".info");
 	if(data["AD"].s()=="add"){
 		if(node->tag.contains(tar)) return crow::response(200);
 		node->tag.emplace(move(tar));

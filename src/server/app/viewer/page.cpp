@@ -29,7 +29,10 @@ crow::json::wvalue get_page(const crow::request&req){
 		uint64_t end=min(n,start+mgr.Info_page_size);
 		for(uint64_t k=start;k<end;++k){
 			auto it=mgr.leaf_dirs.find_by_order(k);
-			if(it!=mgr.leaf_dirs.end()) pb_next(ret,**it);
+			if(it!=mgr.leaf_dirs.end())
+				if((*it)->refresh(0))
+					pb_next(ret,**it);
+				else --k;
 		}
 	}
 	return crow::json::wvalue(ret);

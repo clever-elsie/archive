@@ -69,4 +69,34 @@ inline bool parse_query(size_t&idx,const Info&tar,const string&s){
 	}
 	return !or_exp;
 }
+template<class Info,bool or_exp=false>
+requires requires(Info&tar,const string&s){
+  tar.tag.contains(s);
+  tar.path.string().contains(s);
+}
+inline bool parse_query(size_t&idx,const Info&tar,const string&s){
+	bool nx_not=false;
+	while(idx<s.size()){
+		if(s[idx]=='!'){
+			nx_not=!nx_not;
+			++idx;
+			continue;
+		}
+		bool r;
+		switch(s[idx]){
+			case '(': r=parse_query<Info,!or_exp>(++idx,tar,s); break;
+			case ')': ++idx;return !or_exp;
+			default:{
+				auto[cnt,token]=get_token(idx,s);
+				idx+=cnt;
+				r=tar.tag.contains(token)||tar.path.string().contains(token);
+			}break;
+		}
+		if(nx_not) r=!r;
+		if constexpr(or_exp){
+			if(r) return true;
+		}else{ if(!r) return false; }
+	}
+	return !or_exp;
+}
 } // namespace RETRIEVE

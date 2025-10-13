@@ -13,8 +13,8 @@ void load_leaf_dir(const string&base){
 	namespace F = std::filesystem;
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
-	delete mgr.root_dir;
-	mgr.root_dir=new Info(base,nullptr);
+	if(mgr.root_dir==nullptr) mgr.root_dir=new Info(base,nullptr);
+	else mgr.root_dir->refresh(998244353ul/*this number is no means if you want to more depth, you can change it*/);
 }
 
 crow::response reload_leaf(const crow::request&req){

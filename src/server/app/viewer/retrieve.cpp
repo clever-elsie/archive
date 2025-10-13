@@ -16,7 +16,7 @@ crow::json::wvalue retrieve_query(const crow::request& req){
 	crow::json::wvalue::list ret;
 	vector<Info*>dirs;
 	for(auto it=mgr.leaf_dirs.begin();it!=mgr.leaf_dirs.end();++it)
-		if(size_t idx=0;RETRIEVE::parse_query(idx,**it,querys))
+		if(size_t idx=0;(*it)->refresh(0)&&RETRIEVE::parse_query(idx,**it,querys))
 			dirs.push_back(*it);
 	ranges::sort(dirs,[](const Info*a,const Info*b){
 		return a->path<b->path;
