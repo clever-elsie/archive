@@ -4,16 +4,18 @@
 #include <app/retrieve.hpp>
 #include <app/viewer/retrieve.hpp>
 #include <app/viewer/inline_helper.hpp>
+#include <app/viewer/manager.hpp>
 
 namespace VIEWER{
 using namespace std;
 
 crow::json::wvalue retrieve_query(const crow::request& req){
-	lock_guard<mutex> lock(imtex);
+	manager& mgr = manager::get_instance();
+	lock_guard<mutex> lock(mgr.imtex);
 	const string querys = crow::json::load(req.body).s();
 	crow::json::wvalue::list ret;
 	vector<Info*>dirs;
-	for(auto it=leaf_dirs.begin();it!=leaf_dirs.end();++it)
+	for(auto it=mgr.leaf_dirs.begin();it!=mgr.leaf_dirs.end();++it)
 		if(size_t idx=0;RETRIEVE::parse_query(idx,**it,querys))
 			dirs.push_back(*it);
 	ranges::sort(dirs,[](const Info*a,const Info*b){

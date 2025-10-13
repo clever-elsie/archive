@@ -8,25 +8,26 @@
 #include <app/retrieve.hpp>
 #include <inline_helper.hpp>
 #include <app/viewer/inline_helper.hpp>
-#include <app/viewer/global.hpp>
+#include <app/viewer/manager.hpp>
 #include <app/viewer/diraccess.hpp>
 
 namespace VIEWER{
 using namespace std;
 
 crow::json::wvalue get_imgs(const crow::request&req){
-	lock_guard<mutex> lock(imtex);
+	manager& mgr = manager::get_instance();
+	lock_guard<mutex> lock(mgr.imtex);
 	auto data = crow::json::load(req.body);
 	uint64_t idv = static_cast<uint64_t>(data["id"].i());
-	Info* node = get_info_from_id(idv);
-	if(!node || !valid_info_ptrs.contains(node) || !node->has_only_img) return crow::json::wvalue();
+	Info* node = mgr.get_info_from_id(idv);
+	if(!mgr.is_valid(node) || !node->has_only_img) return crow::json::wvalue();
 	const std::string bpath(node->path);
 	vector<string>& imgs=node->imgs;
 	crow::json::wvalue::list img_list;
 	crow::json::wvalue ret;
 	for(auto const & img:imgs){
 		crow::json::wvalue next;
-		next["img"]=filesystem::relative(filesystem::path(bpath)/img,rel_base);
+		next["img"]=filesystem::relative(filesystem::path(bpath)/img,mgr.base_dir);
 		img_list.push_back(move(next));
 	}
 	ret["img"]=move(img_list);
@@ -47,14 +48,15 @@ crow::json::wvalue get_imgs(const crow::request&req){
 }
 
 crow::json::wvalue get_dir_list(const crow::request&req){
-	lock_guard<mutex> lock(imtex);
+	manager& mgr = manager::get_instance();
+	lock_guard<mutex> lock(mgr.imtex);
 	namespace F = std::filesystem;
 	auto data = crow::json::load(req.body);
 	const uint64_t idv=static_cast<uint64_t>(data["id"].i());
 	std::string order_key = data.has("order_key") ? data["order_key"].s() : std::string("name");
 	std::string order = data.has("order") ? data["order"].s() : std::string("ascendant");
-	Info* tar=get_info_from_id(idv);
-	if(!tar || !valid_info_ptrs.contains(tar)) return crow::json::wvalue();
+	Info* tar=mgr.get_info_from_id(idv);
+	if(!mgr.is_valid(tar)) return crow::json::wvalue();
 	crow::json::wvalue ret;
 	ret["cur"]=idv;
 	ret["par"]=tar->par->id;

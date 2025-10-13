@@ -3,7 +3,7 @@
 #include <manager/auth/middleware.hpp>
 #include <manager/auth/auth.hpp>
 #include <app/viewer/loader.hpp>
-#include <app/viewer/global.hpp>
+#include <app/viewer/manager.hpp>
 
 namespace VIEWER{
 using namespace std;
@@ -11,15 +11,17 @@ using namespace std;
 void load_leaf_dir(const string&base){
 	namespace C = std::chrono;
 	namespace F = std::filesystem;
-	leaf_dirs.clear();
-	dirs_tree.clear();
-	valid_info_ptrs.clear();
-	delete root_dir;
-	root_dir=new Info(base,nullptr);
-	root_dir->par=root_dir;
-	root_dir->id=reinterpret_cast<uint64_t>(root_dir);
-	valid_info_ptrs.insert(root_dir);
-	dirs_tree.insert(root_dir);
+	manager& mgr = manager::get_instance();
+	lock_guard<mutex> lock(mgr.imtex);
+	mgr.leaf_dirs.clear();
+	mgr.dirs_tree.clear();
+	mgr.valid_info_ptrs.clear();
+	delete mgr.root_dir;
+	mgr.root_dir=new Info(base,nullptr);
+	mgr.root_dir->par=mgr.root_dir;
+	mgr.root_dir->id=reinterpret_cast<uint64_t>(mgr.root_dir);
+	mgr.valid_info_ptrs.insert(mgr.root_dir);
+	mgr.dirs_tree.insert(mgr.root_dir);
 }
 
 crow::response reload_leaf(const crow::request&req){
@@ -38,9 +40,9 @@ crow::response reload_leaf(const crow::request&req){
 		return crow::response(403, error_response);
 	}
 	
-	lock_guard<mutex> lock(imtex);
-	load_leaf_dir(base_dir);
-	if(leaf_dirs.size()==0) return crow::response(400);
+	manager& mgr = manager::get_instance();
+	load_leaf_dir(mgr.base_dir);
+	if(mgr.leaf_dirs.size()==0) return crow::response(400);
 	return crow::response(200);
 }
 } // namespace VIEWER

@@ -12,11 +12,13 @@
 #include <app/viewer/global.hpp>
 #include <app/viewer/inline_helper.hpp>
 #include <app/viewer/file_server.hpp>
+#include <app/viewer/manager.hpp>
 
 namespace VIEWER{
 using namespace std;
 
 crow::response get_file_binary(const crow::request&req){
+    manager& mgr = manager::get_instance();
     // 認証不要（公開リソースとして）
     auto data = crow::json::load(req.body);
     if (!data) return crow::response(400, "Invalid JSON");
@@ -25,13 +27,11 @@ crow::response get_file_binary(const crow::request&req){
     std::string filename = data["filename"].s();
     std::string fullpath;
     if(type=="image"||type=="video"||type=="audio"||type=="text"){
-        Info* node=get_info_from_id(idv);
-        if(!node || !valid_info_ptrs.contains(node)) return crow::response(404);
+        Info* node=mgr.get_info_from_id(idv);
+        if(!mgr.is_valid(node)) return crow::response(404);
         if(type=="image" && !node->has_only_img) return crow::response(404);
         fullpath = node->path + "/" + filename;
-    }else{
-        return crow::response(400, "Unknown type");
-    }
+    }else return crow::response(400, "Unknown type");
     std::ifstream ifs(fullpath, std::ios::binary);
     if(!ifs) return crow::response(404, "File not found");
     std::vector<char> buffer((std::istreambuf_iterator<char>(ifs)), std::istreambuf_iterator<char>());
@@ -68,6 +68,7 @@ crow::response redirect_media(const crow::request& req){
     const char* fn_c   = req.url_params.get("filename");
     if(!type_c || !id_c || !fn_c) return crow::response(400, "missing query");
 
+    manager& mgr = manager::get_instance();
     string type(type_c);
     string filename(fn_c);
     uint64_t idv;
@@ -79,16 +80,16 @@ crow::response redirect_media(const crow::request& req){
 
     std::string base;
     {
-        lock_guard<mutex> lock(imtex);
-        Info* node=get_info_from_id(idv);
-        if(!node || !valid_info_ptrs.contains(node)) return crow::response(404);
+        lock_guard<mutex> lock(mgr.imtex);
+        Info* node=mgr.get_info_from_id(idv);
+        if(!mgr.is_valid(node)) return crow::response(404);
         if(type=="image" && !node->has_only_img) return crow::response(404);
         base = node->path;
     }
 
     std::filesystem::path fullpath = std::filesystem::path(base) / filename;
     std::error_code ec;
-    auto canon_base = std::filesystem::weakly_canonical(std::filesystem::path(base_dir), ec);
+    auto canon_base = std::filesystem::weakly_canonical(std::filesystem::path(mgr.base_dir), ec);
     auto canon_fp   = std::filesystem::weakly_canonical(fullpath, ec);
     if(ec || canon_fp.empty() || canon_base.empty()) return crow::response(404);
     // base_dir 配下にあるかチェック

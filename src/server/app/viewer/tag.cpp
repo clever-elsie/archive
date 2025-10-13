@@ -4,8 +4,7 @@
 #include <manager/auth/auth.hpp>
 #include <manager/users/manager.hpp>
 #include <app/viewer/tag.hpp>
-#include <app/viewer/Info.hpp>
-#include <app/viewer/global.hpp>
+#include <app/viewer/manager.hpp>
 #include <app/viewer/inline_helper.hpp>
 
 namespace VIEWER{
@@ -19,12 +18,13 @@ crow::response info_renew(const crow::request&req){
 		error_response["error"] = "管理者権限が必要です";
 		return crow::response(403, error_response);
 	}
-	lock_guard<mutex> lock(imtex);
+	manager& mgr = manager::get_instance();
+	lock_guard<mutex> lock(mgr.imtex);
 	const auto data=crow::json::load(req.body);
 	uint64_t idv=static_cast<uint64_t>(data["id"].i());
 	string tar=data["data"].s();
-	Info* node=get_info_from_id(idv);
-	if(!node || !valid_info_ptrs.contains(node) || !node->has_only_img) return crow::response(404);
+	Info* node=mgr.get_info_from_id(idv);
+	if(!mgr.is_valid(node) || !node->has_only_img) return crow::response(404);
 	string info=node->path+"/.info";
 	if(data["AD"].s()=="add"){
 		if(node->tag.contains(tar)) return crow::response(200);

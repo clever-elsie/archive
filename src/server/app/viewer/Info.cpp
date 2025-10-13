@@ -2,13 +2,15 @@
 #include <ranges>
 
 #include <app/viewer/Info.hpp>
-#include <app/viewer/global.hpp>
+#include <app/viewer/manager.hpp>
 
 namespace VIEWER{
 
 Info::Info(const string&dir,Info*par_)
 :path(dir),tag(),
 dirs(),imgs(),id(UINT64_MAX),par(par_),has_only_img(0){
+  manager& mgr = manager::get_instance();
+
   last_write_time=filesystem::last_write_time(dir);
   if(!filesystem::is_directory(dir))return;
   const string info=dir+"/.info";
@@ -29,9 +31,9 @@ dirs(),imgs(),id(UINT64_MAX),par(par_),has_only_img(0){
       if(n!=nullptr&&(n->imgs.size()||n->dirs.size())){
         dirs.push_back(n);
         n->id=reinterpret_cast<uint64_t>(n);
-        valid_info_ptrs.insert(n);
-        if(n->dirs.size()) dirs_tree.insert(n);
-        else leaf_dirs.insert(n);
+        mgr.valid_info_ptrs.insert(n);
+        if(n->dirs.size()) mgr.dirs_tree.insert(n);
+        else mgr.leaf_dirs.insert(n);
       }else delete n;
     }else{
       for(const auto&ext:exts)
@@ -47,8 +49,8 @@ dirs(),imgs(),id(UINT64_MAX),par(par_),has_only_img(0){
         }
     }
   if(imgs.size()) last_write_time=filesystem::last_write_time(filesystem::path(path)/imgs[0]);
-  sort(imgs.begin(),imgs.end());
-  sort(dirs.begin(),dirs.end(),[](const Info*a,const Info*b){
+  std::sort(imgs.begin(),imgs.end());
+  std::sort(dirs.begin(),dirs.end(),[](const Info*a,const Info*b){
     bool c1=filesystem::is_directory(a->path);
     bool c2=filesystem::is_directory(b->path);
     if(c1==c2) return a->path<b->path;
