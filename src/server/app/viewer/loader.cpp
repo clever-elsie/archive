@@ -13,15 +13,8 @@ void load_leaf_dir(const string&base){
 	namespace F = std::filesystem;
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
-	mgr.leaf_dirs.clear();
-	mgr.dirs_tree.clear();
-	mgr.valid_info_ptrs.clear();
 	delete mgr.root_dir;
 	mgr.root_dir=new Info(base,nullptr);
-	mgr.root_dir->par=mgr.root_dir;
-	mgr.root_dir->id=reinterpret_cast<uint64_t>(mgr.root_dir);
-	mgr.valid_info_ptrs.insert(mgr.root_dir);
-	mgr.dirs_tree.insert(mgr.root_dir);
 }
 
 crow::response reload_leaf(const crow::request&req){

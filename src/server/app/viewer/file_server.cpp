@@ -9,7 +9,6 @@
 
 #include <crow/json.h>
 
-#include <app/viewer/global.hpp>
 #include <app/viewer/inline_helper.hpp>
 #include <app/viewer/file_server.hpp>
 #include <app/viewer/manager.hpp>

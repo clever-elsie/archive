@@ -21,11 +21,9 @@ struct manager{
   Info*root_dir = nullptr;
   // 可乱択二分木（順序統計木）に変更
   tree<Info*, __gnu_pbds::null_type, LeafCmp> leaf_dirs;
-  tree<Info*, __gnu_pbds::null_type, DirCmp> dirs_tree;
   mutex imtex;
   random_device rds;
   mt19937_64 R;
-  filesystem::file_time_type base_time{};
   unordered_set<Info*> valid_info_ptrs; // 有効ポインタ集合
 private:
   manager():R(rds()){}
