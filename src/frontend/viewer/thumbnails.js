@@ -103,13 +103,27 @@ export function fetchImageList(id) {
 			titlediv.innerHTML = '';
 			parentContainer.innerHTML = '';
 			const loadingDiv = document.createElement('div');
-			loadingDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中...</div>';
+			loadingDiv.id = 'loading-progress';
+			loadingDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (0/' + image_total + ')</div>';
 			container.appendChild(loadingDiv);
+			
+			let loadedCount = 0;
+			const updateProgress = () => {
+				loadedCount++;
+				const progressDiv = document.getElementById('loading-progress');
+				if (progressDiv) {
+					progressDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (' + loadedCount + '/' + image_total + ')</div>';
+				}
+			};
+			
 			const imagePromises = data['img'].map(fileName => {
 				const filename = fileName.img.split('/').pop();
 				return fetchMediaBinary('image', id, filename)
 					.then(objUrl => preloadAndCalculateImageSize(objUrl)
-						.then(imageInfo => ({ fileName, imageInfo, objUrl })));
+						.then(imageInfo => {
+							updateProgress();
+							return { fileName, imageInfo, objUrl };
+						}));
 			});
 			const tags = document.getElementById('tags');
 			tags.innerHTML = '';
