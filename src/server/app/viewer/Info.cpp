@@ -1,8 +1,7 @@
 #include <algorithm>
-#include <ranges>
-
 #include <app/viewer/Info.hpp>
 #include <app/viewer/manager.hpp>
+#include <ranges>
 
 namespace VIEWER{
 

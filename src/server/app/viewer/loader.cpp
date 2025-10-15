@@ -1,3 +1,4 @@
+#include <crow/logging.h>
 #include <crow/json.h>
 
 #include <manager/auth/middleware.hpp>
@@ -12,18 +13,31 @@ void load_leaf_dir(const string&base){
 	namespace C = std::chrono;
 	namespace F = std::filesystem;
 	manager& mgr = manager::get_instance();
-	lock_guard<mutex> lock(mgr.imtex);
+	// まずロックを取るが、キャッシュI/Oはロックの外で行う
+	std::unique_lock<std::mutex> lock(mgr.imtex);
 	if(mgr.root_dir==nullptr){
-		if(!mgr.load_dir_cache(mgr.dir_cache_file)){
-			mgr.root_dir=new Info(base,nullptr);
-			lock.~lock_guard();
+		// ロックを外してキャッシュ読み込み（内側でimtexを取るため）
+		lock.unlock();
+		bool loaded = mgr.load_dir_cache(mgr.dir_cache_file);
+		if(!loaded){
+			// root_dir の作成はロック下で二重チェック
+			lock.lock();
+			if(mgr.root_dir==nullptr)
+				mgr.root_dir=new Info(base,nullptr);
+			lock.unlock();
+			// キャッシュ保存はロックの外で（内部でimtexを取得）
 			mgr.save_dir_cache(mgr.dir_cache_file);
+			CROW_LOG_INFO<<"load_leaf_dir full scan done";
 		}else{
+			CROW_LOG_INFO<<"load_leaf_dir cache loaded";
 			// キャッシュから読み込んだ場合、バックグラウンドでフルスキャンを実行
 			mgr.trigger_full_scan_if_needed();
 		}
-	}else mgr.root_dir->refresh(998244353ul/*this number is no means if you want to more depth, you can change it*/);
-	
+	}else{
+		// refresh は imtex を保持した呼び出し元からのみ呼ぶ契約
+		mgr.root_dir->refresh(998244353ul/*this number is no means if you want to more depth, you can change it*/);
+		CROW_LOG_INFO<<"load_leaf_dir refresh differential done";
+	}
 	// キャッシュ監視を開始
 	mgr.start_cache_monitor();
 }

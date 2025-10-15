@@ -3,8 +3,10 @@
 #include <ios>
 #include <unordered_map>
 #include <filesystem>
+#include <sstream>
 
 #include <crow/json.h>
+#include <crow/logging.h>
 
 #include <app/viewer/manager.hpp>
 #include <app/viewer/Info.hpp>
@@ -24,19 +26,30 @@ Info* json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rval
   for(const auto&img:json["imgs"].lo())
     info->imgs.push_back(img.s());
   info->has_only_img=json["has_only_img"].b();
+  manager& mgr = manager::get_instance();
+  mgr.valid_info_ptrs.insert(info);
+  if(info->imgs.size()&&info->dirs.empty())
+    mgr.leaf_dirs.insert(info);
   return info;
 }
 
 bool manager::load_dir_cache(const string&cache_file){
   if(!filesystem::exists(cache_file)||!cache_file.ends_with(".json")) {
     cache_loaded_from_file = false;
+    CROW_LOG_ERROR<<"load_dir_cache "<<cache_file<<" not exists";
     return false;
   }
-  const auto json_data=crow::json::load(cache_file);
+  CROW_LOG_INFO<<"load_dir_cache "<<cache_file<<" exists";
+  const auto json_data=[](const string&cache_file){
+    stringstream ss;
+    ss << ifstream(cache_file).rdbuf();
+    return crow::json::load(ss.str());
+  }(cache_file);
   lock_guard<mutex> lock(imtex);
   unordered_map<uint64_t,Info*> id2info;
   if(json_data.error()) {
     // 無効なJSONファイルを削除
+    CROW_LOG_ERROR<<"load_dir_cache "<<cache_file<<" invalid";
     filesystem::remove(cache_file);
     cache_loaded_from_file = false;
     return false;
@@ -99,7 +112,6 @@ void manager::cache_monitor_loop() {
     if (!is_full_scanning.load() && dir_cache_dirty.load()) {
       lock.unlock();
       // ユーザーアクセスがないタイミングでキャッシュ更新
-      std::lock_guard<std::mutex> imtex_lock(imtex);
       if (root_dir && dir_cache_dirty.load()) {
         save_dir_cache(dir_cache_file);
         dir_cache_dirty = false;
@@ -115,10 +127,7 @@ void manager::trigger_full_scan_if_needed() {
     // バックグラウンドでフルスキャンを実行
     std::thread([this]() {
       std::lock_guard<std::mutex> lock(imtex);
-      if (root_dir) {
-        root_dir->refresh(998244353ul);
-        mark_cache_dirty();
-      }
+      if (root_dir) root_dir->refresh(998244353ul);
       is_full_scanning = false;
     }).detach();
   }
