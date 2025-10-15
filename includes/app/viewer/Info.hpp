@@ -1,4 +1,5 @@
-#pragma once
+#ifndef INFO_HPP
+#define INFO_HPP
 #include <cstddef>
 #include <cstdint>
 #include <set>
@@ -6,6 +7,7 @@
 #include <vector>
 #include <string>
 #include <filesystem>
+#include <crow/json.h>
 
 namespace VIEWER{
 using namespace std;
@@ -16,12 +18,16 @@ struct Info{
   vector<Info*>dirs;
   vector<string>imgs;
   filesystem::file_time_type last_write_time;
-  uint64_t id;
   Info*par;
   bool has_only_img;
+  Info()=default;
   Info(const filesystem::path&dir,Info*par_);
   ~Info();
   bool refresh(size_t depth);
+  crow::json::wvalue to_json()const;
+  uint64_t id()const{
+    return reinterpret_cast<uint64_t>(this);
+  }
   private:
   constexpr static array<string,5> exts{".webp",".jpg",".jpeg",".png",".gif"};
   constexpr static array<string,6> not_img{".mp4",".mp3",".flac",".aac",".wav",".txt"};
@@ -40,3 +46,4 @@ struct LeafCmp{
 };
 
 } // namespace VIEWER
+#endif

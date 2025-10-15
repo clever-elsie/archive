@@ -25,6 +25,9 @@ cmake_install.cmake
 data
 ./memo/
 
+# キャッシュファイル
+config/dir_cache.json
+
 # 機密情報
 users.json
 *.key

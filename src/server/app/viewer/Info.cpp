@@ -8,7 +8,7 @@ namespace VIEWER{
 
 Info::Info(const filesystem::path&dir,Info*par_)
 :path(dir),tag(),
-dirs(),imgs(),id(reinterpret_cast<uint64_t>(this)),par(par_?:this),has_only_img(0){
+dirs(),imgs(),par(par_?:this),has_only_img(0){
   manager& mgr = manager::get_instance();
   mgr.valid_info_ptrs.insert(this);
   last_write_time=filesystem::last_write_time(dir);
@@ -53,21 +53,34 @@ bool Info::refresh(size_t depth){
   // depth==0なら再帰を止める．
   // ただし，新しく観測したディレクトリはコンストラクタを呼び出すので全再帰
   manager& mgr = manager::get_instance();
+  bool has_update = false;
+  
   if(!filesystem::exists(path)){ // 消えてる
     delete this;
+    mgr.mark_cache_dirty();
     return false;
   }
   if(imgs.size()&&dirs.empty()){ // 葉ノード
     filesystem::file_time_type last_write_time=filesystem::last_write_time(path/imgs[0]);
-    if(last_write_time>this->last_write_time) // 更新有り
-      reload_info(), reload_leaf(), this->last_write_time=last_write_time;
+    if(last_write_time>this->last_write_time){ // 更新有り
+      reload_info(), reload_leaf();
+      this->last_write_time=last_write_time;
+      has_update = true;
+    }
   }else if(filesystem::is_directory(path)){ // ディレクトリ
     filesystem::file_time_type last_write_time=filesystem::last_write_time(path);
-    if(last_write_time>this->last_write_time) // 更新有り
-      reload_dir(depth), reload_leaf(), this->last_write_time=last_write_time;
-    else for(auto&dir:dirs) if(depth) dir->refresh(depth-1);
+    if(last_write_time>this->last_write_time){ // 更新有り
+      reload_dir(depth), reload_leaf();
+      this->last_write_time=last_write_time;
+      has_update = true;
+    }
+    else for(auto&dir:dirs) if(depth) has_update = dir->refresh(depth-1) || has_update;
   }else{ // 動画・音声・テキストファイル は更新があってもやることなし
   }
+  
+  // 更新があった場合はキャッシュをdirtyにマーク
+  if(has_update) mgr.mark_cache_dirty();
+  
   return true;
 }
 
@@ -126,6 +139,21 @@ void Info::reload_dir(size_t depth){
     if(c1==c2) return a->path<b->path;
     return c1;
   });
+}
+
+crow::json::wvalue Info::to_json()const{
+  crow::json::wvalue json;
+  crow::json::wvalue::list dirs_json;
+  json["id"]=id();
+  json["par"]=par->id();
+  json["path"]=path.string();
+  json["tag"]=crow::json::wvalue::list(tag.begin(),tag.end());
+  for(const auto&dir:dirs)
+    dirs_json.push_back(dir->to_json());
+  json["dirs"]=crow::json::wvalue(dirs_json);
+  json["imgs"]=crow::json::wvalue::list(imgs.begin(),imgs.end());
+  json["has_only_img"]=has_only_img;
+  return json;
 }
 
 } // namespace VIEWER

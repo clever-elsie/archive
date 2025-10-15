@@ -56,10 +56,10 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	std::string order_key = data.has("order_key") ? data["order_key"].s() : std::string("name");
 	std::string order = data.has("order") ? data["order"].s() : std::string("ascendant");
 	Info* tar=mgr.get_info_from_id(idv);
-	if(!mgr.is_valid(tar)||!tar->refresh(1)) return crow::json::wvalue();
+	if(!mgr.is_valid(tar)||!tar->refresh(0)) return crow::json::wvalue();
 	crow::json::wvalue ret;
 	ret["cur"]=idv;
-	ret["par"]=tar->par->id;
+	ret["par"]=tar->par->id();
 
 	// vectorに詰め替え
 	std::vector<Info*> dirvec,imgvec;
@@ -86,7 +86,7 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 		crow::json::wvalue next;
 		next["path"]=(d->path);
 		next["dirname"]=(filesystem::path(d->path).filename());
-		next["id"]=d->id;
+		next["id"]=d->id();
 		dir.emplace_back(move(next));
 	}
 	ret["imgs"]=crow::json::wvalue(move(img));

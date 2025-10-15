@@ -10,7 +10,7 @@ inline void pb_next(crow::json::wvalue::list&ret,const Info&info){
 	if(info.imgs.size()){
 		crow::json::wvalue next;
 		next["img"]=filesystem::relative(filesystem::path(info.path)/info.imgs[0],mgr.base_dir);
-		next["id"]=info.id;
+		next["id"]=info.id();
 		ret.push_back(next);
 	}
 }
