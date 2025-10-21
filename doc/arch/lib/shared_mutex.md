@@ -19,9 +19,8 @@ class shared_mutex;
 |<a href='#constructor'>(constructor)</a>|コンストラクタ|
 |<a href='#destructor'>(destructor)</a>|デストラクタ|
 |(operator=)|`=delete`|
-|<a href='#lock'>`lock`系</a>|排他ロック|
+|<a href='#weak_lock'>`weak`系</a>|共有割込み可能排他ロック|
 |<a href='#lock_shared'>`lock_shared`系</a>|共有ロック|
-|<a href='#weak_lock'>`weak_lock`系</a>|共有割込み可能排他ロック|
 ## constructor
 ```C++
 shared_mutex();
@@ -37,8 +36,5 @@ shared_mutex();
 ```C++
 ```
 ## lock_shared
-```C++
-```
-## weak_lock
 ```C++
 ```
