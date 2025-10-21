@@ -28,7 +28,7 @@ crow::response get_file_binary(const crow::request&req){
     if(type=="image"||type=="video"||type=="audio"||type=="text"){
         Info* node=mgr.get_info_from_id(idv);
         if(!mgr.is_valid(node)||!node->refresh(0)) return crow::response(404);
-        if(type=="image" && !node->has_only_img) return crow::response(404);
+        if(type=="image" && !node->has_only_img()) return crow::response(404);
         fullpath = node->path/filename;
     }else return crow::response(400, "Unknown type");
     std::ifstream ifs(fullpath, std::ios::binary);
@@ -82,7 +82,7 @@ crow::response redirect_media(const crow::request& req){
         lock_guard<mutex> lock(mgr.imtex);
         Info* node=mgr.get_info_from_id(idv);
         if(!mgr.is_valid(node)||!node->refresh(0)) return crow::response(404);
-        if(type=="image" && !node->has_only_img) return crow::response(404);
+        if(type=="image" && !node->has_only_img()) return crow::response(404);
         base = node->path;
     }
 

@@ -20,7 +20,7 @@ crow::json::wvalue get_imgs(const crow::request&req){
 	auto data = crow::json::load(req.body);
 	uint64_t idv = static_cast<uint64_t>(data["id"].i());
 	Info* node = mgr.get_info_from_id(idv);
-	if(!mgr.is_valid(node) || !node->has_only_img||!node->refresh(0)) return crow::json::wvalue();
+	if(!mgr.is_valid(node) || !node->has_only_img()||!node->refresh(0)) return crow::json::wvalue();
 	const std::string bpath(node->path);
 	vector<string>& imgs=node->imgs;
 	crow::json::wvalue::list img_list;
@@ -64,7 +64,7 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	// vectorに詰め替え
 	std::vector<Info*> dirvec,imgvec;
 	for(const auto&d:tar->dirs)
-		(d->has_only_img?imgvec:dirvec).push_back(d);
+		(d->has_only_img()?imgvec:dirvec).push_back(d);
 	// ソート 元々名前昇順
 	if(order_key=="last_write_time"){
 		auto cmp=[](const Info*a,const Info*b){

@@ -25,10 +25,12 @@ Info* json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rval
     info->dirs.push_back(json_to_info(id2info,dir));
   for(const auto&img:json["imgs"].lo())
     info->imgs.push_back(img.s());
-  info->has_only_img=json["has_only_img"].b();
+  info->is_directory=json["is_directory"].b();
+  using namespace std::chrono;
+  info->last_write_time=filesystem::file_time_type::clock::time_point(seconds(json["last_write_time"].i()));
   manager& mgr = manager::get_instance();
   mgr.valid_info_ptrs.insert(info);
-  if(info->imgs.size()&&info->dirs.empty())
+  if(info->has_only_img())
     mgr.leaf_dirs.insert(info);
   return info;
 }

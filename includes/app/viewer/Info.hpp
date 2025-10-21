@@ -8,6 +8,8 @@
 #include <string>
 #include <filesystem>
 #include <crow/json.h>
+#include <system_error>
+#include <app/viewer/safe_filesystem.hpp>
 
 namespace VIEWER{
 using namespace std;
@@ -19,7 +21,12 @@ struct Info{
   vector<string>imgs;
   filesystem::file_time_type last_write_time;
   Info*par;
-  bool has_only_img;
+  bool is_directory;
+  
+  // エラー状態管理
+  std::error_code last_error;
+  bool has_filesystem_error = false;
+  
   Info()=default;
   Info(const filesystem::path&dir,Info*par_);
   ~Info();
@@ -28,12 +35,23 @@ struct Info{
   uint64_t id()const{
     return reinterpret_cast<uint64_t>(this);
   }
+  inline bool has_only_img()const{
+    return imgs.size()&&dirs.empty();
+  }
+  
+  // エラー状態の確認
+  bool is_accessible() const { return !has_filesystem_error; }
+  bool should_retry() const;
   private:
   constexpr static array<string,5> exts{".webp",".jpg",".jpeg",".png",".gif"};
   constexpr static array<string,6> not_img{".mp4",".mp3",".flac",".aac",".wav",".txt"};
   void reload_info();
   void reload_leaf();
   void reload_dir(size_t depth);
+  bool refresh_from_parent();
+  
+  // エラーハンドリング
+  void handle_filesystem_error(const std::error_code& ec, const std::string& operation);
 };
 
 struct LeafCmp{
