@@ -24,12 +24,9 @@ void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir)
   CROW_ROUTE(app,"/req/img")
     .methods(crow::HTTPMethod::POST)
       (VIEWER::get_imgs);
-  CROW_ROUTE(app,"/req/img/page_list")
-    .methods(crow::HTTPMethod::GET)
-      (VIEWER::get_page_list);
-  CROW_ROUTE(app,"/req/img/page")
+  CROW_ROUTE(app,"/req/img/page_data")
     .methods(crow::HTTPMethod::POST)
-      (VIEWER::get_page);
+      (VIEWER::get_page_data);
   CROW_ROUTE(app,"/req/img/retrieve")
     .methods(crow::HTTPMethod::POST)
       (VIEWER::retrieve_query);

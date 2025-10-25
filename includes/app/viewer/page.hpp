@@ -4,7 +4,6 @@
 
 namespace VIEWER{
 
-crow::json::wvalue get_page_list(const crow::request&req);
-crow::json::wvalue get_page(const crow::request&req);
+crow::json::wvalue get_page_data(const crow::request&req);
 
 } // namespace VIEWER

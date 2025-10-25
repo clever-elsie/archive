@@ -23,7 +23,6 @@ template<class key, class value, class cmp=std::less<key>>
 using tree=__gnu_pbds::tree<key, value, cmp, __gnu_pbds::rb_tree_tag, __gnu_pbds::tree_order_statistics_node_update>;
 
 struct manager{
-  constexpr static uint64_t Info_page_size=12;
   constexpr static std::chrono::hours cache_update_interval{1}; // 1時間間隔
   constexpr static const char dir_cache_file[]="config/dir_cache.json";
   string base_dir;
