@@ -23,7 +23,7 @@ cmake_install.cmake
 
 # データファイル（プライベート）
 data
-./memo/
+/memo/
 
 # キャッシュファイル
 config/dir_cache.json

@@ -40,7 +40,7 @@ function add_memo_item(filename, stem, tag = [], format = "txt", created_at = ""
 	memoItem.innerHTML = `
 		<div class="memo-header">
 			<div class="memo-title-row2">
-				<span class="filename-text view-memo-title" style="cursor:pointer;" onclick="open_tab('${filename}')">${stem}</span>
+				<span class="filename-text view-memo-title" style="cursor:pointer;">${stem}</span>
 				<span class="format-badge">.${format}</span>
 			</div>
 			<div class="memo-sub-row">
@@ -802,7 +802,7 @@ function add_shared_memo_item(id, title, body, author, created_at, updated_at) {
 	memoItem.innerHTML = `
 		<div class="memo-header">
 			<div class="memo-title-row2">
-				<span class="filename-text view-memo-title" style="cursor:pointer;" onclick="open_shared_tab('${id}')">${title}</span>
+				<span class="filename-text view-memo-title" style="cursor:pointer;">${title}</span>
 				<span class="author-badge">by ${author}</span>
 			</div>
 			<div class="memo-sub-row">
@@ -822,7 +822,13 @@ function add_shared_memo_item(id, title, body, author, created_at, updated_at) {
 			</div>
 		</div>
 	`;
-	
+
+	// アイテム全体クリックで開く（メニュー類は除外）
+	memoItem.addEventListener('click', function(e) {
+		if (e.target.closest('.memo-actions-menu') || e.target.closest('.memo-popup-menu-global')) return;
+		open_shared_tab(id);
+	});
+
 	document.getElementById('sharedMemoList').appendChild(memoItem);
 }
 
