@@ -33,6 +33,8 @@ target_link_libraries(home-server
     ZLIB::ZLIB
 )
 
+target_compile_definitions(home-server PRIVATE CROW_ENABLE_SSL=1)
+
 target_precompile_headers(home-server PRIVATE
     <algorithm> <ranges>
     <array> <vector>
