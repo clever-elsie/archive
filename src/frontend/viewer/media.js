@@ -1,6 +1,5 @@
 import { State } from './state.js';
 import { fetchMediaBinary } from './api/media.js';
-import { removePrefix } from './utils.js';
 
 // ObjectURL管理
 export function revokeAllMediaObjectUrls() {
@@ -165,7 +164,7 @@ export function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex
 		} else if (type === 'audio') {
 			const fig = document.createElement('figure');
 			const figcap = document.createElement('figcaption');
-			figcap.innerHTML = removePrefix(mediaURL);
+			figcap.innerHTML = filename;
 			fig.appendChild(figcap);
 			fig.appendChild(media);
 			elem = fig;
@@ -177,7 +176,7 @@ export function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex
 			media.addEventListener('loadeddata', hidePopup, { once: true });
 			media.addEventListener('loadedmetadata', hidePopup, { once: true });
 		}
-		document.getElementById('title').innerHTML = removePrefix(mediaURL);
+		document.getElementById('title').innerHTML = filename;
 		document.getElementById('counter').innerHTML = 1;
 		document.getElementById('imageContainer').innerHTML = '';
 		document.getElementById('imageContainer').appendChild(elem);
@@ -223,7 +222,7 @@ export function displayTextFrame(textURL, textList = null, currentIndex = null) 
 				content.style.whiteSpace = 'normal';
 				content.innerHTML = formatTextToHTML(text);
 				content.id = 'content';
-				document.getElementById('title').innerHTML = removePrefix(textURL);
+				document.getElementById('title').innerHTML = filename;
 				document.getElementById('counter').innerHTML = 1;
 				document.getElementById('imageContainer').innerHTML = '';
 				document.getElementById('imageContainer').appendChild(content);
