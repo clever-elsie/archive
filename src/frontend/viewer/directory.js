@@ -82,5 +82,6 @@ export function cd(eventOrIndex) {
 		.catch(error => {
 			console.error('cd() error:', error);
 			par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">ディレクトリの読み込みに失敗しました</div>';
+			State.directory.currentId = 0;
 		});
 }
