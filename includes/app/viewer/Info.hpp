@@ -10,11 +10,12 @@
 #include <crow/json.h>
 #include <system_error>
 #include <app/viewer/safe_filesystem.hpp>
+#include <app/retrieve.hpp>
 
 namespace VIEWER{
 using namespace std;
 
-struct Info{
+struct Info : public RETRIEVE::Retrieval{
   filesystem::path path;
   set<string>tag;
   vector<Info*>dirs;
@@ -37,6 +38,10 @@ struct Info{
   }
   inline bool has_only_img()const{
     return imgs.size()&&dirs.empty();
+  }
+  
+  virtual bool match(const string&s)const override{
+    return tag.contains(s) || path.string().contains(s);
   }
   
   // エラー状態の確認

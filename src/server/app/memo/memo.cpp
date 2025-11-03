@@ -46,11 +46,13 @@ crow::response memo_search(const crow::request &req) {
   crow::json::wvalue::list v;
   if(!filesystem::exists(user_path))
     return crow::response(200, crow::json::wvalue(std::move(v)));
+  const auto queryAST = RETRIEVE::parse_query(query);
+  if(!queryAST) return crow::response(400);
   for (const auto &file : filesystem::directory_iterator(user_path)) {
     filesystem::path path = file.path();
     if (path.extension().string() == ".json") {
       MemoData memo = MemoData::load(path.string());
-      if (size_t idx = 0;RETRIEVE::parse_query(idx, memo, query))
+      if (queryAST->evaluate(memo))
         v.push_back(format_for_response(path.string(), memo, true));
     }
   }

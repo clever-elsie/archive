@@ -188,9 +188,12 @@ export async function throw_query(e) {
 	par.innerHTML = '';
 	let query = document.getElementById('query_box').value;
 	query = query.replace(/　/g, ' ');
-	const response = await authenticatedFetch('/req/img/retrieve', { method: 'POST', body: JSON.stringify(query) });
+	const json = { "query" : query, "order" : State.sort.order, "order_key" : State.sort.key };
+	const response = await authenticatedFetch('/req/img/retrieve', { method: 'POST', body: JSON.stringify(json) });
 	if (response && response.ok) {
 		const result = await response.json();
 		displayThumbnailImages(par, result);
+	} else {
+		par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">クエリの解析に失敗しました</div>';
 	}
 }

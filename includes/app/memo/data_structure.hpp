@@ -8,19 +8,27 @@
 #include <map>
 #include <mutex>
 #include <vector>
-
+#include <filesystem>
+#include <app/retrieve.hpp>
 namespace MEMO{
 using namespace std;
 // メモのJSON構造
-struct MemoData {
+struct MemoData : public RETRIEVE::Retrieval{
   set<string> tag;
   string data;
   string format;  // "md", "txt", "json"のいずれか
   string created_at;
   string updated_at;
   string path; // 追加: メモのファイルパス
+  MemoData()=default;
+  template<class set_t, class string_t>
+  MemoData(set_t&&tag_, string_t&&data_, const string&format_, const string&created_at_, const string&updated_at_, const string&path_)
+  :tag(std::forward<set_t>(tag_)), data(std::forward<string_t>(data_)), format(format_), created_at(created_at_), updated_at(updated_at_), path(path_){}
   bool save(const string& file_path); // MemoDataをJSONとして保存
   static MemoData load(const string& file_path); // JSONからMemoDataを読み込み
+  virtual bool match(const string&s)const override{
+    return tag.contains(s) || path.contains(s);
+  }
 };
 
 // 共用メモの構造体
