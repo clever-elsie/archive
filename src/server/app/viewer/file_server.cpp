@@ -82,7 +82,7 @@ crow::response redirect_media(const crow::request& req){
         lock_guard<mutex> lock(mgr.imtex);
         Info* node=mgr.get_info_from_id(idv);
         if(!mgr.is_valid(node)||!node->refresh(0)) return crow::response(404);
-        if(type=="image" && !node->has_only_img()) return crow::response(404);
+        if(type=="image" && node->imgs.empty()) return crow::response(404);
         base = node->path;
     }
 

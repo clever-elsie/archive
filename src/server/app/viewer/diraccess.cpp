@@ -1,4 +1,5 @@
 #include <fstream>
+#include <ranges>
 
 #include <crow/multipart.h>
 
@@ -63,8 +64,12 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 
 	// vectorに詰め替え
 	std::vector<Info*> dirvec,imgvec;
+	std::vector<size_t> img_range;
 	for(const auto&d:tar->dirs)
 		(d->has_only_img()?imgvec:dirvec).push_back(d);
+	if(!tar->has_only_img())
+		for(auto id:std::views::iota(0U,tar->imgs.size()))
+			img_range.push_back(id);
 	// ソート 元々名前昇順
 	if(order_key=="last_write_time"){
 		auto cmp=[](const Info*a,const Info*b){
@@ -78,10 +83,13 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	if(order=="descendant"){
 		std::reverse(dirvec.begin(), dirvec.end());
 		std::reverse(imgvec.begin(), imgvec.end());
+		if(order_key!="last_write_time")
+			std::reverse(img_range.begin(), img_range.end());
 	}
 
 	crow::json::wvalue::list dir,img;
 	for(const auto&d:imgvec) pb_next(img,*d);
+	for(const auto&i:img_range) pb_next(img,*tar,i);
 	for(const auto&d:dirvec){
 		crow::json::wvalue next;
 		next["path"]=(d->path);

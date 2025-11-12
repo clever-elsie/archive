@@ -183,23 +183,35 @@ void Info::reload_leaf(){
 
 void Info::reload_dir(size_t depth){
   vector<size_t> to_del;
-  for(size_t i=0;i<dirs.size();++i){
+  for(size_t i=0;i<dirs.size();){
     auto exists_result = SafeFS::exists(dirs[i]->path);
     if (!exists_result.success()) {
       handle_filesystem_error(exists_result.ec, "reload_dir exists");
       continue;
     }
     if(!exists_result.value){
-      to_del.push_back(i);
+      std::swap(dirs[i],dirs.back());
+      delete dirs.back();
+      dirs.pop_back();
+      continue;
+    }else if(depth) dirs[i]->refresh(depth-1);
+    ++i;
+  }// 削除済みディレクトリを削除
+  for(size_t i=0;i<imgs.size();){
+    auto exists_result = SafeFS::exists(filesystem::path(this->path)/imgs[i]);
+    if(!exists_result.success()){
+      handle_filesystem_error(exists_result.ec, "reload_dir exists (leaf)");
       continue;
     }
-    if(depth) dirs[i]->refresh(depth-1);
-  }
-  for(auto rit=to_del.rbegin();rit!=to_del.rend();++rit){
-    delete dirs[*rit];
-    dirs.erase(dirs.begin()+*rit);
-  } // 削除済みをキャッシュから削除
+    if(!exists_result.value){
+      std::swap(imgs[i],imgs.back());
+      imgs.pop_back();
+      continue;
+    }
+    ++i;
+  }// 削除済み画像を削除
   vector<Info*> to_ins;
+  vector<string> to_ins_img;
   auto iter_result = SafeFS::directory_iterator(path);
   if(!iter_result.success()){
     handle_filesystem_error(iter_result.ec, "reload_dir directory_iterator");
@@ -212,20 +224,29 @@ void Info::reload_dir(size_t depth){
       handle_filesystem_error(is_dir_result.ec, "reload_dir is_directory");
       continue;
     }
-    using ppt = pair<filesystem::path, bool>;
-    ppt pp(p, is_dir_result.value);
-    auto itr_pos=std::lower_bound(dirs.begin(),dirs.end(),pp,[](const Info*a, const ppt&b){
-      if(a->is_directory==b.second) return a->path<b.first;
-      return a->is_directory;
-    });
-    if(itr_pos==dirs.end()||(*itr_pos)->path!=p) // 新規
-      to_ins.push_back(new Info(p, this));
+    // 画像
+    if(ranges::find_if(exts,[fext=p.extension().string()](const auto&ext){ return fext==ext; })){
+      auto itr_pos=std::lower_bound(imgs.begin(),imgs.end(),p.filename().string());
+      if(itr_pos==imgs.end()||(*itr_pos)!=p.filename().string()) // 新規
+        to_ins_img.push_back(p.filename().string());
+    }else{ // それ以外
+      using ppt = pair<filesystem::path, bool>;
+      ppt pp(p, is_dir_result.value);
+      auto itr_pos=std::lower_bound(dirs.begin(),dirs.end(),pp,[](const Info*a, const ppt&b){
+        if(a->is_directory==b.second) return a->path<b.first;
+        return a->is_directory;
+      });
+      if(itr_pos==dirs.end()||(*itr_pos)->path!=p) // 新規
+        to_ins.push_back(new Info(p, this));
+    }
   }
   dirs.insert(dirs.end(),to_ins.begin(),to_ins.end());
   std::ranges::sort(dirs,[](const Info*a,const Info*b){
     if(a->is_directory==b->is_directory) return a->path<b->path;
     return a->is_directory;
   });
+  imgs.insert(imgs.end(),to_ins_img.begin(),to_ins_img.end());
+  std::ranges::sort(imgs);
 }
 
 crow::json::wvalue Info::to_json()const{
