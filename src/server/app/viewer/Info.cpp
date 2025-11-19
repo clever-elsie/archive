@@ -61,12 +61,8 @@ is_directory(false),has_filesystem_error(false){
       // これはディレクトリなので両方空なら呼出し元にdeleteされる
     }
   }
-  std::ranges::sort(imgs);
-  std::ranges::sort(dirs,[](const Info*a,const Info*b){
-    if(a->is_directory==b->is_directory)
-      return a->path<b->path;
-    return a->is_directory;
-  });
+  sort_imgs();
+  sort_dirs();
   if(has_only_img())
     mgr.leaf_dirs.insert(this);
 }
@@ -77,6 +73,18 @@ Info::~Info(){
   if(imgs.size()&&dirs.empty())
     mgr.leaf_dirs.erase(this);
   for(auto&dir:dirs) delete dir;
+}
+
+void Info::sort_dirs(){
+  std::ranges::sort(dirs,[](const Info*a,const Info*b){
+    if(a->is_directory==b->is_directory)
+      return a->path<b->path;
+    return a->is_directory;
+  });
+}
+
+void Info::sort_imgs(){
+  std::ranges::sort(imgs);
 }
 
 bool Info::refresh_from_parent(){
@@ -131,7 +139,8 @@ bool Info::refresh(size_t depth){
       reload_dir(depth), reload_leaf();
       this->last_write_time = time_result.value;
       has_update = true;
-    } else if(depth)
+    }
+    if(depth) // 再帰的に更新
       for(auto&dir:dirs)
         has_update |= dir->refresh(depth-1);
   }else{ // 動画・音声・テキストファイル は更新があってもやることなし
@@ -177,8 +186,8 @@ void Info::reload_leaf(){
   for(const auto&itr:iter_result.value)
     if(std::ranges::contains(exts,itr.path().extension().string()))
       new_imgs.emplace_back(itr.path().filename().string());
-  std::ranges::sort(new_imgs);
   imgs=std::move(new_imgs);
+  sort_imgs();
 }
 
 void Info::reload_dir(size_t depth){
@@ -210,6 +219,8 @@ void Info::reload_dir(size_t depth){
     }
     ++i;
   }// 削除済み画像を削除
+  sort_dirs();
+  sort_imgs();
   vector<Info*> to_ins;
   vector<string> to_ins_img;
   auto iter_result = SafeFS::directory_iterator(path);
@@ -225,7 +236,7 @@ void Info::reload_dir(size_t depth){
       continue;
     }
     // 画像
-    if(ranges::find_if(exts,[fext=p.extension().string()](const auto&ext){ return fext==ext; })){
+    if(std::ranges::contains(exts,p.extension().string())){
       auto itr_pos=std::lower_bound(imgs.begin(),imgs.end(),p.filename().string());
       if(itr_pos==imgs.end()||(*itr_pos)!=p.filename().string()) // 新規
         to_ins_img.push_back(p.filename().string());
@@ -241,12 +252,9 @@ void Info::reload_dir(size_t depth){
     }
   }
   dirs.insert(dirs.end(),to_ins.begin(),to_ins.end());
-  std::ranges::sort(dirs,[](const Info*a,const Info*b){
-    if(a->is_directory==b->is_directory) return a->path<b->path;
-    return a->is_directory;
-  });
+  sort_dirs();
   imgs.insert(imgs.end(),to_ins_img.begin(),to_ins_img.end());
-  std::ranges::sort(imgs);
+  sort_imgs();
 }
 
 crow::json::wvalue Info::to_json()const{

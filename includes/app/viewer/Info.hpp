@@ -54,6 +54,8 @@ struct Info : public RETRIEVE::Retrieval{
   void reload_leaf();
   void reload_dir(size_t depth);
   bool refresh_from_parent();
+  void sort_dirs();
+  void sort_imgs();
   
   // エラーハンドリング
   void handle_filesystem_error(const std::error_code& ec, const std::string& operation);
