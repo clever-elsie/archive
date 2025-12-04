@@ -204,24 +204,16 @@ archive/
 │   ├── nginx.default.example
 │   ├── param.json
 │   └── param.json.example
-├── includes
-│   ├── app
-│   │   ├── memo/
-│   │   └── viewer/
-│   ├── lib/
-│   └── manager
-│       ├── auth/
-│       └── users/
-├── LICENSE
-├── Makefile
-├── makefile.env
-├── README.md
-├── src
-│   ├── frontend
-│   │   ├── memo/
-│   │   └── viewer
-│   │       └── api/
-│   └── server
+├── server
+│   ├── include
+│   │   ├── app
+│   │   │   ├── memo/
+│   │   │   └── viewer/
+│   │   ├── lib/
+│   │   └── manager
+│   │       ├── auth/
+│   │       └── users/
+│   └── src
 │       ├── app
 │       │   ├── memo/
 │       │   └── viewer/
@@ -229,12 +221,27 @@ archive/
 │       └── manager
 │           ├── auth/
 │           └── users/
+├── client
+│   ├── public
+│   │   ├── index.html
+│   │   ├── memo.html
+│   │   ├── user_register.html
+│   │   └── viewer.html
+│   └── src
+│       ├── common.css
+│       ├── common_mobile.css
+│       ├── common.js
+│       ├── memo/
+│       └── viewer/
+│           └── api/
+├── LICENSE
+├── Makefile
+├── makefile.env
+├── README.md
 ├── users.json
-└── web
-    ├── index.html
-    ├── memo.html
-    ├── user_register.html
-    └── viewer.html
+└── doc
+    ├── arch/
+    └── code.md
 ```
 
 ## 権限システム

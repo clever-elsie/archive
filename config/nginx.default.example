@@ -24,14 +24,14 @@ server{
 
   disable_symlinks off;
 
-  location / { # .htmlファイル
-    root /home/user/archive/web;
+  location / { # HTMLファイルなどの公開コンテンツ
+    root /home/user/archive/client/public;
     index index.html;
     try_files $uri $uri/ =404;
   }
 
-  location /resource/ { # .css, .jsファイル
-    alias /home/user/archive/src/frontend/;
+  location /static/ { # .css, .js ファイルなどの静的アセット
+    alias /home/user/archive/client/src/;
     access_log off;
     expires 1h;
     add_header Cache-Control "public, max-age=3600";

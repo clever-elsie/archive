@@ -17,9 +17,11 @@ find_package(Threads REQUIRED)
 find_package(Crow REQUIRED)
 find_package(ZLIB REQUIRED)
 
-include_directories(includes)
+# プロジェクト内のインクルードディレクトリ
+include_directories(server/include)
 
-file(GLOB_RECURSE SOURCES "${CMAKE_SOURCE_DIR}/src/server/*.cpp")
+# サーバ実装は server/src 以下に集約
+file(GLOB_RECURSE SOURCES "${CMAKE_SOURCE_DIR}/server/src/*.cpp")
 
 add_executable(home-server ${SOURCES})
 

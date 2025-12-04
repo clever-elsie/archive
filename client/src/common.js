@@ -12,7 +12,7 @@ function getToken() { // JWTトークンを取得
 async function authenticatedFetch(url, options = {}) {
   const token = getToken();
   if (!token) { // トークンがない場合はログインページにリダイレクト
-    window.location.href = '/web/index.html';
+    window.location.href = '/index.html';
     return;
   }
   const headers = { // ヘッダーにJWTトークンを追加

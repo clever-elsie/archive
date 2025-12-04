@@ -41,9 +41,6 @@ void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir)
   CROW_ROUTE(app,"/req/img/info_renew")
     .methods(crow::HTTPMethod::POST)
       (VIEWER::info_renew);
-  CROW_ROUTE(app,"/req/img/file")
-    .methods(crow::HTTPMethod::POST)
-      (VIEWER::get_file_binary);
 
   // X-Accel-Redirect を利用した配信用（GET）。
   CROW_ROUTE(app,"/req/media")
