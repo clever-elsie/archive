@@ -1,30 +1,75 @@
 import { State } from './state.js';
-import { displayVideoFrame, displayAudioFrame, displayTextFrame } from './media.js';
+import { displayVideoFrame, displayAudioFrame, displayTextFrame, displayDocFrame } from './media.js';
 import { displayThumbnailImages } from './thumbnails.js';
+import { detectMediaType } from './mediaTypes.js';
+import { resetViewerUI } from './ui.js';
 
+// 既存名前との互換用ラッパー
 export function media_class(src) {
-	if (src.endsWith('.mp4')) return 'video';
-	if (src.endsWith('.mp3') || src.endsWith('.flac') || src.endsWith('.aac') || src.endsWith('.wav')) return 'audio';
-	if (src.endsWith('.txt')) return 'text';
-	if (src.endsWith('.webp') || src.endsWith('.jpg') || src.endsWith('.jpeg') || src.endsWith('.png')) return 'image';
-	return 'directory';
+	return detectMediaType(src);
+}
+
+function buildMediaLists(dirs) {
+	return {
+		videoList: dirs.filter(item => media_class(item.path) === 'video'),
+		audioList: dirs.filter(item => media_class(item.path) === 'audio'),
+		textList:  dirs.filter(item => media_class(item.path) === 'text'),
+		docList:   dirs.filter(item => media_class(item.path) === 'doc')
+	};
+}
+
+function createDirectoryButton(item, mediaType, lists) {
+	const btn = document.createElement('button');
+	if (mediaType === 'directory') {
+		btn.addEventListener('click', function() { cd(item.id); });
+		btn.className = 'btn btn-directory';
+	} else if (mediaType === 'video') {
+		const vIdx = lists.videoList.findIndex(v => v.path === item.path);
+		btn.addEventListener('click', function() { displayVideoFrame(item.path, lists.videoList, vIdx); });
+		btn.className = 'btn btn-video';
+	} else if (mediaType === 'audio') {
+		const aIdx = lists.audioList.findIndex(a => a.path === item.path);
+		btn.addEventListener('click', function() { displayAudioFrame(item.path, lists.audioList, aIdx); });
+		btn.className = 'btn btn-audio';
+	} else if (mediaType === 'text') {
+		const tIdx = lists.textList.findIndex(t => t.path === item.path);
+		btn.addEventListener('click', function() { displayTextFrame(item.path, lists.textList, tIdx); });
+		btn.className = 'btn btn-text';
+	} else if (mediaType === 'doc') {
+		const dIdx = lists.docList.findIndex(d => d.path === item.path);
+		btn.addEventListener('click', function() { displayDocFrame(item.path, lists.docList, dIdx); });
+		btn.className = 'btn btn-doc';
+	}
+
+	let icon = '';
+	switch (mediaType) {
+		case 'directory': icon = '<i class="fas fa-folder"></i> '; break;
+		case 'video': icon = '<i class="fas fa-video"></i> '; break;
+		case 'audio': icon = '<i class="fas fa-music"></i> '; break;
+		case 'text': icon = '<i class="fas fa-file-alt"></i> '; break;
+		case 'doc': icon = '<i class="far fa-file-pdf"></i> '; break;
+	}
+	btn.innerHTML = icon + item.dirname;
+	return btn;
+}
+
+function renderDirectoryEntries(container, dirs) {
+	const lists = buildMediaLists(dirs);
+	dirs.forEach(item => {
+		const mediaType = media_class(item.path);
+		const btn = createDirectoryButton(item, mediaType, lists);
+		container.appendChild(btn);
+	});
 }
 
 export function cd(eventOrIndex) {
-	window.location.href='#THUM';
+	window.location.href = '#THUM';
 	if (typeof eventOrIndex === 'object' && eventOrIndex !== null && typeof eventOrIndex.preventDefault === 'function') {
 		eventOrIndex.preventDefault();
 	}
-	let par = document.getElementById('thumbnailContainer');
-	par.innerHTML = '';
-	document.getElementById('jmpControll').innerHTML = '';
-	document.getElementById('jmpControll2').innerHTML = '';
-	document.getElementById('title').innerHTML = '';
-	document.getElementById('counter').innerHTML = '';
-	document.getElementById('parentContainer').innerHTML = '';
-	document.getElementById('tags').innerHTML = '';
-	document.getElementById('imageContainer').innerHTML = '';
-	document.getElementById('parentContainer').innerHTML = '';
+
+	resetViewerUI();
+	const par = document.getElementById('thumbnailContainer');
 
 	authenticatedFetch('/req/img/dir_access', {
 		method: 'POST',
@@ -42,38 +87,7 @@ export function cd(eventOrIndex) {
 			window.cur_id = State.directory.currentId;
 			window.par_id = State.directory.parentId;
 			if (data['dirs'] && data['dirs'].length > 0) {
-				const videoList = data['dirs'].filter(item => media_class(item.path) == 'video');
-				const audioList = data['dirs'].filter(item => media_class(item.path) == 'audio');
-				const textList  = data['dirs'].filter(item => media_class(item.path) == 'text');
-				data['dirs'].forEach((item) => {
-					let dir = document.createElement('button');
-					const mediaType = media_class(item.path);
-					if (mediaType == 'directory') {
-						dir.addEventListener('click', function() { cd(item.id); });
-						dir.className = 'btn btn-directory';
-					} else if (mediaType == 'video') {
-						const vIdx = videoList.findIndex(v => v.path === item.path);
-						dir.addEventListener('click', function() { displayVideoFrame(item.path, videoList, vIdx); });
-						dir.className = 'btn btn-video';
-					} else if (mediaType == 'audio') {
-						const aIdx = audioList.findIndex(a => a.path === item.path);
-						dir.addEventListener('click', function() { displayAudioFrame(item.path, audioList, aIdx); });
-						dir.className = 'btn btn-audio';
-					} else if (mediaType == 'text') {
-						const tIdx = textList.findIndex(t => t.path === item.path);
-						dir.addEventListener('click', function() { displayTextFrame(item.path, textList, tIdx); });
-						dir.className = 'btn btn-text';
-					}
-					let icon = '';
-					switch(mediaType) {
-						case 'directory': icon = '<i class="fas fa-folder"></i> '; break;
-						case 'video': icon = '<i class="fas fa-video"></i> '; break;
-						case 'audio': icon = '<i class="fas fa-music"></i> '; break;
-						case 'text': icon = '<i class="fas fa-file-alt"></i> '; break;
-					}
-					dir.innerHTML = icon + item.dirname;
-					par.appendChild(dir);
-				});
+				renderDirectoryEntries(par, data['dirs']);
 			}
 			if (data['imgs'] && data['imgs'].length > 0) {
 				displayThumbnailImages(par, data['imgs'], data['cur'], false);
@@ -81,7 +95,9 @@ export function cd(eventOrIndex) {
 		})
 		.catch(error => {
 			console.error('cd() error:', error);
-			par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">ディレクトリの読み込みに失敗しました</div>';
+			if (par) {
+				par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">ディレクトリの読み込みに失敗しました</div>';
+			}
 			State.directory.currentId = 0;
 		});
 }

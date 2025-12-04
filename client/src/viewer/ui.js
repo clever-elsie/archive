@@ -37,15 +37,7 @@ export function reload_leaf_req(e) {
 	State.pagination.prev = 0; State.pagination.next = 0; State.pagination.size = 0;
 	State.directory.parentId = 0; State.directory.currentId = 0;
 	document.getElementById('page_list').innerHTML = '';
-	document.getElementById('parentContainer').innerHTML = '';
-	document.getElementById('imageContainer').innerHTML = '';
-	document.getElementById('thumbnailContainer').innerHTML = '';
-	document.getElementById('title').innerHTML = '';
-	document.getElementById('counter').innerHTML = '';
-	document.getElementById('parentContainer').innerHTML = '';
-	document.getElementById('tags').innerHTML = '';
-	document.getElementById('jmpControll').innerHTML = '';
-	document.getElementById('jmpControll2').innerHTML = '';
+	resetViewerUI();
 	authenticatedFetch('/req/img/reload', { method: 'GET' })
 		.then(() => { fetchPageList(); });
 }
@@ -87,3 +79,32 @@ export function resizeImages() {
 }
 
 export function attachResizeListener() { window.addEventListener('resize', resizeImages); }
+
+// ===== 共通UIヘルパー =====
+
+export function clearNavigationControls() {
+	['jmpControll', 'jmpControll2'].forEach(id => {
+		const el = document.getElementById(id);
+		if (el) el.innerHTML = '';
+	});
+}
+
+export function clearViewerContainers() {
+	['parentContainer', 'imageContainer', 'thumbnailContainer'].forEach(id => {
+		const el = document.getElementById(id);
+		if (el) el.innerHTML = '';
+	});
+}
+
+export function clearTitleCounterAndTags() {
+	['title', 'counter', 'tags'].forEach(id => {
+		const el = document.getElementById(id);
+		if (el) el.innerHTML = '';
+	});
+}
+
+export function resetViewerUI() {
+	clearNavigationControls();
+	clearViewerContainers();
+	clearTitleCounterAndTags();
+}

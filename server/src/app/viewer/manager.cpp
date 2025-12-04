@@ -15,6 +15,16 @@ namespace VIEWER{
 // cache_file is json file
 
 Info* json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rvalue&json){
+  // 必須フィールドが全て揃っているか検証（不足していれば不適格として例外）
+  static const std::array<const char*, 10> required_keys = {
+    "id","par","path","tag","dirs","imgs",
+    "videos","audios","texts","docs"
+  };
+  for(const auto* key : required_keys){
+    if(!json.has(key))
+      throw std::runtime_error(std::string("invalid dir_cache.json: missing key ") + key);
+  }
+
   Info*info=new Info;
   id2info[json["id"].u()]=info;
   info->par=id2info[json["par"].u()];
@@ -24,7 +34,15 @@ Info* json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rval
   for(const auto&dir:json["dirs"].lo())
     info->dirs.push_back(json_to_info(id2info,dir));
   for(const auto&img:json["imgs"].lo())
-    info->imgs.push_back(img.s());
+    info->media_vector(Info::MediaType::image).push_back(img.s());
+  for(const auto&v:json["videos"].lo())
+    info->media_vector(Info::MediaType::video).push_back(v.s());
+  for(const auto&a:json["audios"].lo())
+    info->media_vector(Info::MediaType::audio).push_back(a.s());
+  for(const auto&t:json["texts"].lo())
+    info->media_vector(Info::MediaType::text).push_back(t.s());
+  for(const auto&d:json["docs"].lo())
+    info->media_vector(Info::MediaType::doc).push_back(d.s());
   info->is_directory=json["is_directory"].b();
   using namespace std::chrono;
   info->last_write_time=filesystem::file_time_type::clock::time_point(seconds(json["last_write_time"].i()));
@@ -35,38 +53,73 @@ Info* json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rval
   return info;
 }
 
+namespace {
+  // dir_cache がシンボリックリンクの場合はリンク先を解決し、
+  // そうでなければそのまま返す。
+  std::filesystem::path resolve_cache_target(const std::string& cache_file) {
+    namespace fs = std::filesystem;
+    fs::path p(cache_file);
+    std::error_code ec;
+    if (fs::is_symlink(p, ec)) {
+      auto target = fs::read_symlink(p, ec);
+      if (!ec) {
+        if (target.is_relative()) target = p.parent_path() / target;
+        return target;
+      }
+    }
+    return p;
+  }
+}
+
 bool manager::load_dir_cache(const string&cache_file){
-  if(!filesystem::exists(cache_file)||!cache_file.ends_with(".json")) {
+  namespace fs = std::filesystem;
+  fs::path target = resolve_cache_target(cache_file);
+  if(!fs::exists(target)||!target.string().ends_with(".json")) {
     cache_loaded_from_file = false;
-    CROW_LOG_ERROR<<"load_dir_cache "<<cache_file<<" not exists";
+    CROW_LOG_ERROR<<"load_dir_cache "<<target<<" not exists";
     return false;
   }
-  CROW_LOG_INFO<<"load_dir_cache "<<cache_file<<" exists";
-  const auto json_data=[](const string&cache_file){
+  CROW_LOG_INFO<<"load_dir_cache "<<target<<" exists";
+  const auto json_data=[](const fs::path&target){
     stringstream ss;
-    ss << ifstream(cache_file).rdbuf();
+    ss << ifstream(target).rdbuf();
     return crow::json::load(ss.str());
-  }(cache_file);
+  }(target);
   lock_guard<mutex> lock(imtex);
   unordered_map<uint64_t,Info*> id2info;
   if(json_data.error()) {
     // 無効なJSONファイルを削除
-    CROW_LOG_ERROR<<"load_dir_cache "<<cache_file<<" invalid";
-    filesystem::remove(cache_file);
+    CROW_LOG_ERROR<<"load_dir_cache "<<target<<" invalid (parse error)";
+    fs::remove(target);
     cache_loaded_from_file = false;
     return false;
   }
-  root_dir=json_to_info(id2info,json_data);
-  dir_cache_last_write_time=filesystem::last_write_time(cache_file);
+  try{
+    root_dir=json_to_info(id2info,json_data);
+  }catch(const std::exception& e){
+    // スキーマ不整合などで失敗した場合もキャッシュを削除してフルロードにフォールバック
+    CROW_LOG_ERROR<<"load_dir_cache "<<target<<" invalid (schema): "<<e.what();
+    fs::remove(target);
+    cache_loaded_from_file = false;
+    return false;
+  }catch(...){
+    CROW_LOG_ERROR<<"load_dir_cache "<<target<<" invalid (unknown error)";
+    fs::remove(target);
+    cache_loaded_from_file = false;
+    return false;
+  }
+  dir_cache_last_write_time=fs::last_write_time(target);
   cache_loaded_from_file = true;
   return true;
 }
 
 bool manager::save_dir_cache(const string&cache_file){
+  namespace fs = std::filesystem;
   if(!cache_file.ends_with(".json")) return false;
+  fs::path target = resolve_cache_target(cache_file);
   
   // 一時ファイルに書き込み
-  string temp_file = cache_file + ".tmp";
+  string temp_file = target.string() + ".tmp";
   ofstream ofs(temp_file, ios_base::trunc);
   if(ofs.fail()) return false;
   
@@ -76,12 +129,12 @@ bool manager::save_dir_cache(const string&cache_file){
     ofs.close();
     
     // 書き込み成功時のみ元ファイルを置き換え
-    filesystem::rename(temp_file, cache_file);
-    dir_cache_last_write_time = filesystem::last_write_time(cache_file);
+    fs::rename(temp_file, target);
+    dir_cache_last_write_time = fs::last_write_time(target);
     return true;
   } catch(...) {
     // エラー時は一時ファイルを削除
-    filesystem::remove(temp_file);
+    fs::remove(temp_file);
     return false;
   }
 }

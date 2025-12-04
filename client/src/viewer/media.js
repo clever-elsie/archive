@@ -1,5 +1,6 @@
 import { State } from './state.js';
-import { fetchMediaBinary } from './api/media.js';
+import { generateMediaURL } from './api/media.js';
+import { clearNavigationControls } from './ui.js';
 
 // ObjectURL管理
 export function revokeAllMediaObjectUrls() {
@@ -46,74 +47,73 @@ export function calculateOptimalImageSize(imageInfo) {
 	return { width: optimalWidth, height: optimalHeight, maxWidth: viewportWidth * 0.9, maxHeight: viewportHeight * 0.9 };
 }
 
-// メディア読み込みポップアップ
-export function showMediaLoadingPopup(message = 'メディアを読み込み中...') {
-	let popup = document.getElementById('media-loading-popup');
+// 共通ローディングポップアップ
+function ensureLoadingPopup(kind, defaultMessage) {
+	const id = `${kind}-loading-popup`;
+	let popup = document.getElementById(id);
 	if (!popup) {
 		popup = document.createElement('div');
-		popup.id = 'media-loading-popup';
+		popup.id = id;
 		popup.style.cssText = `
 			position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
 			background: rgba(0,0,0,0.9); color: #64ffda; padding: 1rem 2rem; border-radius: 8px;
 			z-index: 2000; font-size: 1.1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5); min-width: 300px; text-align: center;`;
 		document.body.appendChild(popup);
 	}
+	const prefix = `${kind}-`;
+	const message = defaultMessage;
 	popup.innerHTML = `
-		<div id="media-popup-message" style="margin-bottom:0.5em;">${message}</div>
-		<div id="media-progress-bar" style="background:#222;height:10px;border-radius:5px;overflow:hidden;">
-			<div id="media-progress-inner" style="background:#64ffda;width:0%;height:100%;transition:width 0.2s;"></div>
+		<div id="${prefix}popup-message" style="margin-bottom:0.5em;">${message}</div>
+		<div id="${prefix}progress-bar" style="background:#222;height:10px;border-radius:5px;overflow:hidden;">
+			<div id="${prefix}progress-inner" style="background:#64ffda;width:0%;height:100%;transition:width 0.2s;"></div>
 		</div>
-		<div id="media-progress-text" style="margin-top:0.5em;">0%</div>`;
+		<div id="${prefix}progress-text" style="margin-top:0.5em;">0%</div>`;
+	return { popup, prefix };
 }
-export function updateMediaLoadingPopup(percent, message) {
-	showMediaLoadingPopup(message);
-	const inner = document.getElementById('media-progress-inner');
-	const text = document.getElementById('media-progress-text');
+
+export function showLoadingPopup(kind, message) {
+	const defaultMessage = message || (kind === 'image' ? '画像を読み込み中...' : 'メディアを読み込み中...');
+	ensureLoadingPopup(kind, defaultMessage);
+}
+
+export function updateLoadingPopup(kind, percent, message) {
+	const defaultMessage = message || (kind === 'image' ? '画像を読み込み中...' : 'メディアを読み込み中...');
+	const { prefix } = ensureLoadingPopup(kind, defaultMessage);
+	const inner = document.getElementById(`${prefix}progress-inner`);
+	const text = document.getElementById(`${prefix}progress-text`);
 	if (inner) inner.style.width = percent + '%';
 	if (text) text.textContent = Math.floor(percent) + '%';
 	if (message) {
-		const msg = document.getElementById('media-popup-message');
+		const msg = document.getElementById(`${prefix}popup-message`);
 		if (msg) msg.textContent = message;
 	}
 }
-export function hideMediaLoadingPopup() {
-	const popup = document.getElementById('media-loading-popup');
+
+export function hideLoadingPopup(kind) {
+	const id = `${kind}-loading-popup`;
+	const popup = document.getElementById(id);
 	if (popup) popup.remove();
 }
 
-// 画像読み込みポップアップ
+// 既存の関数名との互換ラッパー
+export function showMediaLoadingPopup(message = 'メディアを読み込み中...') {
+	showLoadingPopup('media', message);
+}
+export function updateMediaLoadingPopup(percent, message) {
+	updateLoadingPopup('media', percent, message);
+}
+export function hideMediaLoadingPopup() {
+	hideLoadingPopup('media');
+}
+
 export function showImageLoadingPopup(message = '画像を読み込み中...') {
-	let popup = document.getElementById('image-loading-popup');
-	if (!popup) {
-		popup = document.createElement('div');
-		popup.id = 'image-loading-popup';
-		popup.style.cssText = `
-			position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-			background: rgba(0,0,0,0.9); color: #64ffda; padding: 1rem 2rem; border-radius: 8px;
-			z-index: 2000; font-size: 1.1rem; box-shadow: 0 4px 20px rgba(0,0,0,0.5); min-width: 300px; text-align: center;`;
-		document.body.appendChild(popup);
-	}
-	popup.innerHTML = `
-		<div id="image-popup-message" style="margin-bottom:0.5em;">${message}</div>
-		<div id="image-progress-bar" style="background:#222;height:10px;border-radius:5px;overflow:hidden;">
-			<div id="image-progress-inner" style="background:#64ffda;width:0%;height:100%;transition:width 0.2s;"></div>
-		</div>
-		<div id="image-progress-text" style="margin-top:0.5em;">0%</div>`;
+	showLoadingPopup('image', message);
 }
 export function updateImageLoadingPopup(percent, message) {
-	showImageLoadingPopup(message);
-	const inner = document.getElementById('image-progress-inner');
-	const text = document.getElementById('image-progress-text');
-	if (inner) inner.style.width = percent + '%';
-	if (text) text.textContent = Math.floor(percent) + '%';
-	if (message) {
-		const msg = document.getElementById('image-popup-message');
-		if (msg) msg.textContent = message;
-	}
+	updateLoadingPopup('image', percent, message);
 }
 export function hideImageLoadingPopup() {
-	const popup = document.getElementById('image-loading-popup');
-	if (popup) popup.remove();
+	hideLoadingPopup('image');
 }
 
 // 共通prev/nextボタン
@@ -142,14 +142,54 @@ export function displayPrevNextButtons(currentIndex, mediaList, displayFunc) {
 	}
 }
 
-// メディア表示
-export function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex = null) {
-	window.location.href='#top';
-	document.getElementById('jmpControll').innerHTML = '';
-	document.getElementById('jmpControll2').innerHTML = '';
+// メディア表示（共通）
+export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex = null) {
+	window.location.href = '#top';
+	clearNavigationControls();
 	const id = State.directory.currentId;
 	const filename = mediaURL.split('/').pop();
-	fetchMediaBinary(type, id, filename).then(objUrl => {
+
+	generateMediaURL(type, id, filename).then(objUrl => {
+		if (type === 'text') {
+			// テキストメディア
+			fetch(objUrl)
+				.then(response => response.text())
+				.then(text => {
+					let content = document.createElement('p');
+					content.style.whiteSpace = 'normal';
+					content.innerHTML = formatTextToHTML(text);
+					content.id = 'content';
+					document.getElementById('title').innerHTML = filename;
+					document.getElementById('counter').innerHTML = 1;
+					document.getElementById('imageContainer').innerHTML = '';
+					document.getElementById('imageContainer').appendChild(content);
+					document.getElementById('parentContainer').innerHTML = '';
+					if (mediaList && currentIndex !== null) {
+						displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
+					}
+				});
+			return;
+		}
+
+		if (type === 'doc') {
+			// PDFなどのドキュメントは iframe で表示
+			const iframe = document.createElement('iframe');
+			iframe.src = objUrl;
+			iframe.style.width = '90vw';
+			iframe.style.height = '80vh';
+			iframe.style.border = 'none';
+			document.getElementById('title').innerHTML = filename;
+			document.getElementById('counter').innerHTML = 1;
+			document.getElementById('imageContainer').innerHTML = '';
+			document.getElementById('imageContainer').appendChild(iframe);
+			document.getElementById('parentContainer').innerHTML = '';
+			if (mediaList && currentIndex !== null) {
+				displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
+			}
+			return;
+		}
+
+		// 動画・音声メディア
 		revokeAllMediaObjectUrls();
 		if (typeof objUrl === 'string' && objUrl.startsWith('blob:')) State.media.lastObjectUrls.push(objUrl);
 		let elem;
@@ -182,16 +222,25 @@ export function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex
 		document.getElementById('imageContainer').appendChild(elem);
 		document.getElementById('parentContainer').innerHTML = '';
 		if (mediaList && currentIndex !== null) {
-			displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayMediaFrame(type, item.path, list, idx));
+			displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
 		}
 	});
 }
 
+// 互換ラッパー
+export function displayMediaFrame(type, mediaURL, mediaList = null, currentIndex = null) {
+	displayAnyMedia(type, mediaURL, mediaList, currentIndex);
+}
+
 export function displayVideoFrame(videoURL, videoList = null, currentIndex = null) {
-	displayMediaFrame('video', videoURL, videoList, currentIndex);
+	displayAnyMedia('video', videoURL, videoList, currentIndex);
 }
 export function displayAudioFrame(audioURL, audioList = null, currentIndex = null) {
-	displayMediaFrame('audio', audioURL, audioList, currentIndex);
+	displayAnyMedia('audio', audioURL, audioList, currentIndex);
+}
+
+export function displayDocFrame(docURL, docList = null, currentIndex = null) {
+	displayAnyMedia('doc', docURL, docList, currentIndex);
 }
 
 export function formatTextToHTML(text) {
@@ -209,26 +258,5 @@ export function formatTextToHTML(text) {
 }
 
 export function displayTextFrame(textURL, textList = null, currentIndex = null) {
-	window.location.href='#top';
-	document.getElementById('jmpControll').innerHTML = '';
-	document.getElementById('jmpControll2').innerHTML = '';
-	const id = State.directory.currentId;
-	const filename = textURL.split('/').pop();
-	fetchMediaBinary('text', id, filename).then(objUrl => {
-		fetch(objUrl)
-			.then(response => response.text())
-			.then(text => {
-				let content = document.createElement('p');
-				content.style.whiteSpace = 'normal';
-				content.innerHTML = formatTextToHTML(text);
-				content.id = 'content';
-				document.getElementById('title').innerHTML = filename;
-				document.getElementById('counter').innerHTML = 1;
-				document.getElementById('imageContainer').innerHTML = '';
-				document.getElementById('imageContainer').appendChild(content);
-				document.getElementById('parentContainer').innerHTML = '';
-				if (textList && currentIndex !== null)
-					displayPrevNextButtons(currentIndex, textList, (item, list, idx) => displayTextFrame(item.path, list, idx));
-			});
-	});
+	displayAnyMedia('text', textURL, textList, currentIndex);
 }

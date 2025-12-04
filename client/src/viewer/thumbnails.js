@@ -1,8 +1,9 @@
 import { State } from './state.js';
-import { fetchMediaBinary } from './api/media.js';
+import { generateMediaURL } from './api/media.js';
 import { preloadAndCalculateImageSize, calculateOptimalImageSize, revokeAllMediaObjectUrls } from './media.js';
 import { getTitleFromImgPath } from './utils.js';
 import { updateMetadataEditSection } from './metadata.js';
+import { clearNavigationControls } from './ui.js';
 
 export function displayThumbnailImages(container, images, currentId, clearContainer = true) {
 	const loadingPopup = document.createElement('div');
@@ -14,7 +15,7 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 	const imagePromises = images.map(item => {
 		const id = item.id !== undefined ? item.id : State.directory.currentId;
 		const filename = item.img.split('/').pop();
-		return fetchMediaBinary('image', id, filename)
+		return generateMediaURL('image', id, filename)
 			.then(objUrl => preloadAndCalculateImageSize(objUrl)
 				.then(imageInfo => ({ ...item, imageInfo, objUrl })));
 	});
@@ -87,8 +88,7 @@ export function fetchRandomImage() {
 
 export function fetchImageList(id) {
 	window.location.href='#top';
-	document.getElementById('jmpControll').innerHTML = '';
-	document.getElementById('jmpControll2').innerHTML = '';
+	clearNavigationControls();
 	revokeAllMediaObjectUrls();
 	authenticatedFetch('/req/img', { method: 'POST', body: JSON.stringify({ id }) })
 		.then(response => response.json())
@@ -118,7 +118,7 @@ export function fetchImageList(id) {
 			
 			const imagePromises = data['img'].map(fileName => {
 				const filename = fileName.img.split('/').pop();
-				return fetchMediaBinary('image', id, filename)
+				return generateMediaURL('image', id, filename)
 					.then(objUrl => preloadAndCalculateImageSize(objUrl)
 						.then(imageInfo => {
 							updateProgress();

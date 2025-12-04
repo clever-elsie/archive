@@ -5,12 +5,76 @@
 #include <ranges>
 #include <system_error>
 #include <iostream>
+#include <string_view>
 
 namespace VIEWER{
 
+namespace {
+
+  using MT = Info::MediaType;
+  constexpr std::size_t MediaTypeCount = Info::media_type_count();
+
+  struct MediaExtConfig {
+    std::array<std::string_view, 5> exts{};
+    std::size_t count{};
+  };
+
+  // MediaType ごとの拡張子定義
+  constexpr std::array<MediaExtConfig, MediaTypeCount> MEDIA_EXTS{{
+    // image
+    MediaExtConfig{{".webp",".jpg",".jpeg",".png",".gif"}, 5},
+    // video
+    MediaExtConfig{{".mp4","","","",""}, 1},
+    // audio
+    MediaExtConfig{{".mp3",".flac",".aac",".wav",""}, 4},
+    // text
+    MediaExtConfig{{".txt",".md","","",""}, 2},
+    // doc
+    MediaExtConfig{{".pdf","","","",""}, 1}
+  }};
+
+  inline const MediaExtConfig& exts_for(MT t){
+    return MEDIA_EXTS[Info::mt_index(t)];
+  }
+
+  inline const char* media_name(MT t){
+    switch(t){
+      case MT::image: return "image";
+      case MT::video: return "video";
+      case MT::audio: return "audio";
+      case MT::text:  return "text";
+      case MT::doc:   return "doc";
+      default:        return "unknown";
+    }
+  }
+
+  // 汎用: 拡張子に応じて MediaArray へ振り分け
+  template <class MediaArray>
+  void classify_and_push(const std::string& file_ext,
+                         const std::string& filename,
+                         MediaArray& media){
+    for(std::size_t i=0;i<MediaTypeCount;++i){
+      auto mt = static_cast<MT>(i);
+      const auto& cfg = MEDIA_EXTS[i];
+      for(std::size_t j=0;j<cfg.count;++j){
+        if(file_ext == cfg.exts[j]){
+          media[i].emplace_back(filename);
+          return;
+        }
+      }
+    }
+    // どのカテゴリにもマッチしないレギュラーファイルは無視
+  }
+
+  template <class MediaArray>
+  void sort_media_arrays(MediaArray& media){
+    for(auto& v : media) std::ranges::sort(v);
+  }
+}
+
 Info::Info(const filesystem::path&dir,Info*par_)
 :path(dir),tag(),
-dirs(),imgs(),par(par_?:this),
+dirs(),media(),par(par_?:this),
 is_directory(false),has_filesystem_error(false){
   manager& mgr = manager::get_instance();
   mgr.valid_info_ptrs.insert(this);
@@ -37,31 +101,31 @@ is_directory(false),has_filesystem_error(false){
     return;
   }
   
-  for(const auto&itr:iter_result.value)
+  for(const auto&itr:iter_result.value){
     if(itr.is_directory()){
       Info *n=new Info(itr.path(),this);
-      if(n&&(n->imgs.size()||n->dirs.size()))
+      if(n && (n->has_any_media() || !n->dirs.empty()))
         dirs.push_back(n);
       else delete n;
     }else{
-      const auto&file_ext=itr.path().extension().string();
-      if(exts.end()!=std::ranges::find_if(exts,[&](const auto&ext){ return file_ext==ext; }))
-        imgs.emplace_back(itr.path().filename().string());
-      else if(not_img.end()!=std::ranges::find_if(not_img,[&](const auto&ext){ return file_ext==ext; }))
-        dirs.push_back(new Info(itr.path(),this));
+      const auto file_ext = itr.path().extension().string();
+      const auto filename = itr.path().filename().string();
+      // 画像 / 動画 / 音声 / テキスト / ドキュメント へ振り分け
+      classify_and_push(file_ext, filename, media);
     }
-  if(imgs.size()) {
-    auto img_time_result = SafeFS::last_write_time(filesystem::path(path)/imgs[0]);
+  }
+  if(!imgs().empty()) {
+    auto img_time_result = SafeFS::last_write_time(filesystem::path(path)/imgs()[0]);
     if (img_time_result.success())
       last_write_time = img_time_result.value;
     else{
       handle_filesystem_error(img_time_result.ec, "last_write_time (leaf)");
-      imgs.clear();
+      imgs().clear();
       dirs.clear();
       // これはディレクトリなので両方空なら呼出し元にdeleteされる
     }
   }
-  sort_imgs();
+  std::ranges::sort(imgs());
   sort_dirs();
   if(has_only_img())
     mgr.leaf_dirs.insert(this);
@@ -70,7 +134,7 @@ is_directory(false),has_filesystem_error(false){
 Info::~Info(){
   manager& mgr = manager::get_instance();
   mgr.valid_info_ptrs.erase(this);
-  if(imgs.size()&&dirs.empty())
+  if(has_only_img())
     mgr.leaf_dirs.erase(this);
   for(auto&dir:dirs) delete dir;
 }
@@ -81,10 +145,6 @@ void Info::sort_dirs(){
       return a->path<b->path;
     return a->is_directory;
   });
-}
-
-void Info::sort_imgs(){
-  std::ranges::sort(imgs);
 }
 
 bool Info::refresh_from_parent(){
@@ -114,8 +174,8 @@ bool Info::refresh(size_t depth){
     refresh_from_parent();
     return false;
   }
-  if(imgs.size()&&dirs.empty()){ // 葉ノード
-    auto time_result = SafeFS::last_write_time(path/imgs[0]);
+  if(has_only_img()){ // 葉ノード（画像のみ）
+    auto time_result = SafeFS::last_write_time(path/imgs()[0]);
     if(!time_result.success()){
       handle_filesystem_error(time_result.ec, "last_write_time (leaf)");
       refresh_from_parent();
@@ -183,11 +243,18 @@ void Info::reload_leaf(){
     return;
   }
   vector<string> new_imgs;
-  for(const auto&itr:iter_result.value)
-    if(std::ranges::contains(exts,itr.path().extension().string()))
-      new_imgs.emplace_back(itr.path().filename().string());
-  imgs=std::move(new_imgs);
-  sort_imgs();
+  const auto& cfg = exts_for(MT::image);
+  for(const auto&itr:iter_result.value){
+    const auto ext = itr.path().extension().string();
+    for(std::size_t i=0;i<cfg.count;++i){
+      if(ext == cfg.exts[i]){
+        new_imgs.emplace_back(itr.path().filename().string());
+        break;
+      }
+    }
+  }
+  imgs() = std::move(new_imgs);
+  std::ranges::sort(imgs());
 }
 
 void Info::reload_dir(size_t depth){
@@ -206,23 +273,30 @@ void Info::reload_dir(size_t depth){
     }else if(depth) dirs[i]->refresh(depth-1);
     ++i;
   }// 削除済みディレクトリを削除
-  for(size_t i=0;i<imgs.size();){
-    auto exists_result = SafeFS::exists(filesystem::path(this->path)/imgs[i]);
-    if(!exists_result.success()){
-      handle_filesystem_error(exists_result.ec, "reload_dir exists (leaf)");
-      continue;
+  // 画像・各種メディアファイルの削除チェック
+  auto erase_if_missing = [this](std::vector<std::string>& files, const char* op_name){
+    for(size_t i=0;i<files.size();){
+      auto exists_result = SafeFS::exists(filesystem::path(this->path)/files[i]);
+      if(!exists_result.success()){
+        handle_filesystem_error(exists_result.ec, op_name);
+        continue;
+      }
+      if(!exists_result.value){
+        std::swap(files[i],files.back());
+        files.pop_back();
+        continue;
+      }
+      ++i;
     }
-    if(!exists_result.value){
-      std::swap(imgs[i],imgs.back());
-      imgs.pop_back();
-      continue;
-    }
-    ++i;
-  }// 削除済み画像を削除
+  };
+  for(std::size_t i=0;i<MediaTypeCount;++i){
+    auto mt = static_cast<MT>(i);
+    erase_if_missing(media[Info::mt_index(mt)], media_name(mt));
+  }
   sort_dirs();
-  sort_imgs();
+  sort_media_arrays(media);
   vector<Info*> to_ins;
-  vector<string> to_ins_img;
+  Info::MediaArray to_ins_media{};
   auto iter_result = SafeFS::directory_iterator(path);
   if(!iter_result.success()){
     handle_filesystem_error(iter_result.ec, "reload_dir directory_iterator");
@@ -235,12 +309,10 @@ void Info::reload_dir(size_t depth){
       handle_filesystem_error(is_dir_result.ec, "reload_dir is_directory");
       continue;
     }
-    // 画像
-    if(std::ranges::contains(exts,p.extension().string())){
-      auto itr_pos=std::lower_bound(imgs.begin(),imgs.end(),p.filename().string());
-      if(itr_pos==imgs.end()||(*itr_pos)!=p.filename().string()) // 新規
-        to_ins_img.push_back(p.filename().string());
-    }else{ // それ以外
+    const auto file_ext = p.extension().string();
+    const auto filename = p.filename().string();
+    // ディレクトリ
+    if(is_dir_result.value){
       using ppt = pair<filesystem::path, bool>;
       ppt pp(p, is_dir_result.value);
       auto itr_pos=std::lower_bound(dirs.begin(),dirs.end(),pp,[](const Info*a, const ppt&b){
@@ -249,12 +321,20 @@ void Info::reload_dir(size_t depth){
       });
       if(itr_pos==dirs.end()||(*itr_pos)->path!=p) // 新規
         to_ins.push_back(new Info(p, this));
+    }else{
+      // 画像 / 動画 / 音声 / テキスト / ドキュメント へ振り分け（差分用）
+      classify_and_push(file_ext, filename, to_ins_media);
     }
   }
   dirs.insert(dirs.end(),to_ins.begin(),to_ins.end());
   sort_dirs();
-  imgs.insert(imgs.end(),to_ins_img.begin(),to_ins_img.end());
-  sort_imgs();
+  for(std::size_t i=0;i<MediaTypeCount;++i){
+    auto mt = static_cast<MT>(i);
+    auto& dest = media[Info::mt_index(mt)];
+    auto& src  = to_ins_media[i];
+    dest.insert(dest.end(), src.begin(), src.end());
+  }
+  sort_media_arrays(media);
 }
 
 crow::json::wvalue Info::to_json()const{
@@ -267,7 +347,11 @@ crow::json::wvalue Info::to_json()const{
   for(const auto&dir:dirs)
     dirs_json.push_back(dir->to_json());
   json["dirs"]=crow::json::wvalue(dirs_json);
-  json["imgs"]=crow::json::wvalue::list(imgs.begin(),imgs.end());
+  json["imgs"]=crow::json::wvalue::list(imgs().begin(),imgs().end());
+  json["videos"]=crow::json::wvalue::list(videos().begin(),videos().end());
+  json["audios"]=crow::json::wvalue::list(audios().begin(),audios().end());
+  json["texts"]=crow::json::wvalue::list(texts().begin(),texts().end());
+  json["docs"]=crow::json::wvalue::list(docs().begin(),docs().end());
   json["is_directory"]=is_directory;
   using namespace std::chrono;
   json["last_write_time"]=duration_cast<seconds>(last_write_time.time_since_epoch()).count();

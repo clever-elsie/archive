@@ -23,7 +23,7 @@ crow::json::wvalue get_imgs(const crow::request&req){
 	Info* node = mgr.get_info_from_id(idv);
 	if(!mgr.is_valid(node) || !node->has_only_img()||!node->refresh(0)) return crow::json::wvalue();
 	const std::string bpath(node->path);
-	vector<string>& imgs=node->imgs;
+	vector<string>& imgs=node->imgs();
 	crow::json::wvalue::list img_list;
 	crow::json::wvalue ret;
 	for(auto const & img:imgs){
@@ -68,7 +68,7 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	for(const auto&d:tar->dirs)
 		(d->has_only_img()?imgvec:dirvec).push_back(d);
 	if(!tar->has_only_img())
-		for(auto id:std::views::iota(0U,tar->imgs.size()))
+		for(auto id:std::views::iota(0U,tar->imgs().size()))
 			img_range.push_back(id);
 	// ソート 元々名前昇順
 	if(order_key=="last_write_time"){
@@ -99,6 +99,26 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	}
 	ret["imgs"]=crow::json::wvalue(move(img));
 	ret["dirs"]=crow::json::wvalue(move(dir));
+
+	// 種別ごとのファイル一覧（このディレクトリ直下のファイルのみ）
+	auto make_file_list = [&](const std::vector<std::string>& files, crow::json::wvalue::list& out){
+		for(const auto& name : files){
+			crow::json::wvalue next;
+			next["path"] = filesystem::relative(filesystem::path(tar->path) / name, mgr.base_dir);
+			next["filename"] = name;
+			next["id"] = tar->id();
+			out.emplace_back(std::move(next));
+		}
+	};
+	crow::json::wvalue::list videos, audios, texts, docs;
+	make_file_list(tar->media_vector(Info::MediaType::video), videos);
+	make_file_list(tar->media_vector(Info::MediaType::audio), audios);
+	make_file_list(tar->media_vector(Info::MediaType::text),  texts);
+	make_file_list(tar->media_vector(Info::MediaType::doc),   docs);
+	ret["videos"] = crow::json::wvalue(std::move(videos));
+	ret["audios"] = crow::json::wvalue(std::move(audios));
+	ret["texts"]  = crow::json::wvalue(std::move(texts));
+	ret["docs"]   = crow::json::wvalue(std::move(docs));
 	return ret;
 }
 
