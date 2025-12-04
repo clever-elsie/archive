@@ -4,54 +4,21 @@
 
 let userPermissions = null; // ユーザー権限
 
-function getToken() { // JWTトークンを取得
-  return localStorage.getItem('token');
-}
-
-// 認証ヘッダー付きのfetch関数
+// 認証付き fetch 関数（JWT は HttpOnly クッキーで送信する）
 async function authenticatedFetch(url, options = {}) {
-  const token = getToken();
-  if (!token) { // トークンがない場合はログインページにリダイレクト
-    window.location.href = '/index.html';
-    return;
-  }
-  const headers = { // ヘッダーにJWTトークンを追加
+  const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`,
-    ...options.headers
+    ...(options.headers || {})
   };
-  // リクエストボディにトークンを追加（POSTリクエストの場合）
-  if (options.body && typeof options.body === 'string') {
-    try {
-      const bodyObj = JSON.parse(options.body);
-      bodyObj.token = token;
-      options.body = JSON.stringify(bodyObj);
-    } catch (e) {
-      // JSONパースエラーの場合は新しいオブジェクトを作成
-      const bodyObj = { token: token };
-      if (options.body) {
-        try {
-          Object.assign(bodyObj, JSON.parse(options.body));
-        } catch (e2) {
-          // パースできない場合は文字列として追加
-          bodyObj.data = options.body;
-        }
-      }
-      options.body = JSON.stringify(bodyObj);
-    }
-  } else if (options.method === 'POST') {
-    // POSTリクエストでボディがない場合はトークンを送信
-    options.body = JSON.stringify({ token: token });
-  }
   try {
     const response = await fetch(url, {
       ...options,
-      headers
+      headers,
+      credentials: 'include' // Cookie を必ず送る
     });
     // 認証エラーの場合はログインページにリダイレクト
     if (response.status === 401) {
-      localStorage.removeItem('token');
-      window.location.href = '/web/index.html';
+      window.location.href = '/index.html';
       return;
     }
     return response;

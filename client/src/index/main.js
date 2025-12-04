@@ -1,7 +1,6 @@
 // index.html から切り出したメインスクリプト
 // 認証・ログイン・UI制御ロジック
 
-let token = localStorage.getItem('token');
 let username = localStorage.getItem('username');
 let isFirstUser = false;
 const RE_USERNAME = /^[A-Za-z0-9]{1,32}$/;
@@ -12,7 +11,8 @@ window.onload = async function() {
 	document.getElementById('loginForm').style.display = 'none';
 	document.getElementById('mainContent').style.display = 'none';
 	const first = await checkFirstUser();
-	if (token) {
+	// JWT は HttpOnly クッキーで管理するため、ここでは username の有無のみで分岐
+	if (username) {
 		await checkAuth();
 	} else {
 		showLoginForm(first);
@@ -132,9 +132,7 @@ async function login() {
 		});
 		const data = await response.json();
 		if (data.success) {
-			token = data.token;
 			username = data.username;
-			localStorage.setItem('token', token);
 			localStorage.setItem('username', username);
 			messageDiv.innerHTML = '<div class="message success-message">ログインに成功しました</div>';
 			setTimeout(() => {
@@ -159,9 +157,7 @@ async function doAutoLogin(user, pass) {
 		});
 		const data = await response.json();
 		if (data.success) {
-			token = data.token;
 			username = data.username;
-			localStorage.setItem('token', token);
 			localStorage.setItem('username', username);
 			showMainContent();
 		} else {
@@ -180,7 +176,7 @@ async function checkAuth() {
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ token: token })
+			credentials: 'include'
 		});
 
 		const data = await response.json();
@@ -190,16 +186,12 @@ async function checkAuth() {
 			localStorage.setItem('username', username);
 			showMainContent();
 		} else {
-			localStorage.removeItem('token');
 			localStorage.removeItem('username');
-			token = null;
 			username = null;
 			showLoginForm();
 		}
 	} catch (error) {
-		localStorage.removeItem('token');
 		localStorage.removeItem('username');
-		token = null;
 		username = null;
 		showLoginForm();
 	}
@@ -214,15 +206,13 @@ async function logout() {
 			headers: {
 				'Content-Type': 'application/json'
 			},
-			body: JSON.stringify({ token: token })
+			credentials: 'include'
 		});
 	} catch (error) {
 		// エラーは無視
 	}
 	
-	localStorage.removeItem('token');
 	localStorage.removeItem('username');
-	token = null;
 	username = null;
 	showLoginForm();
 }

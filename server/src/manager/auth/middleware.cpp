@@ -22,28 +22,18 @@ inline bool requires_auth(const string& path) {
 }
 
 inline string extract_token(const crow::request& req) {
-  // ヘッダーからJWTトークンを取得
-  auto auth_header = req.get_header_value("Authorization");
-  if (!auth_header.empty() && auth_header.substr(0, 7) == "Bearer ")
-    return auth_header.substr(7);
-  
-  // ヘッダーからトークンを取得（旧形式との互換性）
-  auto token_header = req.get_header_value("X-Token");
-  if (!token_header.empty())
-    return token_header;
-  
-  // JSONボディからトークンを取得（POSTリクエストの場合）
-  if (req.method == crow::HTTPMethod::POST && !req.body.empty()) {
-    try {
-      auto data = crow::json::load(req.body);
-      if (data.has("token")) return data["token"].s();
-    } catch (...) {
-      // JSONパースエラーは無視
+  // Cookie から JWT を取得（唯一の正式な経路）
+  std::string cookie = req.get_header_value("Cookie");
+  const std::string name = "auth_token=";
+  if (!cookie.empty()) {
+    auto pos = cookie.find(name);
+    if (pos != std::string::npos) {
+      pos += name.size();
+      auto end = cookie.find(';', pos);
+      if (end == std::string::npos) end = cookie.size();
+      return cookie.substr(pos, end - pos);
     }
   }
-  // クエリからトークンを取得（GETクエリで ?token=... を許可）
-  if (const char* qt = req.url_params.get("token"))
-    if (qt[0] != '\0') return string(qt);
   return "";
 }
 

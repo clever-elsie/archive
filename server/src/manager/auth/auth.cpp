@@ -17,12 +17,19 @@ crow::response login_response(const crow::request& req) {
       return default_response(false, "ユーザー名/パスワードの形式が不正です", 400);
     if (authenticate_user(username, password)) {
       string token = create_token(username);
-      crow::json::wvalue response;
-      response["success"] = true;
-      response["token"] = token;
-      response["username"] = username;
-      response["message"] = "ログインに成功しました";
-      return crow::response(response);
+      crow::json::wvalue body;
+      body["success"] = true;
+      body["username"] = username;
+      body["message"] = "ログインに成功しました";
+
+      crow::response res(body);
+      // HttpOnly/SameSite=Lax なクッキーに JWT を格納
+      std::string cookie = "auth_token=" + token + "; Path=/; HttpOnly; SameSite=Lax";
+      if (!CONFIG::params.IS_DEVELOPMENT) {
+        cookie += "; Secure";
+      }
+      res.add_header("Set-Cookie", cookie);
+      return res;
     } else
       return default_response(false, "ユーザー名またはパスワードが正しくありません", 401);
   } catch (const exception& e) {
@@ -32,18 +39,37 @@ crow::response login_response(const crow::request& req) {
 
 crow::response logout_response(const crow::request& req) {
   try {
-    // JWTトークン方式ではサーバーサイドでセッションを管理しないため、
-    // クライアントサイドでトークンを削除するだけで良い
-    return default_response(true, "ログアウトしました");
+    crow::json::wvalue body;
+    body["success"] = true;
+    body["message"] = "ログアウトしました";
+    crow::response res(body);
+    // クッキーを無効化
+    std::string cookie = "auth_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0";
+    if (!CONFIG::params.IS_DEVELOPMENT) {
+      cookie += "; Secure";
+    }
+    res.add_header("Set-Cookie", cookie);
+    return res;
   } catch (const exception& e) {
     return default_response(false, "リクエストの処理中にエラーが発生しました", 400);
   }
 }
 
+static std::string extract_token_from_cookie(const crow::request& req) {
+  std::string cookie = req.get_header_value("Cookie");
+  if (cookie.empty()) return "";
+  const std::string name = "auth_token=";
+  auto pos = cookie.find(name);
+  if (pos == std::string::npos) return "";
+  pos += name.size();
+  auto end = cookie.find(';', pos);
+  if (end == std::string::npos) end = cookie.size();
+  return cookie.substr(pos, end - pos);
+}
+
 crow::response check_auth_response(const crow::request& req) {
   try {
-    auto data = crow::json::load(req.body);
-    string token = data["token"].s();
+    std::string token = extract_token_from_cookie(req);
     bool is_valid = validate_token(token);
     crow::json::wvalue response;
     response["authenticated"] = is_valid;
