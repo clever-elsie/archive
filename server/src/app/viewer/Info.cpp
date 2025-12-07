@@ -347,11 +347,13 @@ crow::json::wvalue Info::to_json()const{
   for(const auto&dir:dirs)
     dirs_json.push_back(dir->to_json());
   json["dirs"]=crow::json::wvalue(dirs_json);
-  json["imgs"]=crow::json::wvalue::list(imgs().begin(),imgs().end());
-  json["videos"]=crow::json::wvalue::list(videos().begin(),videos().end());
-  json["audios"]=crow::json::wvalue::list(audios().begin(),audios().end());
-  json["texts"]=crow::json::wvalue::list(texts().begin(),texts().end());
-  json["docs"]=crow::json::wvalue::list(docs().begin(),docs().end());
+  for(auto&[mt, key]:std::array<std::pair<Info::MediaType, const char*>, 5>{
+    std::pair{Info::MediaType::image, "imgs"},
+    std::pair{Info::MediaType::video, "videos"},
+    std::pair{Info::MediaType::audio, "audios"},
+    std::pair{Info::MediaType::text, "texts"},
+    std::pair{Info::MediaType::doc, "docs"},
+  })json[key]=crow::json::wvalue::list(media_vector(mt).begin(),media_vector(mt).end());
   json["is_directory"]=is_directory;
   using namespace std::chrono;
   json["last_write_time"]=duration_cast<seconds>(last_write_time.time_since_epoch()).count();

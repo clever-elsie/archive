@@ -100,25 +100,70 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	ret["imgs"]=crow::json::wvalue(move(img));
 	ret["dirs"]=crow::json::wvalue(move(dir));
 
-	// 種別ごとのファイル一覧（このディレクトリ直下のファイルのみ）
-	auto make_file_list = [&](const std::vector<std::string>& files, crow::json::wvalue::list& out){
-		for(const auto& name : files){
-			crow::json::wvalue next;
-			next["path"] = filesystem::relative(filesystem::path(tar->path) / name, mgr.base_dir);
-			next["filename"] = name;
-			next["id"] = tar->id();
-			out.emplace_back(std::move(next));
+	// その他メディア（video, audio, text, doc）を1つの配列にまとめる
+	// ソート用の構造体
+	struct MediaItem {
+		std::string name;
+		std::string type;
+		filesystem::path full_path;
+		filesystem::file_time_type last_write_time;
+	};
+	std::vector<MediaItem> media_items;
+	
+	// メディアアイテムを収集
+	auto add_media_items = [&](const std::vector<std::string>& files, const std::string& type) {
+		for(const auto& name : files) {
+			filesystem::path file_path = tar->path / name;
+			try {
+				if(filesystem::exists(file_path)) {
+					MediaItem item;
+					item.name = name;
+					item.type = type;
+					item.full_path = file_path;
+					item.last_write_time = filesystem::last_write_time(file_path);
+					media_items.push_back(item);
+				}
+			} catch(...) {
+				// エラー時はスキップ
+			}
 		}
 	};
-	crow::json::wvalue::list videos, audios, texts, docs;
-	make_file_list(tar->media_vector(Info::MediaType::video), videos);
-	make_file_list(tar->media_vector(Info::MediaType::audio), audios);
-	make_file_list(tar->media_vector(Info::MediaType::text),  texts);
-	make_file_list(tar->media_vector(Info::MediaType::doc),   docs);
-	ret["videos"] = crow::json::wvalue(std::move(videos));
-	ret["audios"] = crow::json::wvalue(std::move(audios));
-	ret["texts"]  = crow::json::wvalue(std::move(texts));
-	ret["docs"]   = crow::json::wvalue(std::move(docs));
+	
+	add_media_items(tar->media_vector(Info::MediaType::video), "video");
+	add_media_items(tar->media_vector(Info::MediaType::audio), "audio");
+	add_media_items(tar->media_vector(Info::MediaType::text), "text");
+	add_media_items(tar->media_vector(Info::MediaType::doc), "doc");
+	
+	// ソート処理（画像とディレクトリと同じロジック）
+	if(order_key=="last_write_time"){
+		auto cmp=[](const MediaItem& a, const MediaItem& b){
+			if(a.last_write_time==b.last_write_time)
+				return a.full_path < b.full_path;
+			return a.last_write_time < b.last_write_time;
+		};
+		std::sort(media_items.begin(), media_items.end(), cmp);
+	} else {
+		// order_key=="name"の場合、名前でソート（元々名前昇順だが明示的にソート）
+		auto cmp=[](const MediaItem& a, const MediaItem& b){
+			return a.full_path < b.full_path;
+		};
+		std::sort(media_items.begin(), media_items.end(), cmp);
+	}
+	if(order=="descendant"){
+		std::reverse(media_items.begin(), media_items.end());
+	}
+	
+	// JSONに変換
+	crow::json::wvalue::list media_list;
+	for(const auto& item : media_items) {
+		crow::json::wvalue next;
+		next["path"] = filesystem::relative(item.full_path, mgr.base_dir);
+		next["filename"] = item.name;
+		next["type"] = item.type;
+		next["id"] = tar->id();
+		media_list.emplace_back(std::move(next));
+	}
+	ret["media"] = crow::json::wvalue(std::move(media_list));
 	return ret;
 }
 

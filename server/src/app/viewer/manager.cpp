@@ -33,16 +33,18 @@ Info* json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rval
     info->tag.insert(tag.s());
   for(const auto&dir:json["dirs"].lo())
     info->dirs.push_back(json_to_info(id2info,dir));
-  for(const auto&img:json["imgs"].lo())
-    info->media_vector(Info::MediaType::image).push_back(img.s());
-  for(const auto&v:json["videos"].lo())
-    info->media_vector(Info::MediaType::video).push_back(v.s());
-  for(const auto&a:json["audios"].lo())
-    info->media_vector(Info::MediaType::audio).push_back(a.s());
-  for(const auto&t:json["texts"].lo())
-    info->media_vector(Info::MediaType::text).push_back(t.s());
-  for(const auto&d:json["docs"].lo())
-    info->media_vector(Info::MediaType::doc).push_back(d.s());
+  static auto media_push_back = [](auto&media, const auto&json){
+    for(const auto&data:json)
+      media.push_back(data.s());
+  };
+  for(auto&[mt, key]:std::array<std::pair<Info::MediaType, const char*>, 5>{
+    std::pair{Info::MediaType::image, "imgs"},
+    std::pair{Info::MediaType::video, "videos"},
+    std::pair{Info::MediaType::audio, "audios"},
+    std::pair{Info::MediaType::text, "texts"},
+    std::pair{Info::MediaType::doc, "docs"},
+  })media_push_back(info->media_vector(mt),json[key].lo());
+
   info->is_directory=json["is_directory"].b();
   using namespace std::chrono;
   info->last_write_time=filesystem::file_time_type::clock::time_point(seconds(json["last_write_time"].i()));

@@ -9,55 +9,68 @@ export function media_class(src) {
 	return detectMediaType(src);
 }
 
-function buildMediaLists(dirs) {
-	return {
-		videoList: dirs.filter(item => media_class(item.path) === 'video'),
-		audioList: dirs.filter(item => media_class(item.path) === 'audio'),
-		textList:  dirs.filter(item => media_class(item.path) === 'text'),
-		docList:   dirs.filter(item => media_class(item.path) === 'doc')
-	};
-}
-
-function createDirectoryButton(item, mediaType, lists) {
-	const btn = document.createElement('button');
-	if (mediaType === 'directory') {
+// ディレクトリエントリの描画（ディレクトリのみ）
+function renderDirectoryEntries(container, dirs) {
+	dirs.forEach(item => {
+		const btn = document.createElement('button');
 		btn.addEventListener('click', function() { cd(item.id); });
 		btn.className = 'btn btn-directory';
-	} else if (mediaType === 'video') {
-		const vIdx = lists.videoList.findIndex(v => v.path === item.path);
-		btn.addEventListener('click', function() { displayVideoFrame(item.path, lists.videoList, vIdx); });
-		btn.className = 'btn btn-video';
-	} else if (mediaType === 'audio') {
-		const aIdx = lists.audioList.findIndex(a => a.path === item.path);
-		btn.addEventListener('click', function() { displayAudioFrame(item.path, lists.audioList, aIdx); });
-		btn.className = 'btn btn-audio';
-	} else if (mediaType === 'text') {
-		const tIdx = lists.textList.findIndex(t => t.path === item.path);
-		btn.addEventListener('click', function() { displayTextFrame(item.path, lists.textList, tIdx); });
-		btn.className = 'btn btn-text';
-	} else if (mediaType === 'doc') {
-		const dIdx = lists.docList.findIndex(d => d.path === item.path);
-		btn.addEventListener('click', function() { displayDocFrame(item.path, lists.docList, dIdx); });
-		btn.className = 'btn btn-doc';
-	}
-
-	let icon = '';
-	switch (mediaType) {
-		case 'directory': icon = '<i class="fas fa-folder"></i> '; break;
-		case 'video': icon = '<i class="fas fa-video"></i> '; break;
-		case 'audio': icon = '<i class="fas fa-music"></i> '; break;
-		case 'text': icon = '<i class="fas fa-file-alt"></i> '; break;
-		case 'doc': icon = '<i class="far fa-file-pdf"></i> '; break;
-	}
-	btn.innerHTML = icon + item.dirname;
-	return btn;
+		btn.innerHTML = '<i class="fas fa-folder"></i> ' + item.dirname;
+		container.appendChild(btn);
+	});
 }
 
-function renderDirectoryEntries(container, dirs) {
-	const lists = buildMediaLists(dirs);
-	dirs.forEach(item => {
-		const mediaType = media_class(item.path);
-		const btn = createDirectoryButton(item, mediaType, lists);
+// その他メディアエントリの描画（video, audio, text, docをループで処理）
+function renderMediaEntries(container, mediaList) {
+	if (!mediaList || mediaList.length === 0) return;
+
+	// メディアタイプごとにリストを構築（prev/next用）
+	const mediaByType = {
+		video: [],
+		audio: [],
+		text: [],
+		doc: []
+	};
+	mediaList.forEach(item => {
+		if (item.type && mediaByType[item.type]) {
+			mediaByType[item.type].push(item);
+		}
+	});
+
+	// 各メディアアイテムをボタンとして描画
+	mediaList.forEach((item, index) => {
+		const btn = document.createElement('button');
+		const type = item.type;
+		const list = mediaByType[type] || [];
+		const itemIndex = list.findIndex(m => m.path === item.path);
+
+		// メディアタイプに応じたクリックハンドラとクラス
+		const displayFunctions = {
+			video: displayVideoFrame,
+			audio: displayAudioFrame,
+			text: displayTextFrame,
+			doc: displayDocFrame
+		};
+		const icons = {
+			video: '<i class="fas fa-video"></i> ',
+			audio: '<i class="fas fa-music"></i> ',
+			text: '<i class="fas fa-file-alt"></i> ',
+			doc: '<i class="far fa-file-pdf"></i> '
+		};
+		const classes = {
+			video: 'btn btn-video',
+			audio: 'btn btn-audio',
+			text: 'btn btn-text',
+			doc: 'btn btn-doc'
+		};
+
+		if (displayFunctions[type]) {
+			btn.addEventListener('click', function() {
+				displayFunctions[type](item.path, list, itemIndex);
+			});
+		}
+		btn.className = classes[type] || 'btn';
+		btn.innerHTML = (icons[type] || '') + item.filename;
 		container.appendChild(btn);
 	});
 }
@@ -79,25 +92,34 @@ export function cd(eventOrIndex) {
 			'order': State.sort.order
 		})
 	})
-		.then(response => response.json())
-		.then(data => {
-			State.directory.currentId = data['cur'];
-			State.directory.parentId = data['par'];
-			// 後方互換: HTML内の onclick 参照用
-			window.cur_id = State.directory.currentId;
-			window.par_id = State.directory.parentId;
-			if (data['dirs'] && data['dirs'].length > 0) {
-				renderDirectoryEntries(par, data['dirs']);
-			}
-			if (data['imgs'] && data['imgs'].length > 0) {
-				displayThumbnailImages(par, data['imgs'], data['cur'], false);
-			}
-		})
-		.catch(error => {
-			console.error('cd() error:', error);
-			if (par) {
-				par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">ディレクトリの読み込みに失敗しました</div>';
-			}
-			State.directory.currentId = 0;
-		});
+	.then(response => response.json())
+	.then(data => {
+		State.directory.currentId = data['cur'];
+		State.directory.parentId = data['par'];
+		// 後方互換: HTML内の onclick 参照用
+		window.cur_id = State.directory.currentId;
+		window.par_id = State.directory.parentId;
+		
+		// 1. ディレクトリの描画
+		if (data['dirs'] && data['dirs'].length > 0) {
+			renderDirectoryEntries(par, data['dirs']);
+		}
+		
+		// 2. 画像の描画（今まで通り別枠の処理）
+		if (data['imgs'] && data['imgs'].length > 0) {
+			displayThumbnailImages(par, data['imgs'], data['cur'], false);
+		}
+		
+		// 3. その他メディア（video, audio, text, doc）の描画（ループで処理）
+		if (data['media'] && data['media'].length > 0) {
+			renderMediaEntries(par, data['media']);
+		}
+	})
+	.catch(error => {
+		console.error('cd() error:', error);
+		if (par) {
+			par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">ディレクトリの読み込みに失敗しました</div>';
+		}
+		State.directory.currentId = 0;
+	});
 }
