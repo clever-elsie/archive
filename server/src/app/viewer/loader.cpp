@@ -15,15 +15,15 @@ void load_leaf_dir(const string&base){
 	manager& mgr = manager::get_instance();
 	// まずロックを取るが、キャッシュI/Oはロックの外で行う
 	std::unique_lock<std::mutex> lock(mgr.imtex);
-	if(mgr.root_dir==nullptr){
+	if(!mgr.root_dir){
 		// ロックを外してキャッシュ読み込み（内側でimtexを取るため）
 		lock.unlock();
 		bool loaded = mgr.load_dir_cache(mgr.dir_cache_file);
 		if(!loaded){
 			// root_dir の作成はロック下で二重チェック
 			lock.lock();
-			if(mgr.root_dir==nullptr)
-				mgr.root_dir=new Info(base,nullptr);
+			if(!mgr.root_dir)
+				mgr.root_dir=make_unique<Info>(base,nullptr);
 			lock.unlock();
 			// キャッシュ保存はロックの外で（内部でimtexを取得）
 			mgr.save_dir_cache(mgr.dir_cache_file);
@@ -44,13 +44,8 @@ void load_leaf_dir(const string&base){
 
 crow::response reload_leaf(const crow::request&req){
 	// 管理者権限チェック
-	string token = MIDDLEWARE::extract_token(req);
-	string username = AUTH::get_username_from_token(token);
-	if (!USER_MANAGER::user_manager.is_admin(username)) {
-		crow::json::wvalue error_response;
-		error_response["error"] = "管理者権限が必要です";
-		return crow::response(403, error_response);
-	}
+	if (!USER_MANAGER::user_manager.is_admin(AUTH::get_username_from_token(MIDDLEWARE::extract_token(req))))
+		return crow::response(403, crow::json::wvalue{crow::json::wvalue::object{{"error", "管理者権限が必要です"}}});
 	
 	manager& mgr = manager::get_instance();
 	load_leaf_dir(mgr.base_dir);

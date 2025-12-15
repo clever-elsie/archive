@@ -14,19 +14,23 @@
 namespace VIEWER{
 // cache_file is json file
 
-Info* json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rvalue&json){
-  // 必須フィールドが全て揃っているか検証（不足していれば不適格として例外）
+unique_ptr<Info> json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rvalue&json){
   static const std::array<const char*, 10> required_keys = {
     "id","par","path","tag","dirs","imgs",
     "videos","audios","texts","docs"
   };
-  for(const auto* key : required_keys){
-    if(!json.has(key))
-      throw std::runtime_error(std::string("invalid dir_cache.json: missing key ") + key);
+  { // 必須フィールドが全て揃っているか検証（不足していれば不適格として例外）
+    std::string missing_keys;
+    for(const auto* key : required_keys){
+      if(!json.has(key))
+        missing_keys += std::string(key) + ", ";
+    }
+    if(!missing_keys.empty())
+      throw std::runtime_error("invalid dir_cache.json: missing key " + missing_keys);
   }
 
-  Info*info=new Info;
-  id2info[json["id"].u()]=info;
+  unique_ptr<Info> info=make_unique<Info>();
+  id2info[json["id"].u()]=info.get();
   info->par=id2info[json["par"].u()];
   info->path=filesystem::path(json["path"].s());
   for(const auto&tag:json["tag"].lo())
@@ -49,9 +53,9 @@ Info* json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow::json::rval
   using namespace std::chrono;
   info->last_write_time=filesystem::file_time_type::clock::time_point(seconds(json["last_write_time"].i()));
   manager& mgr = manager::get_instance();
-  mgr.valid_info_ptrs.insert(info);
+  mgr.valid_info_ptrs.insert(info.get());
   if(info->has_only_img())
-    mgr.leaf_dirs.insert(info);
+    mgr.leaf_dirs.insert(info.get());
   return info;
 }
 
@@ -62,11 +66,11 @@ namespace {
     namespace fs = std::filesystem;
     fs::path p(cache_file);
     std::error_code ec;
-    if (fs::is_symlink(p, ec)) {
+    while (fs::is_symlink(p, ec)) {
       auto target = fs::read_symlink(p, ec);
       if (!ec) {
         if (target.is_relative()) target = p.parent_path() / target;
-        return target;
+        p = target;
       }
     }
     return p;

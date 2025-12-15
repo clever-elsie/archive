@@ -10,6 +10,7 @@
 #include <condition_variable>
 #include <string>
 #include <string_view>
+#include <memory>
 
 #include <ext/pb_ds/tree_policy.hpp>
 #include <ext/pb_ds/assoc_container.hpp>
@@ -26,7 +27,7 @@ struct manager{
   constexpr static std::chrono::hours cache_update_interval{1}; // 1時間間隔
   constexpr static const char dir_cache_file[]="config/dir_cache.json";
   string base_dir;
-  Info*root_dir = nullptr;
+  unique_ptr<Info> root_dir;
   // 可乱択二分木（順序統計木）に変更
   tree<Info*, __gnu_pbds::null_type, LeafCmp> leaf_dirs;
   mutex imtex;
@@ -61,7 +62,7 @@ public:
   }
   // id(数値) → Info* 変換（0 は root_dir のエイリアス）
   Info* get_info_from_id(uint64_t idv) noexcept{
-    return idv==0 ? root_dir : reinterpret_cast<Info*>(idv);
+    return idv==0 ? root_dir.get() : reinterpret_cast<Info*>(idv);
   }
   bool is_valid(Info* node){
     return valid_info_ptrs.contains(node);

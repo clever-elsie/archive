@@ -11,13 +11,8 @@ namespace VIEWER{
 using namespace std;
 
 crow::response info_renew(const crow::request&req){
-	string token = MIDDLEWARE::extract_token(req);
-	string username = AUTH::get_username_from_token(token);
-	if (!USER_MANAGER::user_manager.is_admin(username)) {
-		crow::json::wvalue error_response;
-		error_response["error"] = "管理者権限が必要です";
-		return crow::response(403, error_response);
-	}
+	if (!USER_MANAGER::user_manager.is_admin(AUTH::get_username_from_token(MIDDLEWARE::extract_token(req))))
+		return crow::response(403, crow::json::wvalue{crow::json::wvalue::object{{"error", "管理者権限が必要です"}}});
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
 	const auto data=crow::json::load(req.body);

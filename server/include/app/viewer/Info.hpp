@@ -6,6 +6,7 @@
 #include <array>
 #include <vector>
 #include <string>
+#include <memory>
 #include <filesystem>
 #include <crow/json.h>
 #include <system_error>
@@ -26,7 +27,7 @@ struct Info : public RETRIEVE::Retrieval{
 
   filesystem::path path;
   set<string>tag;
-  vector<Info*>dirs;
+  vector<unique_ptr<Info>>dirs;
   MediaArray media;
   filesystem::file_time_type last_write_time;
   Info*par;
@@ -51,6 +52,9 @@ struct Info : public RETRIEVE::Retrieval{
     for (const auto& v : media)
       if (!v.empty()) return true;
     return false;
+  }
+  inline bool empty()const{
+    return !has_any_media() && dirs.empty();
   }
   
   virtual bool match(const string&s)const override{

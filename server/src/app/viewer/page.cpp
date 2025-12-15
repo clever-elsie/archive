@@ -14,22 +14,16 @@ crow::json::wvalue get_page_data(const crow::request&req){
 	if(!data.has("idx")||!data.has("page_size"))
 		return crow::json::wvalue();
 
-	int64_t idx = data["idx"].i();
-	int64_t page_size = data["page_size"].i();
+	const int64_t idx = data["idx"].i();
+	const int64_t page_size = data["page_size"].i();
 	
 	crow::json::wvalue ret;
-	uint64_t n = mgr.leaf_dirs.size();
-	uint64_t page_cnt = (n + page_size - 1) / page_size;
+	const uint64_t n = mgr.leaf_dirs.size();
+	const uint64_t page_cnt = (n + page_size - 1) / page_size;
 	
 	ret["total_pages"] = page_cnt;
 	ret["page_size"] = page_size;
 	ret["total_items"] = n;
-	
-	// idx=-1の場合はページ情報のみを返す（itemsは空の配列）
-	if(idx == -1){
-		ret["items"] = crow::json::wvalue::list();
-		return ret;
-	}
 	
 	crow::json::wvalue::list items;
 	if(0 <= idx && idx < (int64_t)page_cnt){

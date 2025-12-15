@@ -6,6 +6,9 @@
 #include <system_error>
 #include <iostream>
 #include <string_view>
+#include <unordered_map>
+#include <functional>
+#include <concepts>
 
 namespace VIEWER{
 
@@ -20,23 +23,77 @@ namespace {
   };
 
   // MediaType ごとの拡張子定義
-  constexpr std::array<MediaExtConfig, MediaTypeCount> MEDIA_EXTS{{
-    // image
-    MediaExtConfig{{".webp",".jpg",".jpeg",".png",".gif"}, 5},
-    // video
-    MediaExtConfig{{".mp4","","","",""}, 1},
-    // audio
-    MediaExtConfig{{".mp3",".flac",".aac",".wav",""}, 4},
-    // text
-    MediaExtConfig{{".txt",".md","","",""}, 2},
-    // doc
-    MediaExtConfig{{".pdf","","","",""}, 1}
-  }};
+  constexpr static std::array<MediaExtConfig, MediaTypeCount> make_media_exts(){
+    return std::array<MediaExtConfig, MediaTypeCount>{{
+      // image
+      MediaExtConfig{{".webp",".jpg",".jpeg",".png",".gif"}, 5},
+      // video
+      MediaExtConfig{{".mp4","","","",""}, 1},
+      // audio
+      MediaExtConfig{{".mp3",".flac",".aac",".wav",""}, 4},
+      // text
+      MediaExtConfig{{".txt",".md","","",""}, 2},
+      // doc
+      MediaExtConfig{{".pdf","","","",""}, 1}
+    }};
+  }
+  constexpr inline auto MEDIA_EXTS=make_media_exts();
+  
+  template<class T, class... Args>
+  concept included_in = (std::is_same_v<T, Args> || ...);
+  template<class T>
+  concept like_string = included_in<std::decay_t<T>, std::string, std::string_view, char*, const char*>;
+
+  namespace {
+    struct TransparentHash{
+      using is_transparent = void;
+      template<like_string T>
+      size_t operator()(const T&s)const noexcept{
+        return std::hash<T>()(s);
+      }
+    };
+    struct TransparentEqual{
+      using is_transparent = void;
+      bool operator()(const char* lhs, const char* rhs) const noexcept{
+        for(;*lhs && *rhs; ++lhs, ++rhs)
+          if(*lhs!=*rhs) return false;
+        return true;
+      }
+      template<like_string T>
+      bool operator()(const T& lhs, const T& rhs) const noexcept{
+        return lhs == rhs;
+      }
+    };
+    template<class T>
+    using reverse_map_t = std::unordered_map<std::string, T, TransparentHash, TransparentEqual>;
+
+    reverse_map_t<MT> make_reverse_media_type(){
+      const auto& media_exts = make_media_exts();
+      reverse_map_t<MT> ret;
+      for(std::size_t i=0;i<MediaTypeCount;++i){
+        auto mt = static_cast<MT>(i);
+        const auto& cfg = media_exts[i];
+        for(std::size_t j=0;j<cfg.count;++j)
+          ret[std::string(cfg.exts[j])] = mt;
+      }
+      return ret;
+    }
+  }
+  template<class T>
+  MT reverse_media_type(const T&s) noexcept(false) {
+    static const auto reverse_media_type_map = make_reverse_media_type();
+    auto itr = reverse_media_type_map.find(s);
+    if(itr==reverse_media_type_map.end())
+      throw std::invalid_argument("invalid media type: " + s);
+    return itr->second;
+  }
+
 
   inline const MediaExtConfig& exts_for(MT t){
     return MEDIA_EXTS[Info::mt_index(t)];
   }
 
+  // C++26ではリフレクションでこれを不要に
   inline const char* media_name(MT t){
     switch(t){
       case MT::image: return "image";
@@ -49,21 +106,26 @@ namespace {
   }
 
   // 汎用: 拡張子に応じて MediaArray へ振り分け
-  template <class MediaArray>
-  void classify_and_push(const std::string& file_ext,
-                         const std::string& filename,
-                         MediaArray& media){
-    for(std::size_t i=0;i<MediaTypeCount;++i){
-      auto mt = static_cast<MT>(i);
-      const auto& cfg = MEDIA_EXTS[i];
-      for(std::size_t j=0;j<cfg.count;++j){
-        if(file_ext == cfg.exts[j]){
-          media[i].emplace_back(filename);
-          return;
-        }
-      }
+  template <class OptionalMediaArray,
+    class MediaArray_t=std::conditional_t<
+      std::same_as<OptionalMediaArray, std::nullptr_t>,
+        std::nullptr_t,
+        Info::MediaArray const *
+    >
+  >
+  requires included_in<std::remove_cv_t<OptionalMediaArray>, std::nullptr_t, Info::MediaArray * >
+  void classify_and_push(const std::filesystem::path& filename, MediaArray_t media, Info::MediaArray& to_ins){
+    size_t mt;
+    try{
+      mt=static_cast<size_t>(reverse_media_type(filename.extension().string()));
+    }catch(const std::invalid_argument&){
+      return;
     }
-    // どのカテゴリにもマッチしないレギュラーファイルは無視
+    if constexpr(!std::same_as<MediaArray_t, std::nullptr_t>){
+      if(std::lower_bound((*media)[mt].begin(),(*media)[mt].end(), filename.filename().string())!=(*media)[mt].end())
+        return; // 既に存在するときは何もしない
+    }
+    to_ins[mt].emplace_back(filename.filename().string());
   }
 
   template <class MediaArray>
@@ -76,23 +138,22 @@ Info::Info(const filesystem::path&dir,Info*par_)
 :path(dir),tag(),
 dirs(),media(),par(par_?:this),
 is_directory(false),has_filesystem_error(false){
-  manager& mgr = manager::get_instance();
-  mgr.valid_info_ptrs.insert(this);
-  
-  auto time_result = SafeFS::last_write_time(dir);
-  if(!time_result.success()){
-    handle_filesystem_error(time_result.ec, "last_write_time");
-    return;
+  {
+    auto time_result = SafeFS::last_write_time(dir);
+    if(!time_result.success()){
+      handle_filesystem_error(time_result.ec, "last_write_time");
+      return;
+    }
+    auto dir_result = SafeFS::is_directory(dir);
+    if(!dir_result.success()){
+      handle_filesystem_error(dir_result.ec, "is_directory");
+      return;
+    }
+    last_write_time = time_result.value;
+    is_directory = dir_result.value;
+    if(!is_directory)return;
+    reload_info();
   }
-  auto dir_result = SafeFS::is_directory(dir);
-  if(!dir_result.success()){
-    handle_filesystem_error(dir_result.ec, "is_directory");
-    return;
-  }
-  last_write_time = time_result.value;
-  is_directory = dir_result.value;
-  if(!is_directory)return;
-  reload_info();
   
   // 安全なdirectory_iterator作成
   auto iter_result = SafeFS::directory_iterator(dir);
@@ -103,30 +164,29 @@ is_directory(false),has_filesystem_error(false){
   
   for(const auto&itr:iter_result.value){
     if(itr.is_directory()){
-      Info *n=new Info(itr.path(),this);
-      if(n && (n->has_any_media() || !n->dirs.empty()))
-        dirs.push_back(n);
-      else delete n;
+      auto n = make_unique<Info>(itr.path(),this);
+      if(n && !n->empty())
+        dirs.push_back(std::move(n));
     }else{
-      const auto file_ext = itr.path().extension().string();
-      const auto filename = itr.path().filename().string();
       // 画像 / 動画 / 音声 / テキスト / ドキュメント へ振り分け
-      classify_and_push(file_ext, filename, media);
+      classify_and_push<std::nullptr_t>(itr.path(), nullptr, media);
     }
   }
+  sort_dirs();
+  sort_media_arrays(media);
   if(!imgs().empty()) {
     auto img_time_result = SafeFS::last_write_time(filesystem::path(path)/imgs()[0]);
     if (img_time_result.success())
       last_write_time = img_time_result.value;
     else{
       handle_filesystem_error(img_time_result.ec, "last_write_time (leaf)");
-      imgs().clear();
       dirs.clear();
+      for(auto&mt:media) mt.clear();
       // これはディレクトリなので両方空なら呼出し元にdeleteされる
     }
   }
-  std::ranges::sort(imgs());
-  sort_dirs();
+  manager& mgr = manager::get_instance();
+  mgr.valid_info_ptrs.insert(this);
   if(has_only_img())
     mgr.leaf_dirs.insert(this);
 }
@@ -136,11 +196,10 @@ Info::~Info(){
   mgr.valid_info_ptrs.erase(this);
   if(has_only_img())
     mgr.leaf_dirs.erase(this);
-  for(auto&dir:dirs) delete dir;
 }
 
 void Info::sort_dirs(){
-  std::ranges::sort(dirs,[](const Info*a,const Info*b){
+  std::ranges::sort(dirs,[](const std::unique_ptr<Info>&a,const std::unique_ptr<Info>&b){
     if(a->is_directory==b->is_directory)
       return a->path<b->path;
     return a->is_directory;
@@ -148,13 +207,15 @@ void Info::sort_dirs(){
 }
 
 bool Info::refresh_from_parent(){
-  if(par!=this) return par->refresh_from_parent();
+  if(par!=this) return par->refresh(0);
   else{
-    delete this;
-    manager::get_instance().mark_cache_dirty();
+    auto& mgr = manager::get_instance();
+    mgr.root_dir.release();
+    mgr.mark_cache_dirty();
     return false;
   }
 }
+
 bool Info::refresh(size_t depth){
   // この関数は常にmanager.imtexをlockした関数から呼び出す．
   // depth==0なら再帰を止める．
@@ -242,19 +303,11 @@ void Info::reload_leaf(){
     handle_filesystem_error(iter_result.ec, "reload_leaf directory_iterator");
     return;
   }
-  vector<string> new_imgs;
-  const auto& cfg = exts_for(MT::image);
-  for(const auto&itr:iter_result.value){
-    const auto ext = itr.path().extension().string();
-    for(std::size_t i=0;i<cfg.count;++i){
-      if(ext == cfg.exts[i]){
-        new_imgs.emplace_back(itr.path().filename().string());
-        break;
-      }
-    }
-  }
-  imgs() = std::move(new_imgs);
-  std::ranges::sort(imgs());
+  Info::MediaArray new_media;
+  for(const auto&itr:iter_result.value)
+    classify_and_push<std::nullptr_t>(itr.path(), nullptr, new_media);
+  media = std::move(new_media);
+  sort_media_arrays(media);
 }
 
 void Info::reload_dir(size_t depth){
@@ -267,7 +320,6 @@ void Info::reload_dir(size_t depth){
     }
     if(!exists_result.value){
       std::swap(dirs[i],dirs.back());
-      delete dirs.back();
       dirs.pop_back();
       continue;
     }else if(depth) dirs[i]->refresh(depth-1);
@@ -295,7 +347,7 @@ void Info::reload_dir(size_t depth){
   }
   sort_dirs();
   sort_media_arrays(media);
-  vector<Info*> to_ins;
+  vector<unique_ptr<Info>> to_ins;
   Info::MediaArray to_ins_media{};
   auto iter_result = SafeFS::directory_iterator(path);
   if(!iter_result.success()){
@@ -309,28 +361,28 @@ void Info::reload_dir(size_t depth){
       handle_filesystem_error(is_dir_result.ec, "reload_dir is_directory");
       continue;
     }
-    const auto file_ext = p.extension().string();
-    const auto filename = p.filename().string();
     // ディレクトリ
     if(is_dir_result.value){
       using ppt = pair<filesystem::path, bool>;
       ppt pp(p, is_dir_result.value);
-      auto itr_pos=std::lower_bound(dirs.begin(),dirs.end(),pp,[](const Info*a, const ppt&b){
+      auto itr_pos=std::lower_bound(dirs.begin(),dirs.end(),pp,[](const std::unique_ptr<Info>&a, const ppt&b){
         if(a->is_directory==b.second) return a->path<b.first;
         return a->is_directory;
       });
-      if(itr_pos==dirs.end()||(*itr_pos)->path!=p) // 新規
-        to_ins.push_back(new Info(p, this));
+      if(itr_pos==dirs.end()||(*itr_pos)->path!=p){// 新規
+        auto n = make_unique<Info>(p, this);
+        if(n && !n->empty())
+          to_ins.push_back(std::move(n));
+      }
     }else{
       // 画像 / 動画 / 音声 / テキスト / ドキュメント へ振り分け（差分用）
-      classify_and_push(file_ext, filename, to_ins_media);
+      classify_and_push<Info::MediaArray *>(itr.path(), &this->media, to_ins_media);
     }
   }
-  dirs.insert(dirs.end(),to_ins.begin(),to_ins.end());
+  dirs.insert(dirs.end(),std::make_move_iterator(to_ins.begin()),std::make_move_iterator(to_ins.end()));
   sort_dirs();
   for(std::size_t i=0;i<MediaTypeCount;++i){
-    auto mt = static_cast<MT>(i);
-    auto& dest = media[Info::mt_index(mt)];
+    auto& dest = media[i];
     auto& src  = to_ins_media[i];
     dest.insert(dest.end(), src.begin(), src.end());
   }

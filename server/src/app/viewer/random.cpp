@@ -7,8 +7,8 @@ using namespace std;
 vector<Info*> get_rand_dirs(const int cnt){
 	set<Info*>seen;
 	manager&mgr = manager::get_instance();
-	if(mgr.leaf_dirs.size()==0) return {};
-	while(seen.size()<static_cast<size_t>(cnt)){
+	const int n = std::min(cnt, static_cast<int>(mgr.leaf_dirs.size()));
+	while(seen.size()<n){
 		auto k=mgr.R()%mgr.leaf_dirs.size();
 		auto it=mgr.leaf_dirs.find_by_order(k);
 		if(it==mgr.leaf_dirs.end()) break;

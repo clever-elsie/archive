@@ -23,7 +23,7 @@ crow::json::wvalue get_imgs(const crow::request&req){
 	Info* node = mgr.get_info_from_id(idv);
 	if(!mgr.is_valid(node) || !node->has_only_img()||!node->refresh(0)) return crow::json::wvalue();
 	const std::string bpath(node->path);
-	vector<string>& imgs=node->imgs();
+	const vector<string>& imgs=node->imgs();
 	crow::json::wvalue::list img_list;
 	crow::json::wvalue ret;
 	for(auto const & img:imgs){
@@ -66,40 +66,10 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	std::vector<Info*> dirvec,imgvec;
 	std::vector<size_t> img_range;
 	for(const auto&d:tar->dirs)
-		(d->has_only_img()?imgvec:dirvec).push_back(d);
+		(d->has_only_img()?imgvec:dirvec).push_back(d.get());
 	if(!tar->has_only_img())
 		for(auto id:std::views::iota(0U,tar->imgs().size()))
 			img_range.push_back(id);
-	// ソート 元々名前昇順
-	if(order_key=="last_write_time"){
-		auto cmp=[](const Info*a,const Info*b){
-			if(a->last_write_time==b->last_write_time)
-				return a->path<b->path;
-			return a->last_write_time<b->last_write_time;
-		};
-		std::sort(dirvec.begin(), dirvec.end(), cmp);
-		std::sort(imgvec.begin(), imgvec.end(), cmp);
-	}
-	if(order=="descendant"){
-		std::reverse(dirvec.begin(), dirvec.end());
-		std::reverse(imgvec.begin(), imgvec.end());
-		if(order_key!="last_write_time")
-			std::reverse(img_range.begin(), img_range.end());
-	}
-
-	crow::json::wvalue::list dir,img;
-	for(const auto&d:imgvec) pb_next(img,*d);
-	for(const auto&i:img_range) pb_next(img,*tar,i);
-	for(const auto&d:dirvec){
-		crow::json::wvalue next;
-		next["path"]=(d->path);
-		next["dirname"]=(filesystem::path(d->path).filename());
-		next["id"]=d->id();
-		dir.emplace_back(move(next));
-	}
-	ret["imgs"]=crow::json::wvalue(move(img));
-	ret["dirs"]=crow::json::wvalue(move(dir));
-
 	// その他メディア（video, audio, text, doc）を1つの配列にまとめる
 	// ソート用の構造体
 	struct MediaItem {
@@ -134,6 +104,23 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	add_media_items(tar->media_vector(Info::MediaType::text), "text");
 	add_media_items(tar->media_vector(Info::MediaType::doc), "doc");
 	
+	// ソート 元々名前昇順
+	if(order_key=="last_write_time"){
+		auto cmp=[](const Info*a,const Info*b){
+			if(a->last_write_time==b->last_write_time)
+				return a->path<b->path;
+			return a->last_write_time<b->last_write_time;
+		};
+		std::sort(dirvec.begin(), dirvec.end(), cmp);
+		std::sort(imgvec.begin(), imgvec.end(), cmp);
+	}
+	if(order=="descendant"){
+		std::reverse(dirvec.begin(), dirvec.end());
+		std::reverse(imgvec.begin(), imgvec.end());
+		if(order_key!="last_write_time")
+			std::reverse(img_range.begin(), img_range.end());
+	}
+
 	// ソート処理（画像とディレクトリと同じロジック）
 	if(order_key=="last_write_time"){
 		auto cmp=[](const MediaItem& a, const MediaItem& b){
@@ -153,6 +140,19 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 		std::reverse(media_items.begin(), media_items.end());
 	}
 	
+	crow::json::wvalue::list dir,img;
+	for(const auto&d:imgvec) pb_next(img,*d);
+	for(const auto&i:img_range) pb_next(img,*tar,i);
+	for(const auto&d:dirvec){
+		crow::json::wvalue next;
+		next["path"]=(d->path);
+		next["dirname"]=(filesystem::path(d->path).filename());
+		next["id"]=d->id();
+		dir.emplace_back(move(next));
+	}
+	ret["imgs"]=crow::json::wvalue(move(img));
+	ret["dirs"]=crow::json::wvalue(move(dir));
+
 	// JSONに変換
 	crow::json::wvalue::list media_list;
 	for(const auto& item : media_items) {

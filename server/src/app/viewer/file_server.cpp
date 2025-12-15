@@ -40,6 +40,10 @@ crow::response redirect_media(const crow::request& req){
     Info* node=mgr.get_info_from_id(idv);
     if(!mgr.is_valid(node)||!node->refresh(0)) return crow::response(404);
     if(type=="image" && node->imgs().empty()) return crow::response(404);
+    if(type=="video" && node->videos().empty()) return crow::response(404);
+    if(type=="audio" && node->audios().empty()) return crow::response(404);
+    if(type=="text" && node->texts().empty()) return crow::response(404);
+    if(type=="doc" && node->docs().empty()) return crow::response(404);
     base = node->path;
   }
 
