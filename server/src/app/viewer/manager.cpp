@@ -56,6 +56,8 @@ unique_ptr<Info> json_to_info(unordered_map<uint64_t,Info*>&id2info, const crow:
   mgr.valid_info_ptrs.insert(info.get());
   if(info->has_only_img())
     mgr.leaf_dirs.insert(info.get());
+  info->sort_dirs();
+  info->sort_media_arrays();
   return info;
 }
 

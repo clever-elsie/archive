@@ -127,11 +127,6 @@ namespace {
     }
     to_ins[mt].emplace_back(filename.filename().string());
   }
-
-  template <class MediaArray>
-  void sort_media_arrays(MediaArray& media){
-    for(auto& v : media) std::ranges::sort(v);
-  }
 }
 
 Info::Info(const filesystem::path&dir,Info*par_)
@@ -173,7 +168,7 @@ is_directory(false),has_filesystem_error(false){
     }
   }
   sort_dirs();
-  sort_media_arrays(media);
+  sort_media_arrays();
   if(!imgs().empty()) {
     auto img_time_result = SafeFS::last_write_time(filesystem::path(path)/imgs()[0]);
     if (img_time_result.success())
@@ -204,6 +199,13 @@ void Info::sort_dirs(){
       return a->path<b->path;
     return a->is_directory;
   });
+}
+
+void Info::sort_media_arrays(){
+  for(auto& v : this->media){
+    std::ranges::sort(v);
+    v.erase(std::unique(v.begin(),v.end()),v.end());
+  }
 }
 
 bool Info::refresh_from_parent(){
@@ -307,7 +309,7 @@ void Info::reload_leaf(){
   for(const auto&itr:iter_result.value)
     classify_and_push<std::nullptr_t>(itr.path(), nullptr, new_media);
   media = std::move(new_media);
-  sort_media_arrays(media);
+  sort_media_arrays();
 }
 
 void Info::reload_dir(size_t depth){
@@ -346,7 +348,7 @@ void Info::reload_dir(size_t depth){
     erase_if_missing(media[Info::mt_index(mt)], media_name(mt));
   }
   sort_dirs();
-  sort_media_arrays(media);
+  sort_media_arrays();
   vector<unique_ptr<Info>> to_ins;
   Info::MediaArray to_ins_media{};
   auto iter_result = SafeFS::directory_iterator(path);
@@ -386,7 +388,7 @@ void Info::reload_dir(size_t depth){
     auto& src  = to_ins_media[i];
     dest.insert(dest.end(), src.begin(), src.end());
   }
-  sort_media_arrays(media);
+  sort_media_arrays();
 }
 
 crow::json::wvalue Info::to_json()const{

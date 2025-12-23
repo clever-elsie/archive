@@ -86,12 +86,13 @@ struct Info : public RETRIEVE::Retrieval{
   inline const std::vector<std::string>& texts() const{ return media_vector(MediaType::text); }
   inline std::vector<std::string>& docs(){ return media_vector(MediaType::doc); }
   inline const std::vector<std::string>& docs() const{ return media_vector(MediaType::doc); }
+  void sort_dirs();
+  void sort_media_arrays();
   private:
   void reload_info();
   void reload_leaf();
   void reload_dir(size_t depth);
   bool refresh_from_parent();
-  void sort_dirs();
   
   // エラーハンドリング
   void handle_filesystem_error(const std::error_code& ec, const std::string& operation);
