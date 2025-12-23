@@ -39,6 +39,10 @@ struct Info : public RETRIEVE::Retrieval{
   
   Info()=default;
   Info(const filesystem::path&dir,Info*par_);
+  static std::unique_ptr<Info> load(const crow::json::rvalue&json);
+  private:
+  static unique_ptr<Info> from_json(unordered_map<uint64_t, Info*>&id2info, const crow::json::rvalue&json);
+  public:
   ~Info();
   bool refresh(size_t depth);
   crow::json::wvalue to_json()const;
