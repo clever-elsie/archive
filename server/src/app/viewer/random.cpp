@@ -25,7 +25,7 @@ crow::json::wvalue get_rand_imgs(int cnt){
 	lock_guard<mutex> lock(mgr.imtex);
 	crow::json::wvalue::list ret;
 	for(auto&dir:get_rand_dirs(cnt))
-		pb_next(ret,*dir);
+		pb_next(ret,dir->current_thumbnail_relative_path(), dir->id());
 	return crow::json::wvalue(ret);
 }
 

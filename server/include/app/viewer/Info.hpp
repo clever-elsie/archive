@@ -8,8 +8,10 @@
 #include <string>
 #include <memory>
 #include <filesystem>
-#include <crow/json.h>
 #include <system_error>
+#include <ranges>
+#include <algorithm>
+#include <crow/json.h>
 #include <app/viewer/safe_filesystem.hpp>
 #include <app/retrieve.hpp>
 
@@ -17,6 +19,7 @@ namespace VIEWER{
 using namespace std;
 
 struct Info : public RETRIEVE::Retrieval{
+  // 型
   enum class MediaType{
     image, video, audio, text, doc, size_
   };
@@ -25,6 +28,11 @@ struct Info : public RETRIEVE::Retrieval{
   }
   using MediaArray = std::array<std::vector<std::string>, (size_t)MediaType::size_>;
 
+  enum class SortingOrder{
+    name, last_write_time
+  };
+  // 属性
+  private:
   filesystem::path path;
   set<string>tag;
   vector<unique_ptr<Info>>dirs;
@@ -36,21 +44,82 @@ struct Info : public RETRIEVE::Retrieval{
   // エラー状態管理
   std::error_code last_error;
   bool has_filesystem_error = false;
-  
+
+  public: // 構築/破棄 Info.cpp
   Info()=default;
   Info(const filesystem::path&dir,Info*par_);
-  static std::unique_ptr<Info> load(const crow::json::rvalue&json);
-  private:
-  static unique_ptr<Info> from_json(unordered_map<uint64_t, Info*>&id2info, const crow::json::rvalue&json);
-  public:
   ~Info();
-  bool refresh(size_t depth);
+  
+  public: // json.cpp
+  static std::unique_ptr<Info> load(const crow::json::rvalue&json);
   crow::json::wvalue to_json()const;
-  uint64_t id()const{
-    return reinterpret_cast<uint64_t>(this);
+  private: // json.cpp
+  static unique_ptr<Info> from_json(unordered_map<uint64_t, Info*>&id2info, const crow::json::rvalue&json);
+
+  public: // 継承
+  virtual bool match(const string&s)const override{
+    return tag.contains(s) || path.string().contains(s);
   }
+
+  public: // 操作 refresh.cpp
+  bool refresh(size_t depth);
+  private: // 操作 refresh.cpp
+  void reload_info();
+  void reload_leaf();
+  void reload_dir(size_t depth);
+  bool refresh_from_parent();
+
+  public: // 操作 sort.cpp
+  void sort();
+  static void sort(std::vector<Info*>&vec, SortingOrder order=SortingOrder::name, bool descendant=false);
+  private: // 操作 sort.cpp
+  void sort_dirs();
+  void sort_media_arrays();
+
+  public: // 操作 manip.cpp
+  static MediaType classify(const std::filesystem::path& filename)noexcept(false);
+  private: // 操作 manip.cpp
+  void classify_and_push(const std::filesystem::path& filename, MediaArray& to_ins);
+  void classify_and_push(const std::filesystem::path& filename, MediaArray& media, MediaArray& to_ins);
+
+  public: // メディア配列アクセス access.cpp
+  std::filesystem::path locate_media(MediaType type, const std::string& filename)const;
+  std::string current_thumbnail_relative_path()const; // 現在のディレクトリのmedia[0][0]
+  std::vector<std::string> all_thumbnail_relative_paths()const; // 現在のディレクトリが持っている全てのディレクトリのcurrent_thumbnail_relative_path
+  std::string parent_thumbnail_relative_path()const; // 現在のディレクトリの親ディレクトリのcurrent_thumbnail_relative_path
+  std::vector<std::string> parent_all_thumbnail_relative_paths()const; // 現在のディレクトリの親ディレクトリが持っている全てのディレクトリのcurrent_thumbnail_relative_path
+  template<MediaType type>
+  std::vector<std::string> media_relative_paths(SortingOrder order=SortingOrder::name, bool descendant=false)const;
+  std::vector<std::string> media_relative_paths(MediaType type, SortingOrder order=SortingOrder::name, bool descendant=false)const;
+  
+  template<MediaType type>
+  std::vector<std::string>& media_vector(){ return media[mt_index<type>()]; }
+  template<MediaType type>
+  const std::vector<std::string>& media_vector()const{ return media[mt_index<type>()]; }
+  std::vector<std::string>& media_vector(MediaType t){ return media[mt_index(t)]; }
+  const std::vector<std::string>& media_vector(MediaType t) const{ return media[mt_index(t)]; }
+  
+  public: // タグ tag.cpp
+  int add_tag(std::string&& tag);
+  int remove_tag(const std::string& tag);
+  const std::vector<std::string> normalized_tags()const;
+  
+  public: // ディレクトリアクセス diraccess.cpp
+  std::pair<std::vector<Info*>, std::vector<Info*>>
+  imgdirs_or_elsedirs(SortingOrder order=SortingOrder::name, bool descendant=false)const;
+  
+  public: // 状態確認 status.cpp
+  uint64_t id()const{ return reinterpret_cast<uint64_t>(this); }
+  uint64_t parent_id()const{ return par->id(); }
+  Info* parent()const{ return par; }
+  std::string relative_path()const;
+  std::filesystem::path full_path()const{ return path; }
+  std::string dirname()const{ return path.filename(); }
   inline bool has_only_img()const{
-    return !imgs().empty() && dirs.empty();
+    for(const auto&v:media|std::views::drop(1))
+      if(!v.empty()) return false;
+    if(!dirs.empty()) return false;
+    return media[0].size()>0;
   }
   inline bool has_any_media() const{
     for (const auto& v : media)
@@ -60,46 +129,33 @@ struct Info : public RETRIEVE::Retrieval{
   inline bool empty()const{
     return !has_any_media() && dirs.empty();
   }
-  
-  virtual bool match(const string&s)const override{
-    return tag.contains(s) || path.string().contains(s);
-  }
-  
-  // エラー状態の確認
+  public: // エラー状態の確認 Info.cpp
   bool is_accessible() const { return !has_filesystem_error; }
   bool should_retry() const;
+  private: // エラーハンドリング Info.cpp
+  void handle_filesystem_error(const std::error_code& ec, const std::string& operation);
+  
+  public: // 静的メンバ変数
   // MediaType → インデックス変換
+  template<MediaType type>
+  static constexpr std::size_t mt_index() noexcept {
+    return static_cast<std::size_t>(type);
+  }
   static constexpr std::size_t mt_index(MediaType t) noexcept {
     return static_cast<std::size_t>(t);
   }
-  // メディア配列アクセス
-  inline std::vector<std::string>& media_vector(MediaType t){
-    return media[mt_index(t)];
+  static constexpr std::string_view mt_string(MediaType t) noexcept(false) {
+    switch(t){
+      case MediaType::image: return "image";
+      case MediaType::video: return "video";
+      case MediaType::audio: return "audio";
+      case MediaType::text: return "text";
+      case MediaType::doc: return "doc";
+      default: throw std::invalid_argument("invalid MediaType");
+    }
   }
-  inline const std::vector<std::string>& media_vector(MediaType t) const{
-    return media[mt_index(t)];
-  }
-  // 便宜用アクセッサ
-  inline std::vector<std::string>& imgs(){ return media_vector(MediaType::image); }
-  inline const std::vector<std::string>& imgs() const{ return media_vector(MediaType::image); }
-  inline std::vector<std::string>& videos(){ return media_vector(MediaType::video); }
-  inline const std::vector<std::string>& videos() const{ return media_vector(MediaType::video); }
-  inline std::vector<std::string>& audios(){ return media_vector(MediaType::audio); }
-  inline const std::vector<std::string>& audios() const{ return media_vector(MediaType::audio); }
-  inline std::vector<std::string>& texts(){ return media_vector(MediaType::text); }
-  inline const std::vector<std::string>& texts() const{ return media_vector(MediaType::text); }
-  inline std::vector<std::string>& docs(){ return media_vector(MediaType::doc); }
-  inline const std::vector<std::string>& docs() const{ return media_vector(MediaType::doc); }
-  void sort_dirs();
-  void sort_media_arrays();
   private:
-  void reload_info();
-  void reload_leaf();
-  void reload_dir(size_t depth);
-  bool refresh_from_parent();
-  
-  // エラーハンドリング
-  void handle_filesystem_error(const std::error_code& ec, const std::string& operation);
+  friend struct LeafCmp;
 };
 
 struct LeafCmp{

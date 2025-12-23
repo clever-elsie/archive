@@ -23,21 +23,11 @@ crow::response retrieve_query(const crow::request& req){
 	for(auto it=mgr.leaf_dirs.begin();it!=mgr.leaf_dirs.end();++it)
 		if((*it)->refresh(0)&&queryAST->evaluate(**it))
 			dirs.push_back(*it);
-	if(json["order_key"].s()=="last_write_time"){
-		auto cmp=[](const Info*a,const Info*b){
-			if(a->last_write_time==b->last_write_time)
-				return a->path<b->path;
-			return a->last_write_time<b->last_write_time;
-		};
-		std::sort(dirs.begin(), dirs.end(), cmp);
-	}else
-		ranges::sort(dirs,[](const Info*a,const Info*b){
-			return a->path<b->path;
-		});
-	if(json["order"].s()=="descendant")
-		std::reverse(dirs.begin(), dirs.end());
+	Info::SortingOrder order = json["order_key"].s()=="last_write_time"?Info::SortingOrder::last_write_time:Info::SortingOrder::name;
+	bool descendant = json["order"].s()=="descendant";
+	Info::sort(dirs, order, descendant);
 	crow::json::wvalue::list ret;
-	for(auto const &dir:dirs) pb_next(ret,*dir);
+	for(auto const &dir:dirs) pb_next(ret,dir->current_thumbnail_relative_path(), dir->id());
 	return crow::response(200,crow::json::wvalue(move(ret)));
 }
 

@@ -20,19 +20,9 @@ crow::response info_renew(const crow::request&req){
 	string tar=data["data"].s();
 	Info* node=mgr.get_info_from_id(idv);
 	if(!mgr.is_valid(node) || !node->has_only_img()||!node->refresh(0)) return crow::response(404);
-	string info=node->path/filesystem::path(".info");
-	if(data["AD"].s()=="add"){
-		if(node->tag.contains(tar)) return crow::response(200);
-		node->tag.emplace(move(tar));
-		ofstream ofs(info,ios_base::app);
-		ofs<<tar<<'\n';
-	}else{ // delete
-		node->tag.erase(tar);
-		ofstream ofs(info,ios_base::trunc);
-		for(const auto&x:node->tag)
-			ofs<<x<<'\n';
-	}
-	return crow::response(200);
+	if(data["AD"].s()=="add")
+		return crow::response(node->add_tag(std::move(tar)));
+	else return crow::response(node->remove_tag(tar));
 }
 
 } // namespace VIEWER

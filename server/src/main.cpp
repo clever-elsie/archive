@@ -3,6 +3,7 @@
 #include <manager/users/routes.hpp>
 #include <app/viewer/routes.hpp>
 #include <app/memo/routes.hpp>
+#include <app/viewer/manager.hpp>
 
 static_assert(CROW_ENABLE_SSL, "CROW_ENABLE_SSL is not defined");
 
@@ -22,4 +23,5 @@ int main(int argc, char* argv[]) {
 	MEMO::setup(app);
 	
 	app.multithreaded().run();
+	VIEWER::manager::get_instance().shutdown(); // 終了前にバックグラウンドスレッドを停止
 } 

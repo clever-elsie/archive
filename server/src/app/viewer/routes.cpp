@@ -14,9 +14,7 @@ void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir)
   namespace fs = std::filesystem;
   manager&mgr = manager::get_instance();
   mgr.base_dir = std::move(viewer_dir);
-  std::thread([](const std::string&base){ // この処理は非同期で処理．load_leaf_dirがmutexを取るためOK
-    load_leaf_dir(base);
-  },std::cref(mgr.base_dir)).detach();
+  mgr.start_initial_load(mgr.base_dir);
 
   CROW_ROUTE(app,"/req/img/rand/<int>")
     .methods(crow::HTTPMethod::GET)

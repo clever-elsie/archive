@@ -33,7 +33,7 @@ crow::json::wvalue get_page_data(const crow::request&req){
 			auto it = mgr.leaf_dirs.find_by_order(k);
 			if(it != mgr.leaf_dirs.end())
 				if((*it)->refresh(0))
-					pb_next(items, **it);
+					pb_next(items, (*it)->current_thumbnail_relative_path(), (*it)->id());
 				else --k;
 		}
 	}

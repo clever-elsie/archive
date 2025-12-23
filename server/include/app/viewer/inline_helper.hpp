@@ -5,14 +5,11 @@
 namespace VIEWER{
 using namespace std;
 
-inline void pb_next(crow::json::wvalue::list&ret,const Info&info,const size_t idx=0){
-	const manager&mgr = manager::get_instance();
-	if(!info.imgs().empty()){
-		crow::json::wvalue next;
-		next["img"]=filesystem::relative(filesystem::path(info.path)/info.imgs()[idx],mgr.base_dir);
-		next["id"]=info.id();
-		ret.push_back(next);
-	}
+inline void pb_next(crow::json::wvalue::list&ret,const std::string&path, size_t id){
+	crow::json::wvalue next;
+	next["img"]=path;
+	next["id"]=id;
+	ret.push_back(next);
 }
 
 } // namespace VIEWER

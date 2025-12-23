@@ -10,6 +10,7 @@
 
 #include <app/viewer/manager.hpp>
 #include <app/viewer/Info.hpp>
+#include <app/viewer/loader.hpp>
 
 namespace VIEWER{
 
@@ -139,12 +140,12 @@ void manager::trigger_full_scan_if_needed() {
   if (cache_loaded_from_file.load() && !is_full_scanning.load()) {
     is_full_scanning = true;
     
-    // バックグラウンドでフルスキャンを実行
-    std::thread([this]() {
+    if (full_scan_thread.joinable()) full_scan_thread.join();
+    full_scan_thread = std::thread([this]() {
       std::lock_guard<std::mutex> lock(imtex);
       if (root_dir) root_dir->refresh(998244353ul);
       is_full_scanning = false;
-    }).detach();
+    });
   }
 }
 
@@ -152,7 +153,24 @@ void manager::mark_cache_dirty() {
   dir_cache_dirty = true;
 }
 
-manager::~manager() {
+void manager::start_initial_load(const std::string& base_dir){
+  if(initial_load_started.exchange(true)) return;
+  if (initial_load_thread.joinable())
+    initial_load_thread.join();
+  initial_load_thread = std::thread([base_dir](){
+    load_leaf_dir(base_dir);
+  });
+}
+
+void manager::shutdown(){
   stop_cache_monitor();
+  if (full_scan_thread.joinable())
+    full_scan_thread.join();
+  if (initial_load_thread.joinable())
+    initial_load_thread.join();
+}
+
+manager::~manager() {
+  shutdown();
 }
 } // namespace VIEWER
