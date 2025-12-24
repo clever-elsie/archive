@@ -61,7 +61,7 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	Info* tar=mgr.get_info_from_id(idv);
 	if(!mgr.is_valid(tar)||!tar->refresh(0)) return crow::json::wvalue();
 
-	const Info::SortingOrder order_type = data.has("order_type") ? Info::SortingOrder(data["order_type"].i()) : Info::SortingOrder::name;
+	const Info::SortingOrder order_type = data.has("order_key") && data["order_key"].s()=="last_write_time"?Info::SortingOrder::last_write_time:Info::SortingOrder::name;
 	const bool descendant = data.has("order") && data["order"].s()=="descendant";
 
 	crow::json::wvalue ret;
