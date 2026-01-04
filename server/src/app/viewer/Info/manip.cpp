@@ -15,8 +15,25 @@ namespace {
 }
 
 Info::MediaType Info::classify(const std::filesystem::path& filename){
-  const std::string ext = filename.extension().string();
+  std::string ext = filename.extension().string();
   if(ext.empty()) return MediaType::size_;
+  
+  // 圧縮拡張子（.zip, .7z, .gz, .bz2, .xz, .tar.gz など）をチェック
+  constexpr static std::array<std::string_view, 6> compress_exts{
+    ".zip", ".7z", ".gz", ".bz2", ".xz", ".tar"
+  };
+  
+  // 最後の拡張子が圧縮形式の場合、その前の拡張子で分類
+  // 現時点ではディレクトリzipは未対応
+  if(std::ranges::contains(compress_exts, ext)){
+    std::string stem = filename.stem().string();
+    if(stem.empty()) return MediaType::size_;
+    // .tar.gz のような場合を考慮（stemが.tarになる）
+    std::filesystem::path stem_path(stem);
+    ext = stem_path.extension().string();
+    if(ext.empty()) return MediaType::size_;
+  }
+  
   for(size_t i=0;i<exts.size();++i)
     if(std::ranges::contains(exts[i].first,ext))
       return Info::MediaType(i);

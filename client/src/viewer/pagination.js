@@ -7,7 +7,7 @@ export function call_page_num() {
 
 // ページサイズを計算する関数（thumbnails.jsと同じロジック）
 function calculatePageSize() {
-	return window.innerWidth > window.innerHeight ? 10 : 12;
+	return window.innerWidth > window.innerHeight ? 5 : 12;
 }
 
 export function fetch_page(idx) {
