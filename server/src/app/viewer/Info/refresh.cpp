@@ -142,7 +142,11 @@ void Info::reload_dir(size_t depth){
     auto mt = static_cast<MediaType>(i);
     erase_if_missing(media[Info::mt_index(mt)], Info::mt_string(mt).data());
   }
-  sort();
+  // ここでのソートは一意に決定できなければならないので，pathを用いる．sortkeyは一意ではない．
+  std::ranges::sort(dirs,[](const std::unique_ptr<Info>&a, const std::unique_ptr<Info>&b){
+    return a->path<b->path;
+  });
+  sort_media_arrays();
   vector<unique_ptr<Info>> to_ins;
   Info::MediaArray to_ins_media{};
   auto iter_result = SafeFS::directory_iterator(path);
@@ -159,11 +163,8 @@ void Info::reload_dir(size_t depth){
     }
     // ディレクトリ
     if(is_dir_result.value){
-      using ppt = pair<filesystem::path, bool>;
-      ppt pp(p, is_dir_result.value);
-      auto itr_pos=std::lower_bound(dirs.begin(),dirs.end(),pp,[](const std::unique_ptr<Info>&a, const ppt&b){
-        if(a->is_directory==b.second) return a->path<b.first;
-        return a->is_directory;
+      auto itr_pos=std::lower_bound(dirs.begin(),dirs.end(),p,[](const std::unique_ptr<Info>&a, const filesystem::path&b){
+        return a->path<b;
       });
       if(itr_pos==dirs.end()||(*itr_pos)->path!=p){// 新規
         auto n = make_unique<Info>(p, this);
@@ -181,7 +182,7 @@ void Info::reload_dir(size_t depth){
     auto& src  = to_ins_media[i];
     dest.insert(dest.end(), std::make_move_iterator(src.begin()), std::make_move_iterator(src.end()));
   }
-  sort();
+  sort(); // ここのソートはsortkey
 }
 
 } // namespace VIEWER

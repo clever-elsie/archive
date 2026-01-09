@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(HOME-SERVER VERSION 1.2.1 LANGUAGES CXX)
+project(HOME-SERVER VERSION 1.2.2 LANGUAGES CXX)
 
 # C++23を要求
 set(CMAKE_CXX_STANDARD 23)
@@ -40,7 +40,7 @@ target_compile_definitions(home-server PRIVATE CROW_ENABLE_SSL=1)
 target_precompile_headers(home-server PRIVATE
     <algorithm> <ranges>
     <array> <vector>
-    <string> <string_view>
+    <string> <string_view> <regex>
     <set> <map> <unordered_set> <unordered_map>
     <ext/pb_ds/tree_policy.hpp> <ext/pb_ds/assoc_container.hpp>
     <mutex> <exception>

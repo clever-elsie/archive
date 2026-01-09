@@ -33,13 +33,16 @@ struct Info : public RETRIEVE::Retrieval{
   };
   // 属性
   private:
-  filesystem::path path;
-  set<string>tag;
-  vector<unique_ptr<Info>>dirs;
-  MediaArray media;
-  filesystem::file_time_type last_write_time;
-  Info*par;
-  bool is_directory;
+  // ファイル名は最終的に filename《.*》.attributeのように任意個の属性とルビを末尾に付けるものとする
+  filesystem::path path; // config/param.json[VIEWER_DIR]からのフルパス
+  string dirname_without_ruby; // path.filename() without 《.*》
+  string sortkey; // dirnameをソート用に変換したもの
+  set<string>tag; // .infoファイルのタグ
+  vector<unique_ptr<Info>>dirs; // 子ディレクトリのリスト
+  MediaArray media; // メディアファイルのリスト
+  filesystem::file_time_type last_write_time; // 最終更新時刻
+  Info*par; // 親ディレクトリのポインタ
+  bool is_directory; // ディレクトリかどうか
   
   // エラー状態管理
   std::error_code last_error;
@@ -49,6 +52,9 @@ struct Info : public RETRIEVE::Retrieval{
   Info()=default;
   Info(const filesystem::path&dir,Info*par_);
   ~Info();
+  public: // メンバ変数ユーティリティ
+  static std::string remove_suffix_ruby_and_attribute(const std::string&dirname);
+  static std::string to_key(const std::string&dirname);
   
   public: // json.cpp
   static std::unique_ptr<Info> load(const crow::json::rvalue&json);
@@ -110,11 +116,13 @@ struct Info : public RETRIEVE::Retrieval{
   
   public: // 状態確認 status.cpp
   uint64_t id()const{ return reinterpret_cast<uint64_t>(this); }
+  filesystem::file_time_type last_write_time_value()const{ return last_write_time; }
+  std::string sortkey_value()const{ return sortkey; }
   uint64_t parent_id()const{ return par->id(); }
   Info* parent()const{ return par; }
   std::string relative_path()const;
   std::filesystem::path full_path()const{ return path; }
-  std::string dirname()const{ return path.filename(); }
+  std::string dirname()const{ return dirname_without_ruby; }
   inline bool has_only_img()const{
     for(const auto&v:media|std::views::drop(1))
       if(!v.empty()) return false;

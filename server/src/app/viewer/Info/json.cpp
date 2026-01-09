@@ -9,9 +9,10 @@ unique_ptr<Info> Info::load(const crow::json::rvalue&json){
 }
 
 unique_ptr<Info> Info::from_json(unordered_map<uint64_t, Info*>&id2info, const crow::json::rvalue&json){
-  static constexpr std::array<const char*, 10> required_keys{{
-    "id","par","path","tag","dirs","imgs",
-    "videos","audios","texts","docs"
+  static constexpr std::array<const char*, 12> required_keys{{
+    "id","par","path","tag","dirs",
+    "imgs","videos","audios","texts","docs",
+    "is_directory","last_write_time"
   }};
   { // 必須フィールドが全て揃っているか検証（不足していれば不適格として例外）
     std::string missing_keys;
@@ -27,6 +28,8 @@ unique_ptr<Info> Info::from_json(unordered_map<uint64_t, Info*>&id2info, const c
   id2info[json["id"].u()]=info.get();
   info->par=id2info[json["par"].u()];
   info->path=filesystem::path(json["path"].s());
+  info->dirname_without_ruby=Info::remove_suffix_ruby_and_attribute(info->path.filename());
+  info->sortkey=Info::to_key(info->path.filename());
   for(const auto&tag:json["tag"].lo())
     info->tag.insert(tag.s());
   for(const auto&dir:json["dirs"].lo())
