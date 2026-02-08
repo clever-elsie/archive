@@ -60,9 +60,8 @@ std::vector<std::string> Info::media_relative_paths(SortingOrder order, bool des
     });
   }
   if(descendant) std::ranges::reverse(ret);
-  std::filesystem::path base(std::filesystem::relative(this->path,mgr.base_dir));
   for(auto&elem:ret)
-    elem=std::filesystem::relative(elem,mgr.base_dir).string();
+    elem=std::filesystem::path(elem).lexically_relative(mgr.base_dir).string();
   return ret;
 }
 
