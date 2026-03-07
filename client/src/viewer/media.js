@@ -249,7 +249,7 @@ export function formatTextToHTML(text) {
 		let html = par.replace(/\r?\n/g, '<br>');
 		html = html.replace(/([0123456789０１２３４５６７８９一二三四五六七八九零〇十百]+[\u4e00-\u9fff]+)/g, '<span style="color:#9cdcfe">$1</span>');
 		html = html.replace(/([0123456789０１２３４５６７８９一二三四五六七八九零〇十百]+)([\u4e00-\u9fff]+)/g, '<span style="color:#b5cea8">$1</span>$2');
-		html = html.replace(/\|([^《]*?)《(.*?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
+		html = html.replace(/[\|｜]([^《]*?)《(.*?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
 		html = html.replace(/([「]+)([^」]*)([」]+)/g,'<span style="color:#CE9178">$1</span><span style="color:#6A9955">$2</span><span style="color:#CE9178">$3</span>');
 		html = html.replace(/([『]+)([^』]*)([』]+)/g,'<span style="color:#ffc934">$1</span><span style="color:#5191c6">$2</span><span style="color:#ffc934">$3</span>');
 		html = html.replace(/([（【]+)([^）]*)([）】]+)/g,'<span style="color:#ce9178">$1</span><span style="color:#5191c6">$2</span><span style="color:#ce9178">$3</span>');
