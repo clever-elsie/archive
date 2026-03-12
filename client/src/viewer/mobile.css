@@ -276,6 +276,15 @@ section h3 {
     background: linear-gradient(135deg, #fcb69f 0%, #ffecd2 100%);
 }
 
+.btn-doc {
+    background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%);
+    color: #0f0f23;
+}
+
+.btn-doc:hover {
+    background: linear-gradient(135deg, #fecfef 0%, #ff9a9e 100%);
+}
+
 /* コントロールボタン */
 .ctrlbutton {
     background: rgba(255, 255, 255, 0.1);
