@@ -2,6 +2,89 @@ import { State } from './state.js';
 import { generateMediaURL } from './api/media.js';
 import { clearNavigationControls } from './ui.js';
 
+// メディア用外部コントロール（音量・フルスクリーン）の管理
+const MediaControls = {
+	storageKey: 'viewer_media_volume',
+
+	getInitialVolume() {
+		try {
+			const raw = localStorage.getItem(this.storageKey);
+			if (raw == null) return 0.8;
+			const num = parseFloat(raw);
+			if (!Number.isFinite(num)) return 0.8;
+			return Math.min(1, Math.max(0, num));
+		} catch (e) {
+			console.warn('音量設定の読み込みに失敗しました', e);
+			return 0.8;
+		}
+	},
+
+	saveVolume(volume) {
+		try {
+			localStorage.setItem(this.storageKey, String(volume));
+		} catch (e) {
+			console.warn('音量設定の保存に失敗しました', e);
+		}
+	},
+
+	attach(mediaElement, type) {
+		if (!mediaElement) return;
+		if (type !== 'video' && type !== 'audio') return;
+
+		const container = document.getElementById('imageContainer');
+		if (!container) return;
+
+		const controls = document.createElement('div');
+		controls.className = 'external-media-controls';
+
+		const label = document.createElement('span');
+		label.textContent = '音量';
+
+		const slider = document.createElement('input');
+		slider.type = 'range';
+		slider.min = '0';
+		slider.max = '100';
+		slider.step = '1';
+		slider.className = 'external-volume-slider';
+
+		const initialVolume = this.getInitialVolume();
+		mediaElement.volume = initialVolume;
+		slider.value = String(Math.round(initialVolume * 100));
+
+		slider.addEventListener('input', () => {
+			const raw = parseInt(slider.value || '0', 10);
+			const clamped = Math.min(100, Math.max(0, isNaN(raw) ? 0 : raw));
+			const vol = clamped / 100;
+			mediaElement.volume = vol;
+			this.saveVolume(vol);
+		});
+
+		const fullscreenButton = document.createElement('button');
+		fullscreenButton.type = 'button';
+		fullscreenButton.className = 'ctrlbutton external-fullscreen-button';
+		fullscreenButton.innerHTML = '<i class="fas fa-expand"></i> フルスクリーン';
+
+		if (type !== 'video') {
+			fullscreenButton.style.display = 'none';
+		} else {
+			fullscreenButton.addEventListener('click', () => {
+				if (document.fullscreenElement) {
+					document.exitFullscreen().catch(() => {});
+					return;
+				}
+				if (mediaElement.requestFullscreen) {
+					mediaElement.requestFullscreen().catch(() => {});
+				}
+			});
+		}
+
+		controls.appendChild(label);
+		controls.appendChild(slider);
+		controls.appendChild(fullscreenButton);
+		container.appendChild(controls);
+	}
+};
+
 // ObjectURL管理
 export function revokeAllMediaObjectUrls() {
 	for (const url of State.media.lastObjectUrls) URL.revokeObjectURL(url);
@@ -218,8 +301,10 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 		}
 		document.getElementById('title').innerHTML = filename;
 		document.getElementById('counter').innerHTML = 1;
-		document.getElementById('imageContainer').innerHTML = '';
-		document.getElementById('imageContainer').appendChild(elem);
+		const imageContainer = document.getElementById('imageContainer');
+		imageContainer.innerHTML = '';
+		imageContainer.appendChild(elem);
+		MediaControls.attach(media, type);
 		document.getElementById('parentContainer').innerHTML = '';
 		if (mediaList && currentIndex !== null) {
 			displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
