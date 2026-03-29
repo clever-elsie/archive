@@ -40,9 +40,11 @@ bool Info::refresh(size_t depth){
       return false;
     }
     if(time_result.value > this->last_write_time){ // 更新有り
+      mgr.leaf_dirs.erase(this);
       reload_info(), reload_leaf();
       this->last_write_time = time_result.value;
       has_update = true;
+      mgr.leaf_dirs.insert(this);
     }
   }else if(is_directory){ // ディレクトリ
     auto time_result = SafeFS::last_write_time(path);
