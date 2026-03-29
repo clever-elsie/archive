@@ -8,7 +8,7 @@ namespace VIEWER{
 
 int Info::add_tag(std::string&& tag){
   if(this->tag.contains(tag)) return 200;
-  std::filesystem::path info=this->path/".info";
+  std::filesystem::path info=this->path.path/".info";
   std::ofstream ofs(info,ios_base::app);
   ofs<<tag<<'\n';
   this->tag.emplace(std::move(tag));
@@ -18,7 +18,7 @@ int Info::add_tag(std::string&& tag){
 int Info::remove_tag(const std::string& tag){
   if(!this->tag.contains(tag)) return 200;
   this->tag.erase(tag);
-  std::filesystem::path info=this->path/".info";
+  std::filesystem::path info=this->path.path/".info";
   std::ofstream ofs(info,ios_base::trunc);
   for(const auto&x:this->tag)
     ofs<<x<<'\n';

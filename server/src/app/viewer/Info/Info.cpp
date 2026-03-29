@@ -38,6 +38,12 @@ std::array<size_t, 4> find_ruby(const std::string&dirname){
   return ruby_range;
 }
 
+Path::Path(const filesystem::path&path_)
+:path(path_),
+dirname_without_ruby(Info::remove_suffix_ruby_and_attribute(path_.filename())),
+sortkey(Info::to_key(path_.filename()))
+{}
+
 std::string Info::remove_suffix_ruby_and_attribute(const std::string&dirname){
   // ルビ削除の前に将来的には属性削除も行う
   //static const std::regex suffix_regex("([^《]*)《[^》]*》.*");
@@ -78,7 +84,7 @@ std::string Info::to_key(const std::string&dirname){
 }
 
 Info::Info(const filesystem::path&dir,Info*par_)
-:path(dir),dirname_without_ruby(remove_suffix_ruby_and_attribute(dir.filename())),sortkey(to_key(dir.filename())),
+:path(dir),
 tag(),
 dirs(),media(),par(par_?:this),
 is_directory(false),has_filesystem_error(false){
@@ -118,7 +124,7 @@ is_directory(false),has_filesystem_error(false){
   }
   sort();
   if(auto imgs=media_vector<MediaType::image>();!imgs.empty()) {
-    auto img_time_result = SafeFS::last_write_time(filesystem::path(path)/imgs[0]);
+    auto img_time_result = SafeFS::last_write_time(filesystem::path(path.path)/imgs[0]);
     if (img_time_result.success())
       last_write_time = img_time_result.value;
     else{
@@ -148,7 +154,7 @@ void Info::handle_filesystem_error(const std::error_code& ec, const std::string&
   
   // ログ出力
   std::cerr << "Filesystem error in " << operation 
-            << " for path " << path.string() 
+            << " for path " << path.path.string() 
             << ": " << ec.message() << std::endl;
   
   // エラー種別に応じた処理

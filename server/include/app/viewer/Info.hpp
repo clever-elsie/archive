@@ -18,6 +18,27 @@
 namespace VIEWER{
 using namespace std;
 
+struct Path{
+  // ファイル名は最終的に filename《.*》.attributeのように任意個の属性とルビを末尾に付けるものとする
+  filesystem::path path; // config/param.json[VIEWER_DIR]からのフルパス
+  string dirname_without_ruby; // path.filename() without 《.*》
+  string sortkey; // dirnameをソート用に変換したもの
+  Path()=default;
+  Path(const filesystem::path&path_);
+  bool contains(const string&s)const{
+    return contains(string_view(s));
+  }
+  bool contains(const string_view&s)const{
+    return path.string().contains(s);
+  }
+  bool operator==(const Path&other)const{
+    return path==other.path;
+  }
+  bool operator<(const Path&other)const{
+    return path<other.path;
+  }
+};
+
 struct Info : public RETRIEVE::Retrieval{
   // 型
   enum class MediaType{
@@ -33,10 +54,7 @@ struct Info : public RETRIEVE::Retrieval{
   };
   // 属性
   private:
-  // ファイル名は最終的に filename《.*》.attributeのように任意個の属性とルビを末尾に付けるものとする
-  filesystem::path path; // config/param.json[VIEWER_DIR]からのフルパス
-  string dirname_without_ruby; // path.filename() without 《.*》
-  string sortkey; // dirnameをソート用に変換したもの
+  Path path;
   set<string>tag; // .infoファイルのタグ
   vector<unique_ptr<Info>>dirs; // 子ディレクトリのリスト
   MediaArray media; // メディアファイルのリスト
@@ -64,7 +82,7 @@ struct Info : public RETRIEVE::Retrieval{
 
   public: // 継承
   virtual bool match(const string&s)const override{
-    return tag.contains(s) || path.string().contains(s);
+    return tag.contains(s) || path.contains(s);
   }
 
   public: // 操作 refresh.cpp
@@ -117,12 +135,12 @@ struct Info : public RETRIEVE::Retrieval{
   public: // 状態確認 status.cpp
   uint64_t id()const{ return reinterpret_cast<uint64_t>(this); }
   filesystem::file_time_type last_write_time_value()const{ return last_write_time; }
-  std::string sortkey_value()const{ return sortkey; }
+  std::string sortkey_value()const{ return path.sortkey; }
   uint64_t parent_id()const{ return par->id(); }
   Info* parent()const{ return par; }
   std::string relative_path()const;
-  std::filesystem::path full_path()const{ return path; }
-  std::string dirname()const{ return dirname_without_ruby; }
+  std::filesystem::path full_path()const{ return path.path; }
+  std::string dirname()const{ return path.dirname_without_ruby; }
   inline bool has_only_img()const{
     for(const auto&v:media|std::views::drop(1))
       if(!v.empty()) return false;

@@ -27,9 +27,7 @@ unique_ptr<Info> Info::from_json(unordered_map<uint64_t, Info*>&id2info, const c
   unique_ptr<Info> info=make_unique<Info>();
   id2info[json["id"].u()]=info.get();
   info->par=id2info[json["par"].u()];
-  info->path=filesystem::path(json["path"].s());
-  info->dirname_without_ruby=Info::remove_suffix_ruby_and_attribute(info->path.filename());
-  info->sortkey=Info::to_key(info->path.filename());
+  info->path=Path(filesystem::path(json["path"].s()));
   for(const auto&tag:json["tag"].lo())
     info->tag.insert(tag.s());
   for(const auto&dir:json["dirs"].lo())
@@ -63,7 +61,7 @@ crow::json::wvalue Info::to_json()const{
   crow::json::wvalue::list dirs_json;
   json["id"]=id();
   json["par"]=par->id();
-  json["path"]=path.string();
+  json["path"]=path.path.string();
   json["tag"]=crow::json::wvalue::list(tag.begin(),tag.end());
   for(const auto&dir:dirs)
     dirs_json.push_back(dir->to_json());

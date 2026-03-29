@@ -12,7 +12,7 @@ std::filesystem::path Info::locate_media(MediaType type, const std::string& file
   manager&mgr=manager::get_instance();
   std::error_code ec;
   auto canon_base = std::filesystem::weakly_canonical(std::filesystem::path(mgr.base_dir), ec);
-  auto path = this->path/filename;
+  auto path = this->path.path/filename;
   auto canon_path = std::filesystem::weakly_canonical(path, ec);
   if(ec || canon_path.empty() || canon_base.empty())
     throw 404;
@@ -27,7 +27,7 @@ std::string Info::current_thumbnail_relative_path()const{
   const auto& imgs=this->media_vector<MediaType::image>();
   if(imgs.empty()) return "";
   manager&mgr=manager::get_instance();
-  return std::filesystem::relative(filesystem::path(this->path)/imgs[0],mgr.base_dir).string();
+  return std::filesystem::relative(filesystem::path(this->path.path)/imgs[0],mgr.base_dir).string();
 }
 
 std::vector<std::string> Info::all_thumbnail_relative_paths()const{
@@ -50,7 +50,7 @@ std::vector<std::string> Info::media_relative_paths(SortingOrder order, bool des
   std::vector<std::string> ret = media_vector<type>();
   manager&mgr=manager::get_instance();
   for(auto& elem:ret)
-    elem=(this->path/elem).string();
+    elem=(this->path.path/elem).string();
   if(order==SortingOrder::last_write_time){
     std::ranges::sort(ret,[](const auto&a,const auto&b){
         auto at=filesystem::last_write_time(a);

@@ -21,7 +21,7 @@ bool Info::refresh(size_t depth){
   bool has_update = false;
   
   // 安全なexists確認
-  auto exists_result = SafeFS::exists(path);
+  auto exists_result = SafeFS::exists(path.path);
   if (!exists_result.success()) {
     handle_filesystem_error(exists_result.ec, "exists");
     return false;
@@ -33,7 +33,7 @@ bool Info::refresh(size_t depth){
     return false;
   }
   if(has_only_img()){ // 葉ノード（画像のみ）
-    auto time_result = SafeFS::last_write_time(path/media_vector<MediaType::image>()[0]);
+    auto time_result = SafeFS::last_write_time(path.path/media_vector<MediaType::image>()[0]);
     if(!time_result.success()){
       handle_filesystem_error(time_result.ec, "last_write_time (leaf)");
       refresh_from_parent();
@@ -47,7 +47,7 @@ bool Info::refresh(size_t depth){
       mgr.leaf_dirs.insert(this);
     }
   }else if(is_directory){ // ディレクトリ
-    auto time_result = SafeFS::last_write_time(path);
+    auto time_result = SafeFS::last_write_time(path.path);
     if(!time_result.success()){
       handle_filesystem_error(time_result.ec, "last_write_time (directory)");
       // 自分自身の情報を取得できないとき，他のタスクがディレクトリをロックしている
@@ -73,7 +73,7 @@ bool Info::refresh(size_t depth){
 }
 
 void Info::reload_info(){
-  const filesystem::path info=this->path / ".info";
+  const filesystem::path info=this->path.path / ".info";
   auto exists_result = SafeFS::exists(info);
   if(!exists_result.success() || !exists_result.value) {
     if(!exists_result.success())
@@ -97,7 +97,7 @@ void Info::reload_info(){
 }
 
 void Info::reload_leaf(){
-  auto iter_result = SafeFS::directory_iterator(this->path);
+  auto iter_result = SafeFS::directory_iterator(this->path.path);
   if(!iter_result.success()){
     handle_filesystem_error(iter_result.ec, "reload_leaf directory_iterator");
     return;
@@ -112,7 +112,7 @@ void Info::reload_leaf(){
 void Info::reload_dir(size_t depth){
   vector<size_t> to_del;
   for(size_t i=0;i<dirs.size();){
-    auto exists_result = SafeFS::exists(dirs[i]->path);
+    auto exists_result = SafeFS::exists(dirs[i]->path.path);
     if (!exists_result.success()) {
       handle_filesystem_error(exists_result.ec, "reload_dir exists");
       continue;
@@ -127,7 +127,7 @@ void Info::reload_dir(size_t depth){
   // 画像・各種メディアファイルの削除チェック
   auto erase_if_missing = [this](std::vector<std::string>& files, const char* op_name){
     for(size_t i=0;i<files.size();){
-      auto exists_result = SafeFS::exists(filesystem::path(this->path)/files[i]);
+      auto exists_result = SafeFS::exists(filesystem::path(this->path.path)/files[i]);
       if(!exists_result.success()){
         handle_filesystem_error(exists_result.ec, op_name);
         continue;
@@ -151,7 +151,7 @@ void Info::reload_dir(size_t depth){
   sort_media_arrays();
   vector<unique_ptr<Info>> to_ins;
   Info::MediaArray to_ins_media{};
-  auto iter_result = SafeFS::directory_iterator(path);
+  auto iter_result = SafeFS::directory_iterator(path.path);
   if(!iter_result.success()){
     handle_filesystem_error(iter_result.ec, "reload_dir directory_iterator");
     return;
