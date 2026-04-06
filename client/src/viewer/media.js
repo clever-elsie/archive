@@ -335,11 +335,65 @@ export function formatTextToHTML(text) {
 		html = html.replace(/([0123456789０１２３４５６７８９一二三四五六七八九零〇十百]+[\u4e00-\u9fff]+)/g, '<span style="color:#9cdcfe">$1</span>');
 		html = html.replace(/([0123456789０１２３４５６７８９一二三四五六七八九零〇十百]+)([\u4e00-\u9fff]+)/g, '<span style="color:#b5cea8">$1</span>$2');
 		html = html.replace(/[\|｜]([^《]*?)《(.*?)》/g, '<ruby>$1<rt>$2</rt></ruby>');
-		html = html.replace(/([「]+)([^」]*)([」]+)/g,'<span style="color:#CE9178">$1</span><span style="color:#6A9955">$2</span><span style="color:#CE9178">$3</span>');
-		html = html.replace(/([『]+)([^』]*)([』]+)/g,'<span style="color:#ffc934">$1</span><span style="color:#5191c6">$2</span><span style="color:#ffc934">$3</span>');
-		html = html.replace(/([（【]+)([^）]*)([）】]+)/g,'<span style="color:#ce9178">$1</span><span style="color:#5191c6">$2</span><span style="color:#ce9178">$3</span>');
+		html = colorizeNestedBrackets(html);
 		return `<p>${html}</p><br>`;
 	}).join('');
+}
+
+function colorizeNestedBrackets(inputHtml) {
+	const stylesByOpen = new Map([
+		['「', { close: '」', openCloseColor: '#CE9178', innerColor: '#6A9955' }],
+		['『', { close: '』', openCloseColor: '#ffc934', innerColor: '#5191c6' }],
+		['【', { close: '】', openCloseColor: '#ce9178', innerColor: '#5191c6' }],
+		['（', { close: '）', openCloseColor: '#ce9178', innerColor: '#5191c6' }]
+	]);
+
+	function parseFrom(idx, stopChar) {
+		let out = '';
+		let i = idx;
+
+		while (i < inputHtml.length) {
+			const ch = inputHtml[i];
+
+			if (stopChar && ch === stopChar) {
+				return { out, nextIndex: i + 1, foundStop: true };
+			}
+
+			if (ch === '<') {
+				const end = inputHtml.indexOf('>', i);
+				if (end === -1) {
+					out += inputHtml.slice(i);
+					return { out, nextIndex: inputHtml.length, foundStop: false };
+				}
+				out += inputHtml.slice(i, end + 1);
+				i = end + 1;
+				continue;
+			}
+
+			const style = stylesByOpen.get(ch);
+			if (style) {
+				const afterOpen = i + 1;
+				const inner = parseFrom(afterOpen, style.close);
+				if (inner.foundStop) {
+					out += `<span style="color:${style.openCloseColor}">${ch}</span>` +
+						`<span style="color:${style.innerColor}">${inner.out}</span>` +
+						`<span style="color:${style.openCloseColor}">${style.close}</span>`;
+					i = inner.nextIndex;
+					continue;
+				}
+				out += ch + inner.out;
+				i = inner.nextIndex;
+				continue;
+			}
+
+			out += ch;
+			i += 1;
+		}
+
+		return { out, nextIndex: i, foundStop: false };
+	}
+
+	return parseFrom(0, null).out;
 }
 
 export function displayTextFrame(textURL, textList = null, currentIndex = null) {
