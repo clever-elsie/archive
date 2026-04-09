@@ -78,7 +78,7 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 
 export function fetchRandomImage() {
 	const cnt = window.innerWidth > window.innerHeight ? 5 : 12;
-	authenticatedFetch('/req/img/rand/' + cnt, { method: 'GET' })
+	authenticatedFetch('/req/img/rand/' + cnt, { method: 'POST' })
 		.then(response => response.json())
 		.then(data => {
 			let container = document.getElementById('thumbnailContainer');

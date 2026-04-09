@@ -39,8 +39,8 @@ crow::response memo_search(const crow::request &req) {
   
   lock_guard<mutex> lock(mmtex);
   
-  auto data = crow::json::load(req.body);
-  string query = data["query"].s();
+  const char* query_c = req.url_params.get("query");
+  string query = query_c ? string(query_c) : string();
   
   string user_path = get_user_memo_path(username);
   crow::json::wvalue::list v;
@@ -136,8 +136,9 @@ crow::response memo_now(const crow::request& req) {
   
   lock_guard<mutex> lock(mmtex);
   
-  auto data = crow::json::load(req.body);
-  string filename = data["filename"].s();
+  const char* fn_c = req.url_params.get("filename");
+  if(!fn_c) return error_response("ファイル名が指定されていません");
+  string filename(fn_c);
   
   for(const auto& pattern : {"..", "/", "\\"})
     if (filename.find(pattern) != string::npos)
@@ -158,8 +159,9 @@ crow::response memo_rm(const crow::request &req) {
   if (username.empty())
     return error_response("ユーザー情報が取得できません");
   lock_guard<mutex> lock(mmtex);
-  auto data = crow::json::load(req.body);
-  string filename = data["filename"].s();
+  const char* fn_c = req.url_params.get("filename");
+  if(!fn_c) return error_response("ファイル名が指定されていません");
+  string filename(fn_c);
   for(const auto& pattern : {"..", "/", "\\"})
     if (filename.find(pattern) != string::npos)
       return error_response("無効なファイル名です");
@@ -206,12 +208,10 @@ crow::response memo_rename(const crow::request &req) {
   memo.updated_at = get_current_timestamp();
   if (!memo.save(new_path))
     return error_response("メモの保存に失敗しました");
-  return crow::response(200);
-  
-  try {
-    filesystem::rename(old_path, new_path);
-  } catch (...) {
-    return error_response("ファイル名の変更に失敗しました");
+  try{
+    filesystem::remove(old_path);
+  }catch(...){
+    return error_response("元のファイルの削除に失敗しました");
   }
   
   // 成功レスポンスに新しいファイル名情報を含める
@@ -267,8 +267,9 @@ crow::response memo_check_title(const crow::request &req) {
   
   lock_guard<mutex> lock(mmtex);
   
-  auto data = crow::json::load(req.body);
-  string title = data["title"].s();
+  const char* title_c = req.url_params.get("title");
+  if(!title_c) return error_response("タイトルは必須です");
+  string title(title_c);
   
   // タイトルの安全性をチェック
   for(const auto& pattern : {"..", "/", "\\"})

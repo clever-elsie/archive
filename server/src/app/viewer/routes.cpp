@@ -17,7 +17,7 @@ void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir)
   mgr.start_initial_load(mgr.base_dir);
 
   CROW_ROUTE(app,"/req/img/rand/<int>")
-    .methods(crow::HTTPMethod::GET)
+    .methods(crow::HTTPMethod::POST)
       (VIEWER::get_rand_imgs);
   CROW_ROUTE(app,"/req/img")
     .methods(crow::HTTPMethod::POST)
@@ -33,11 +33,11 @@ void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir)
       (VIEWER::get_dir_list);
   // ファイル構造キャッシュリロード
   CROW_ROUTE(app,"/req/img/reload")
-    .methods(crow::HTTPMethod::GET)
+    .methods(crow::HTTPMethod::POST)
       (VIEWER::reload_leaf);
   // タグ更新
   CROW_ROUTE(app,"/req/img/info_renew")
-    .methods(crow::HTTPMethod::POST)
+    .methods(crow::HTTPMethod::PATCH)
       (VIEWER::info_renew);
 
   // X-Accel-Redirect を利用した配信用（GET）。

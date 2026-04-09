@@ -52,8 +52,8 @@ crow::response shared_memo_update(const crow::request &req) {
 }
 
 crow::response shared_memo_delete(const crow::request &req) {
-  auto data = crow::json::load(req.body);
-  string id = data["id"].s();
+  const char* id_c = req.url_params.get("id");
+  string id = id_c ? string(id_c) : string();
   if (id.empty()) return error_response("IDは必須です");
   if (!delete_shared_memo(id))
     return error_response("メモが見つからないか削除に失敗しました");
@@ -61,8 +61,8 @@ crow::response shared_memo_delete(const crow::request &req) {
 }
 
 crow::response shared_memo_get(const crow::request &req) {
-  auto data = crow::json::load(req.body);
-  string id = data["id"].s();
+  const char* id_c = req.url_params.get("id");
+  string id = id_c ? string(id_c) : string();
   if (id.empty()) return error_response("IDは必須です");
   SharedMemoData memo = get_shared_memo(id);
   if (memo.id.empty()) return error_response("メモが見つかりません");

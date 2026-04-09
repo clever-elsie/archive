@@ -30,7 +30,7 @@ export function Info(AD) {
 	for (let i = 0; i < tokens.length; ++i) {
 		let item = tokens[i];
 		authenticatedFetch('/req/img/info_renew', {
-			method: 'POST',
+			method: 'PATCH',
 			body: JSON.stringify({ 'AD': AD, 'id': State.metadata.infoId, 'data': item })
 		})
 		.then(response => {

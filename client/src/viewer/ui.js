@@ -38,7 +38,7 @@ export function reload_leaf_req(e) {
 	State.directory.parentId = 0; State.directory.currentId = 0;
 	document.getElementById('page_list').innerHTML = '';
 	resetViewerUI();
-	authenticatedFetch('/req/img/reload', { method: 'GET' })
+	authenticatedFetch('/req/img/reload', { method: 'POST' })
 		.then(() => { fetchPageList(); });
 }
 
