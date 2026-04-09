@@ -10,7 +10,7 @@ import {
 	fetchMemoNow
 } from '../api/memos.js';
 import { makeTabKey, openTabs } from '../tabs/state.js';
-import { createEditorTab, activate_tab } from '../tabs/tabs.js';
+import { createEditorTab, activate_tab, closeTabsBy } from '../tabs/tabs.js';
 import { mark_dirty } from '../tabs/tabs.js';
 import { showError, showSuccess, ensureNotificationKeyframes } from '../ui/notifications.js';
 
@@ -160,6 +160,8 @@ export async function delete_memo(filename) {
 	if (!confirm(`メモ "${stem}" を削除しますか？この操作は取り消せません。`)) return;
 	try {
 		await deleteMemo(filename);
+		// 開いているエディタも閉じる（削除を即反映）
+		closeTabsBy((entry) => entry.kind === 'personal' && String(entry.rawKey) === String(filename));
 		const memoItem = document.querySelector(`.memo-item[data-filename="${stem}"]`);
 		if (memoItem) memoItem.remove();
 		updateMemoCounter();

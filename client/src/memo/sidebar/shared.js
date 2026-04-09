@@ -5,7 +5,7 @@ import {
 	deleteSharedMemo
 } from '../api/memos.js';
 import { makeTabKey, openTabs } from '../tabs/state.js';
-import { createEditorTab, activate_tab } from '../tabs/tabs.js';
+import { createEditorTab, activate_tab, closeTabsBy } from '../tabs/tabs.js';
 import { mark_dirty } from '../tabs/tabs.js';
 import { showError, showSuccess } from '../ui/notifications.js';
 
@@ -108,9 +108,9 @@ export async function save_shared_memo(id) {
 export async function new_shared_memo() {
 	const title = prompt('共用メモのタイトルを入力してください:');
 	if (!title || title.trim() === '') return;
-	const body = prompt('共用メモの内容を入力してください:');
 	try {
-		const data = await createSharedMemo({ title: title.trim(), body: body || '' });
+		// 本文は作成後にエディタで入力する（作成時のポップアップ入力は不要）
+		const data = await createSharedMemo({ title: title.trim(), body: '' });
 		add_shared_memo_item(data.id, data.title, data.body, data.author, data.created_at, data.updated_at);
 		showSuccess('新しい共用メモを作成しました');
 		open_shared_tab(data.id);
@@ -124,6 +124,8 @@ export async function delete_shared_memo(id) {
 	if (!confirm('この共用メモを削除しますか？この操作は取り消せません。')) return;
 	try {
 		await deleteSharedMemo(id);
+		// 開いているエディタも閉じる（削除を即反映）
+		closeTabsBy((entry) => entry.kind === 'shared' && String(entry.rawKey) === String(id));
 		const memoItem = document.querySelector(`.shared-memo-item[data-id="${id}"]`);
 		if (memoItem) memoItem.remove();
 		showSuccess('共用メモを削除しました');

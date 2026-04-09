@@ -1,7 +1,8 @@
 import { openTabs } from './state.js';
 import { getActiveTabKey } from './tabs.js';
+import { mark_dirty } from './tabs.js';
 import { saveMemo, saveSharedMemo } from '../api/memos.js';
-import { showError } from '../ui/notifications.js';
+import { showError, showSuccess } from '../ui/notifications.js';
 
 export function updateSavebarStatus() {
 	const status = document.getElementById('memoSaveStatus');
@@ -29,10 +30,13 @@ export async function save_active_tab() {
 	try {
 		if (entry.kind === 'shared') {
 			await saveSharedMemo(entry.rawKey, entry.stem, entry.textarea.value);
+			showSuccess('共用メモを保存しました');
 		} else {
 			await saveMemo(entry.rawKey, entry.textarea.value);
+			showSuccess('メモを保存しました');
 		}
-		// dirty解除は呼び出し側で行う（tabs側のmark_dirty）
+		// 保存成功時にUI（タブラベル/保存バー）へ即反映
+		mark_dirty(key, false);
 	} catch (e) {
 		showError(e?.message || '保存に失敗しました');
 	}

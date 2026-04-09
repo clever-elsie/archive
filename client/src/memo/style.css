@@ -903,6 +903,13 @@ body {
 	display: none;
 	z-index: 2147483647;
 }
+
+/* cloneされた透過メニュー（.memo-popup-menu-global）が横に伸び続けないよう制約 */
+.memo-popup-menu-global {
+	max-width: min(320px, calc(100vw - 16px));
+	width: max-content;
+}
+
 .memo-popup-menu button {
 	width: 100%;
 	background: none;
@@ -916,6 +923,9 @@ body {
 	display: flex;
 	align-items: center;
 	gap: 0.5rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
 }
 .memo-popup-menu button:hover {
 	background: rgba(100,255,218,0.08);

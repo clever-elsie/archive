@@ -64,6 +64,14 @@ export function close_tab(tabKey) {
 	updateSavebarStatus();
 }
 
+export function closeTabsBy(predicate) {
+	for (const [tabKey, entry] of Array.from(openTabs.entries())) {
+		if (!predicate(entry, tabKey)) continue;
+		// close_tab は Map を変更するので、配列化したentriesで安全に回す
+		close_tab(tabKey);
+	}
+}
+
 export function mark_dirty(tabKey, dirty) {
 	const entry = openTabs.get(tabKey);
 	if (!entry) return;
