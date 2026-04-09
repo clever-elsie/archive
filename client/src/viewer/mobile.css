@@ -22,11 +22,8 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
-body::after {
-    content: "";
-    display: block;
-    height: 150vh;
-}
+/* body::after で常時スクロールを発生させない */
+
 
 /* ヘッダー */
 .header {
@@ -647,9 +644,20 @@ img:hover {
     max-width: 100%;
     margin: 0 auto;
     font-family: 'Inter', sans-serif;
-    font-size: 0.9rem;
+    font-size: 1rem;
     line-height: 1.6;
     word-wrap: break-word;
+}
+
+/* ドキュメント（PDF等）表示 */
+.image-container iframe.docFrame {
+	width: 100%;
+	height: calc(100dvh - 220px);
+	min-height: 60dvh;
+	max-height: 92dvh;
+	border: none;
+	border-radius: 10px;
+	background: rgba(255, 255, 255, 0.02);
 }
 
 /* ビデオフレーム */
@@ -785,6 +793,11 @@ figcaption {
     .main-content {
         padding: 0.5rem;
     }
+
+	.image-container iframe.docFrame {
+		height: calc(100dvh - 160px);
+		min-height: 55dvh;
+	}
     
     .metadata-section {
         flex-direction: row;

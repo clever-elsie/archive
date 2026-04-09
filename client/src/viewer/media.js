@@ -258,9 +258,7 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 			// PDFなどのドキュメントは iframe で表示
 			const iframe = document.createElement('iframe');
 			iframe.src = objUrl;
-			iframe.style.width = '90vw';
-			iframe.style.height = '80vh';
-			iframe.style.border = 'none';
+			iframe.className = 'docFrame';
 			document.getElementById('title').innerHTML = filename;
 			document.getElementById('counter').innerHTML = 1;
 			document.getElementById('imageContainer').innerHTML = '';

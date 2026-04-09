@@ -505,6 +505,7 @@ img:hover {
 	.floating-nav {
 		bottom: 1rem;
 		right: 1rem;
+		left: auto;
 	}
 	
 	.nav-item {
@@ -618,12 +619,24 @@ img:hover {
 	max-width: 800px;
 	margin: 0 auto;
 	font-family: 'Inter', sans-serif;
-	font-size: 1rem;
+	font-size: clamp(16px, 1.2vw + 0.6rem, 20px);
 	line-height: 1.8;
 	color: #ffffff;
 	background: rgba(255, 255, 255, 0.02);
 	border-radius: 16px;
 	border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* ドキュメント（PDF等）表示 */
+.image-container iframe.docFrame {
+	width: 100%;
+	max-width: 1100px;
+	height: calc(100dvh - 220px);
+	min-height: 60dvh;
+	max-height: 92dvh;
+	border: none;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.02);
 }
 
 /* カウンター表示 */
@@ -772,8 +785,4 @@ figcaption {
 	background-position: right 1rem center;
 	background-size: 1.2em;
 }
-body::after {
-    content: "";
-    display: block;
-    height: 150vh;
-}
+/* body::after で常時スクロールを発生させない */

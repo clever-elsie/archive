@@ -25,7 +25,6 @@
 			</a>
 			<div class="header-info">
 				<h1 class="title">メモ管理</h1>
-				<div class="counter" id="memoCounter">0</div>
 			</div>
 		</div>
 	</header>
@@ -34,6 +33,10 @@
 	<main class="memo-app">
 		<aside class="memo-sidebar">
 			<div class="sidebar-header">
+				<div class="sidebar-memo-counter">
+					<span class="counter-label">メモ数</span>
+					<span class="counter-value" id="memoCounter">0</span>
+				</div>
 				<div class="search-input-container">
 					<input type="text" id="searchInput" class="search-input" placeholder="検索キーワードを入力...">
 					<button class="btn btn-secondary" onclick="search_memos()">
@@ -68,6 +71,13 @@
 		<section class="memo-editor-pane">
 			<div id="editorTabs" class="editor-tabs"></div>
 			<div id="editorArea" class="editor-area"></div>
+			<div class="memo-savebar" id="memoSavebar">
+				<button class="btn btn-primary" type="button" onclick="save_active_tab()" title="現在表示中を保存 (Ctrl+S)">
+					<i class="fas fa-save"></i>
+					保存
+				</button>
+				<span class="savebar-status" id="memoSaveStatus">未選択</span>
+			</div>
 		</section>
 	</main>
 
@@ -75,6 +85,6 @@
 	<script src="/static/vendor/markdown-it/markdown-it.min.js"></script>
 	<script src="/static/vendor/markdown-it-texmath/texmath.min.js"></script>
 	<script src="/static/common.js"></script>
-	<script src="/static/memo/script.js"></script>
+	<script type="module" src="/static/memo/main.js"></script>
 </body>
 </html>
