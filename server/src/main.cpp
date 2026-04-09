@@ -1,5 +1,6 @@
 #include <manager/config.hpp>
 #include <manager/auth/routes.hpp>
+#include <manager/auth/authorization_middleware.hpp>
 #include <manager/users/routes.hpp>
 #include <app/viewer/routes.hpp>
 #include <app/memo/routes.hpp>
@@ -13,7 +14,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
-	crow::App<MIDDLEWARE::AuthMiddleware> app;
+	crow::App<MIDDLEWARE::AuthMiddleware, MIDDLEWARE::AuthorizationMiddleware> app;
 	app.port(CONFIG::params.SERVER_PORT);
 	app.ssl_file(CONFIG::params.SSL_CERT_PATH, CONFIG::params.SSL_KEY_PATH);
 	

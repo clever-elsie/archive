@@ -10,7 +10,7 @@
 #include <app/viewer/manager.hpp>
 
 namespace VIEWER{
-void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir){
+void setup(App& app, std::string&& viewer_dir){
   namespace fs = std::filesystem;
   manager&mgr = manager::get_instance();
   mgr.base_dir = std::move(viewer_dir);

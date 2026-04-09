@@ -15,15 +15,15 @@ crow::response register_user(const crow::request& req) {
     string username = data["username"].s();
     string password = data["password"].s();
     string role = data["role"].s();
-    string created_by = data["created_by"].s();
     // 毎回ユーザー存在確認
     bool is_first_user = USER_MANAGER::user_manager.is_first_user();
+    // 実行者（権限判断/監査用）はトークンから取得（クライアント入力は信用しない）
+    string created_by = is_first_user ? "system" : AUTH::get_username_from_token(MIDDLEWARE::extract_token(req));
     // 初回ユーザーでない場合の権限チェック
     if (!is_first_user) {
-      if (role == "admin" && !USER_MANAGER::user_manager.can_register_admin(created_by))
-        return default_response(false, "管理者登録の権限がありません", 403);
-      if (role == "user" && !USER_MANAGER::user_manager.can_register_user(created_by))
-        return default_response(false, "ユーザー登録の権限がありません", 403);
+      // 認可はミドルウェアで実施するが、created_by が空の場合は不正なので弾く
+      if (created_by.empty())
+        return default_response(false, "認証が必要です", 401);
     }
     // 入力バリデーション
     static const std::regex re_user("^[A-Za-z0-9]{1,32}$");
@@ -44,7 +44,9 @@ crow::response delete_user(const crow::request& req) {
   try {
     auto data = crow::json::load(req.body);
     string username = data["username"].s();
-    string deleted_by = data["deleted_by"].s();
+    string deleted_by = AUTH::get_username_from_token(MIDDLEWARE::extract_token(req));
+    if (deleted_by.empty())
+      return default_response(false, "認証が必要です", 401);
     
     if (USER_MANAGER::user_manager.delete_user(username, deleted_by))
       return default_response(true, "ユーザーが正常に削除されました");
@@ -58,7 +60,9 @@ crow::response promote_user(const crow::request& req) {
   try {
     auto data = crow::json::load(req.body);
     string username = data["username"].s();
-    string promoted_by = data["promoted_by"].s();
+    string promoted_by = AUTH::get_username_from_token(MIDDLEWARE::extract_token(req));
+    if (promoted_by.empty())
+      return default_response(false, "認証が必要です", 401);
     
     if (USER_MANAGER::user_manager.promote_user(username, promoted_by))
       return default_response(true, "ユーザーが管理者に昇格されました");
@@ -72,7 +76,9 @@ crow::response demote_user(const crow::request& req) {
   try {
     auto data = crow::json::load(req.body);
     string username = data["username"].s();
-    string demoted_by = data["demoted_by"].s();
+    string demoted_by = AUTH::get_username_from_token(MIDDLEWARE::extract_token(req));
+    if (demoted_by.empty())
+      return default_response(false, "認証が必要です", 401);
     
     if (USER_MANAGER::user_manager.demote_user(username, demoted_by))
       return default_response(true, "ユーザーが一般ユーザーに降格されました");

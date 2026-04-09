@@ -1,8 +1,5 @@
 #include <crow/json.h>
 
-#include <manager/auth/middleware.hpp>
-#include <manager/auth/auth.hpp>
-#include <manager/users/manager.hpp>
 #include <app/viewer/tag.hpp>
 #include <app/viewer/manager.hpp>
 #include <app/viewer/inline_helper.hpp>
@@ -11,8 +8,6 @@ namespace VIEWER{
 using namespace std;
 
 crow::response info_renew(const crow::request&req){
-	if (!USER_MANAGER::user_manager.is_admin(AUTH::get_username_from_token(MIDDLEWARE::extract_token(req))))
-		return crow::response(403, crow::json::wvalue{crow::json::wvalue::object{{"error", "管理者権限が必要です"}}});
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
 	const auto data=crow::json::load(req.body);

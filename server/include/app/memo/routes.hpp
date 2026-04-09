@@ -3,9 +3,11 @@
 
 #include "memo.hpp"
 #include <manager/auth/middleware.hpp>
+#include <manager/auth/authorization_middleware.hpp>
 
 namespace MEMO{
 
-void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app);
+using App = crow::App<MIDDLEWARE::AuthMiddleware, MIDDLEWARE::AuthorizationMiddleware>;
+void setup(App& app);
 
 } // namespace MEMO

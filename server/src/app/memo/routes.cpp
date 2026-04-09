@@ -2,7 +2,7 @@
 
 namespace MEMO{
 
-void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app){
+void setup(App& app){
 	namespace fs = std::filesystem;
 	MEMO::memo_base_path = fs::canonical(fs::current_path() / "memo").string() + "/";
 

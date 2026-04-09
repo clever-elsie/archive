@@ -1,8 +1,6 @@
 #include <crow/logging.h>
 #include <crow/json.h>
 
-#include <manager/auth/middleware.hpp>
-#include <manager/auth/auth.hpp>
 #include <app/viewer/loader.hpp>
 #include <app/viewer/manager.hpp>
 
@@ -43,10 +41,6 @@ void load_leaf_dir(const string&base){
 }
 
 crow::response reload_leaf(const crow::request&req){
-	// 管理者権限チェック
-	if (!USER_MANAGER::user_manager.is_admin(AUTH::get_username_from_token(MIDDLEWARE::extract_token(req))))
-		return crow::response(403, crow::json::wvalue{crow::json::wvalue::object{{"error", "管理者権限が必要です"}}});
-	
 	manager& mgr = manager::get_instance();
 	load_leaf_dir(mgr.base_dir);
 	if(mgr.leaf_dirs.size()==0) return crow::response(400);

@@ -1,9 +1,11 @@
 #pragma once
 #include <crow.h>
 #include <manager/auth/middleware.hpp>
+#include <manager/auth/authorization_middleware.hpp>
 
 namespace VIEWER{
 
-void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app, std::string&& viewer_dir);
+using App = crow::App<MIDDLEWARE::AuthMiddleware, MIDDLEWARE::AuthorizationMiddleware>;
+void setup(App& app, std::string&& viewer_dir);
 
 } // namespace VIEWER

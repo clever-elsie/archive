@@ -4,7 +4,7 @@
 
 namespace USER {
 
-void setup(crow::App<MIDDLEWARE::AuthMiddleware>& app){
+void setup(App& app){
   CROW_ROUTE(app,"/req/user/register")
     .methods(crow::HTTPMethod::POST)
       (USER_API::register_user);
