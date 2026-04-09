@@ -255,15 +255,41 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 		}
 
 		if (type === 'doc') {
-			// PDFなどのドキュメントは iframe で表示
-			const iframe = document.createElement('iframe');
-			iframe.src = objUrl;
-			iframe.className = 'docFrame';
+			// PDFなどのドキュメントは新しいタブ/ウィンドウで開く
 			document.getElementById('title').innerHTML = filename;
 			document.getElementById('counter').innerHTML = 1;
-			document.getElementById('imageContainer').innerHTML = '';
-			document.getElementById('imageContainer').appendChild(iframe);
+			const imageContainer = document.getElementById('imageContainer');
+			imageContainer.innerHTML = '';
+
+			// ポップアップがブロックされる可能性があるため、フォールバックリンクも用意する
+			const message = document.createElement('div');
+			message.style.cssText = 'max-width: 900px; width: 100%; padding: 1rem; text-align: center;';
+			message.innerHTML = `
+				<div style="margin-bottom:0.75rem;color:rgba(255,255,255,0.85);">
+					ドキュメントを新しいタブで開きます。
+				</div>
+			`;
+
+			const openBtn = document.createElement('a');
+			openBtn.href = objUrl;
+			openBtn.target = '_blank';
+			openBtn.rel = 'noopener noreferrer';
+			openBtn.className = 'btn btn-primary';
+			openBtn.textContent = '新しいタブで開く';
+
+			message.appendChild(openBtn);
+			imageContainer.appendChild(message);
 			document.getElementById('parentContainer').innerHTML = '';
+
+			// 自動で開く（失敗してもリンクから開ける）
+			try {
+				const w = window.open(objUrl, '_blank', 'noopener,noreferrer');
+				if (!w) {
+					// ブロックされた場合は何もしない（リンクで開ける）
+				}
+			} catch (e) {
+				// 例外時もリンクで開ける
+			}
 			if (mediaList && currentIndex !== null) {
 				displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
 			}

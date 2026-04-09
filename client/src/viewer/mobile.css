@@ -644,9 +644,19 @@ img:hover {
     max-width: 100%;
     margin: 0 auto;
     font-family: 'Inter', sans-serif;
-    font-size: 1rem;
+    font-size: 0.95rem;
     line-height: 1.6;
     word-wrap: break-word;
+}
+
+/* 縦長画面は画面を使い切って大きめに */
+@media (max-aspect-ratio: 1/1) {
+	#content {
+		margin: 0;
+		padding: 0.75rem;
+		font-size: 1.05rem;
+		line-height: 1.65;
+	}
 }
 
 /* ドキュメント（PDF等）表示 */

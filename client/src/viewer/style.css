@@ -619,12 +619,24 @@ img:hover {
 	max-width: 800px;
 	margin: 0 auto;
 	font-family: 'Inter', sans-serif;
-	font-size: clamp(16px, 1.2vw + 0.6rem, 20px);
+	font-size: 1rem;
 	line-height: 1.8;
 	color: #ffffff;
 	background: rgba(255, 255, 255, 0.02);
 	border-radius: 16px;
 	border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* 縦長画面（スマホ想定）は余白を減らして文字を大きく */
+@media (max-aspect-ratio: 1/1) {
+	#content {
+		max-width: none;
+		margin: 0;
+		padding: 1rem;
+		font-size: clamp(18px, 2.2vw + 0.8rem, 26px);
+		line-height: 1.65;
+		border-radius: 12px;
+	}
 }
 
 /* ドキュメント（PDF等）表示 */
