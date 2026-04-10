@@ -798,3 +798,17 @@ figcaption {
 	background-size: 1.2em;
 }
 /* body::after で常時スクロールを発生させない */
+
+/* アンカー (#THUM 等) を画面最上部まで持っていけるようにする末尾余白
+   - コンテンツが動的に増減しても「スクロールできる余地」を確保する */
+.main-content {
+	padding-bottom: clamp(160px, 35vh, 520px);
+}
+
+/* id へジャンプしたときの止まり位置を少し安定させる */
+#THUM,
+#parentdir,
+#page_list,
+#top {
+	scroll-margin-top: 16px;
+}

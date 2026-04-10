@@ -22,6 +22,20 @@ body {
     -webkit-tap-highlight-color: transparent;
 }
 
+/* アンカー (#THUM 等) を画面最上部まで持っていけるようにする末尾余白
+   - コンテンツが動的に増減しても「スクロールできる余地」を確保する */
+.main-content {
+    padding-bottom: clamp(140px, 32vh, 420px);
+}
+
+/* id へジャンプしたときの止まり位置を少し安定させる */
+#THUM,
+#parentdir,
+#page_list,
+#top {
+    scroll-margin-top: 12px;
+}
+
 /* body::after で常時スクロールを発生させない */
 
 
