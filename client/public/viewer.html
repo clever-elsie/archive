@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HOME-SERVER Viewer</title>
-<link rel="stylesheet" href="/static/common_mobile.css" media="(max-width: 768px)">
 <link rel="stylesheet" href="/static/viewer/style.css">
 <link rel="stylesheet" href="/static/viewer/mobile.css" media="(max-width: 768px)">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -34,10 +33,10 @@
 				<h3><i class="fas fa-tags"></i> タグ</h3>
 				<div class="input-group">
 					<input id="tag_input" type="text" placeholder="タグを入力" class="modern-input"/>
-					<button id="tag_add" class="btn btn-primary" onclick="window.location.href='#top';Info('add');">
+					<button type="button" id="tag_add" class="btn btn-primary" data-scroll-to="#top" data-viewer-action="infoAdd">
 						<i class="fas fa-plus"></i> 追加
 					</button>
-					<button id="tag_erase" class="btn btn-danger" onclick="window.location.href='#top';Info('delete');">
+					<button type="button" id="tag_erase" class="btn btn-danger" data-scroll-to="#top" data-viewer-action="infoDelete">
 						<i class="fas fa-minus"></i> 削除
 					</button>
 				</div>
@@ -56,7 +55,7 @@
 		<section class="jump-section">
 			<div class="jump-controls">
 				<input id="jmpImg" type="number" placeholder="ページ番号" class="modern-input" onkeypress="handleJumpImgKeyPress(event)">
-				<button onclick="window.location.href='#parentdir';jmpImg2()" class="btn btn-secondary">
+				<button type="button" class="btn btn-secondary" data-scroll-to="#parentdir" data-viewer-action="jmpImg2">
 					<i class="fas fa-arrow-right"></i> ジャンプ
 				</button>
 			</div>
@@ -73,7 +72,7 @@
 			<h3 id="THUM"><i class="fas fa-search"></i> その他の作品</h3>
 			<div class="search-controls">
 				<input id="query_box" type="text" placeholder="検索クエリを入力" class="modern-input"/>
-				<button onclick="window.location.href='#THUM';throw_query()" class="btn btn-primary">
+				<button type="button" class="btn btn-primary" data-scroll-to="#THUM" data-viewer-action="throwQuery">
 					<i class="fas fa-search"></i> 検索
 				</button>
 			</div>
@@ -82,13 +81,13 @@
 		<!-- ナビゲーションコントロール -->
 		<section class="navigation-section">
 			<div class="nav-buttons">
-				<button class="btn btn-secondary" onclick="window.location.href='#THUM';fetchRandomImage();">
+				<button type="button" class="btn btn-secondary" data-scroll-to="#THUM" data-viewer-action="fetchRandom">
 					<i class="fas fa-random"></i> ランダムリロード
 				</button>
-				<button onclick="window.location.href='#THUM';cd(par_id);" class="btn btn-secondary">
+				<button type="button" class="btn btn-secondary" data-scroll-to="#THUM" data-viewer-action="cdPar">
 					<i class="fas fa-level-up-alt"></i> 上位ディレクトリ
 				</button>
-				<button onclick="window.location.href='#THUM';cd(cur_id);" class="btn btn-secondary">
+				<button type="button" class="btn btn-secondary" data-scroll-to="#THUM" data-viewer-action="cdCur">
 					<i class="fas fa-folder"></i> 現在のディレクトリ
 				</button>
 			</div>
@@ -103,14 +102,14 @@
 		<section class="page-navigation-section">
 			<section class="page-shift-section">
 				<div class="page-navigation">
-					<button class="btn btn-secondary" id="prev_page" onclick="window.location.href='#THUM';fetch_page(State.pagination.prev);">
+					<button type="button" class="btn btn-secondary" id="prev_page" data-scroll-to="#THUM" data-viewer-action="fetchPagePrev">
 						<i class="fas fa-chevron-left"></i> 前へ
 					</button>
 					<input id="page_num" type="number" placeholder="ページ番号" class="modern-input">
-					<button class="btn btn-secondary" onclick="window.location.href='#THUM';call_page_num()">
+					<button type="button" class="btn btn-secondary" data-scroll-to="#THUM" data-viewer-action="callPageNum">
 						<i class="fas fa-arrow-right"></i> ページジャンプ
 					</button>
-					<button class="btn btn-secondary" id="next_page" onclick="window.location.href='#THUM';fetch_page(State.pagination.next);">
+					<button type="button" class="btn btn-secondary" id="next_page" data-scroll-to="#THUM" data-viewer-action="fetchPageNext">
 						次へ <i class="fas fa-chevron-right"></i>
 					</button>
 				</div>
@@ -123,7 +122,7 @@
 
 		<!-- システムリロード -->
 		<section class="system-section">
-			<button class="btn btn-warning" onclick="reload_leaf_req()">
+			<button type="button" class="btn btn-warning" data-viewer-action="reloadLeaf">
 				<i class="fas fa-sync-alt"></i> システムリロード
 			</button>
 		</section>
@@ -150,7 +149,7 @@
 	</nav>
 	
 	<!-- ナビゲーショントグルボタン -->
-	<button class="nav-toggle" onclick="toggleNav()">
+	<button type="button" class="nav-toggle" data-viewer-action="toggleNav">
 		<i class="fas fa-chevron-right"></i>
 	</button>
 

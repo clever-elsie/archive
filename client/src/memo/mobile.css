@@ -1,5 +1,7 @@
 @import url("../common_mobile.css");
 
+/* memo モバイル: common_mobile はここで import。HTML から common_mobile.css を直リンクしない。 */
+
 /* モバイル用スタイル */
 @media (max-width: 768px) {
 	/* ヘッダー */

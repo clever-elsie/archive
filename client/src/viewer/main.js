@@ -6,6 +6,34 @@ import { Info, updateMetadataEditSection } from './metadata.js';
 import { initializePage, toggleNav, attachResizeListener, reload_leaf_req, jmpImg2, handleJumpImgKeyPress } from './ui.js';
 import { State } from './state.js';
 
+const viewerActionHandlers = {
+	infoAdd() { Info('add'); },
+	infoDelete() { Info('delete'); },
+	jmpImg2() { jmpImg2(); },
+	throwQuery() { throw_query(); },
+	fetchRandom() { fetchRandomImage(); },
+	cdPar() { cd(window.par_id); },
+	cdCur() { cd(window.cur_id); },
+	fetchPagePrev() { fetch_page(State.pagination.prev); },
+	fetchPageNext() { fetch_page(State.pagination.next); },
+	callPageNum() { call_page_num(); },
+	reloadLeaf() { reload_leaf_req(); },
+	toggleNav() { toggleNav(); },
+};
+
+document.addEventListener('click', function(ev) {
+	const el = ev.target.closest('[data-viewer-action]');
+	if (!el) return;
+	const scrollTo = el.getAttribute('data-scroll-to');
+	if (scrollTo) {
+		const h = scrollTo.startsWith('#') ? scrollTo : '#' + scrollTo;
+		window.location.hash = h;
+	}
+	const key = el.getAttribute('data-viewer-action');
+	const fn = viewerActionHandlers[key];
+	if (typeof fn === 'function') fn();
+});
+
 // HTMLから呼ぶ必要のある関数を公開（後方互換）
 window.initializePage = initializePage;
 window.call_page_num = call_page_num;
@@ -51,12 +79,6 @@ window.addEventListener('DOMContentLoaded', function() {
 		sortSelect.value = getModeFromSort();
 		sortSelect.addEventListener('change', function() { setSortFromMode(this.value); cd(State.directory.currentId); });
 	}
-
-	// prev/next ページボタン
-	const prevBtn = document.getElementById('prev_page');
-	const nextBtn = document.getElementById('next_page');
-	if (prevBtn) prevBtn.addEventListener('click', function(){ fetch_page(State.pagination.prev); });
-	if (nextBtn) nextBtn.addEventListener('click', function(){ fetch_page(State.pagination.next); });
 
 	// Enterで検索/ページジャンプ
 	const query = document.getElementById('query_box');

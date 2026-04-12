@@ -1,5 +1,10 @@
 @import url("../common_mobile.css");
 
+/*
+ * viewer モバイル: common_mobile を @import 済み。HTML から common_mobile.css を直リンクしないこと
+ * （二重読み込み防止）。768px 以下の最終上書きは本ファイル側を正とする。
+ */
+
 /* スマホ専用CSS - viewer/mobile.css */
 
 /* 基本設定 */
@@ -485,6 +490,13 @@ section h3 {
     margin-bottom: 2rem;
 }
 
+#creatorContainer {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+}
+
 /* 画像スタイル */
 img {
     max-width: 100%;
@@ -786,6 +798,11 @@ figcaption {
     }
     
     #thumbnailContainer {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        gap: 0.5rem;
+    }
+
+    #creatorContainer {
         grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
         gap: 0.5rem;
     }

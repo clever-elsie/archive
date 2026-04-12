@@ -1,5 +1,10 @@
 @import url("../common.css");
 
+/*
+ * レスポンシブ責務: 幅 768px 以下の見た目の最終調整は common_mobile.css（共通）と
+ * viewer/mobile.css（viewer 専用）に集約する。ここ（style.css）ではデスクトップ基準のみ定義する。
+ */
+
 /* メタデータセクション */
 .metadata-section {
 	display: grid;
@@ -476,98 +481,6 @@ img:hover {
 .system-section {
 	text-align: center;
 	margin-bottom: 4rem;
-}
-
-/* レスポンシブデザイン */
-@media (max-width: 768px) {
-	.metadata-section {
-		grid-template-columns: 1fr;
-	}
-	
-	.input-group {
-		flex-direction: column;
-	}
-	
-	.modern-input {
-		min-width: auto;
-	}
-	
-	.nav-buttons {
-		flex-direction: column;
-		align-items: center;
-	}
-	
-	.page-navigation {
-		flex-direction: column;
-		align-items: center;
-	}
-	
-	.floating-nav {
-		bottom: 1rem;
-		right: 1rem;
-		left: auto;
-	}
-	
-	.nav-item {
-		min-width: auto;
-		padding: 0.75rem;
-	}
-	
-	.nav-item span {
-		display: none;
-	}
-	
-	#thumbnailContainer {
-		grid-template-columns: repeat(auto-fill, 150px);
-		gap: 1rem;
-	}
-	
-	#creatorContainer {
-		grid-template-columns: repeat(auto-fill, 150px);
-		gap: 1rem;
-	}
-	
-	.btn {
-		min-width: 100px;
-		padding: 0.5rem 1rem;
-		font-size: 0.8rem;
-	}
-}
-
-@media (max-width: 480px) {
-	.thumbnail-grid {
-		grid-template-columns: repeat(auto-fill, 120px);
-		gap: 0.75rem;
-	}
-	
-	.thumbnail {
-		max-width: 120px;
-	}
-	
-	.cutthumbnail {
-		max-height: 200px;
-	}
-	
-	.btn {
-		min-width: 80px;
-		min-height: 44px;
-		padding: 0.5rem 0.75rem;
-		font-size: 0.75rem;
-	}
-	
-	.btn i {
-		font-size: 0.8rem;
-	}
-	
-	#thumbnailContainer {
-		grid-template-columns: repeat(auto-fill, 120px);
-		gap: 0.75rem;
-	}
-	
-	#creatorContainer {
-		grid-template-columns: repeat(auto-fill, 120px);
-		gap: 0.75rem;
-	}
 }
 
 /* アニメーション */

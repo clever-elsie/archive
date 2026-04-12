@@ -1,0 +1,302 @@
+/* ホーム（index）専用。共通は common.css / common_mobile.css を参照。 */
+
+.header {
+	position: sticky;
+	top: 0;
+}
+
+/* ハンバーガーメニュー */
+.hamburger-menu {
+	position: relative;
+	display: none;
+}
+
+.hamburger-btn {
+	background: none;
+	border: none;
+	color: #64ffda;
+	font-size: 1.5rem;
+	cursor: pointer;
+	padding: 0.5rem;
+	border-radius: 8px;
+	transition: all 0.3s ease;
+}
+
+.hamburger-btn:hover {
+	background: rgba(100, 255, 218, 0.1);
+	transform: translateY(-2px);
+}
+
+.hamburger-content {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	background: rgba(255, 255, 255, 0.05);
+	backdrop-filter: blur(20px);
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	border-radius: 12px;
+	padding: 1rem;
+	min-width: 200px;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+	opacity: 0;
+	visibility: hidden;
+	transform: translateY(-10px);
+	transition: all 0.3s ease;
+}
+
+.hamburger-content.show {
+	opacity: 1;
+	visibility: visible;
+	transform: translateY(0);
+}
+
+.hamburger-item {
+	display: block;
+	padding: 0.75rem 1rem;
+	color: #ffffff;
+	text-decoration: none;
+	border-radius: 8px;
+	transition: all 0.3s ease;
+	margin-bottom: 0.5rem;
+	border: none;
+	background: none;
+	font: inherit;
+	width: 100%;
+	text-align: left;
+	cursor: pointer;
+}
+
+.hamburger-item:hover {
+	background: rgba(255, 255, 255, 0.1);
+	color: #64ffda;
+}
+
+.hamburger-item:last-child {
+	margin-bottom: 0;
+}
+
+.hamburger-item.logout {
+	color: #ff6b6b;
+}
+
+.hamburger-item.logout:hover {
+	background: rgba(255, 107, 107, 0.1);
+	color: #ff5252;
+}
+
+/* ログインフォーム */
+.login-section {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: calc(100vh - 100px);
+}
+
+.login-card {
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 16px;
+	padding: 3rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(10px);
+	transition: all 0.3s ease;
+	max-width: 400px;
+	width: 100%;
+}
+
+.login-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.login-card h2 {
+	font-size: 1.8rem;
+	font-weight: 600;
+	color: #64ffda;
+	margin-bottom: 2rem;
+	text-align: center;
+}
+
+.login-card .input-group {
+	margin-bottom: 1.5rem;
+}
+
+.login-card .input-group label {
+	display: block;
+	margin-bottom: 0.5rem;
+	color: #8892b0;
+	font-size: 0.9rem;
+	font-weight: 500;
+}
+
+.login-card .modern-input {
+	width: 100%;
+	padding: 0.75rem 1rem;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	border-radius: 8px;
+	background: rgba(255, 255, 255, 0.05);
+	color: #ffffff;
+	font-size: 1rem;
+	transition: all 0.3s ease;
+}
+
+.login-card .modern-input:focus {
+	outline: none;
+	border-color: #64ffda;
+	box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.1);
+}
+
+.login-card .modern-input::placeholder {
+	color: #8892b0;
+}
+
+.login-card .btn {
+	width: 100%;
+}
+
+/* メインコンテンツ表示 */
+.main-display {
+	display: none;
+}
+
+.welcome-section {
+	margin-bottom: 3rem;
+}
+
+.welcome-card {
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 16px;
+	padding: 2rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(10px);
+	transition: all 0.3s ease;
+}
+
+.welcome-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+}
+
+.welcome-card h2 {
+	font-size: 1.8rem;
+	font-weight: 600;
+	color: #64ffda;
+	margin-bottom: 1rem;
+}
+
+.welcome-card p {
+	color: #8892b0;
+	font-size: 1rem;
+	line-height: 1.6;
+}
+
+.menu-section {
+	margin-bottom: 3rem;
+}
+
+.menu-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+	gap: 2rem;
+}
+
+.menu-card {
+	background: rgba(255, 255, 255, 0.05);
+	border-radius: 16px;
+	padding: 2rem;
+	border: 1px solid rgba(255, 255, 255, 0.1);
+	backdrop-filter: blur(10px);
+	transition: all 0.3s ease;
+	text-decoration: none;
+	color: #ffffff;
+	display: block;
+}
+
+.menu-card:hover {
+	transform: translateY(-4px);
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+	color: #64ffda;
+}
+
+.menu-card h3 {
+	font-size: 1.5rem;
+	font-weight: 600;
+	margin-bottom: 1rem;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.menu-card p {
+	color: #8892b0;
+	font-size: 1rem;
+	line-height: 1.6;
+}
+
+.message {
+	padding: 1rem;
+	border-radius: 8px;
+	margin-top: 1rem;
+	font-size: 0.9rem;
+}
+
+.error-message {
+	background: rgba(255, 107, 107, 0.1);
+	border: 1px solid rgba(255, 107, 107, 0.3);
+	color: #ff6b6b;
+}
+
+.success-message {
+	background: rgba(100, 255, 218, 0.1);
+	border: 1px solid rgba(100, 255, 218, 0.3);
+	color: #64ffda;
+}
+
+#loginForm,
+#mainContent {
+	display: none;
+}
+
+#loadingSpinner {
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	font-size: 2rem;
+	color: #64ffda;
+	background: transparent;
+	z-index: 2000;
+}
+
+@media (max-width: 768px) {
+	.header-content {
+		padding: 0 1rem;
+	}
+
+	.login-card {
+		padding: 2rem;
+		margin: 1rem;
+	}
+
+	.menu-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.hamburger-menu {
+		display: block;
+	}
+}
+
+@media (max-width: 480px) {
+	.login-card {
+		padding: 1.5rem;
+	}
+
+	.menu-card {
+		padding: 1.5rem;
+	}
+
+	.login-card .btn {
+		font-size: 0.9rem;
+		padding: 0.6rem 1.2rem;
+	}
+}
