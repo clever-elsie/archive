@@ -18,6 +18,8 @@ namespace VIEWER{
 
 // return {{begin,begin+3},{end,end+3}}《sss》なら{{0,3},{5,8}}で，外側と内側を返す
 // sizeof(《)==sizeof(》)==3
+// 《》が末尾にないか，ルビ中に「ひらがな，カタカナ，アルファベット，数字」以外が含まれていればルビ無しとする
+// ルビ無しはr[0]>=r[2]を意味する:rは戻り値
 std::array<size_t, 4> find_ruby(const std::string&dirname){
   const char* const begin = dirname.data();
   const char* const end = begin + dirname.size();
@@ -33,8 +35,20 @@ std::array<size_t, 4> find_ruby(const std::string&dirname){
     if(cp==ruby_begin) ruby_range[0] = idx, ruby_range[1] = it-begin;
     if(cp==ruby_end) ruby_range[2] = idx, ruby_range[3] = it-begin;
   }
-  if(ruby_range[0]>=ruby_range[2])
-    ruby_range={0,0,0,0};
+  if((ruby_range[0]>=ruby_range[2]) // ルビ無し
+   ||(ruby_range[3] != dirname.size()) // ルビが末尾でない
+  ) return{0,0,0,0};
+  // 《》内に「ひらがな，カタカナ，アルファベット，数字」以外が含まているか
+  bool has_non_ruby_char = false;
+  it = begin+ruby_range[1]; // 《の次の文字の先頭
+  while(it<begin+ruby_range[2]){ // 》まで
+    uint32_t cp = utf8::decode_one(it, begin+ruby_range[2]);
+    if(!utf8::isalpha(cp) && !utf8::isdigit(cp) && !utf8::ishiragana(cp) && !utf8::iskatakana(cp)){
+      has_non_ruby_char = true;
+      break;
+    }
+  }
+  if(has_non_ruby_char) return{0,0,0,0};
   return ruby_range;
 }
 
