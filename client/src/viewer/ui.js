@@ -14,14 +14,12 @@ export async function initializePage() {
 		} else {
 			console.warn('権限情報の取得に失敗しました');
 		}
-		// 一般ユーザ: 葉ページ（詳細）やページング、ランダムは非表示/無効
+		// 一般ユーザで非表示にするのは「ランダム」「ページング」だけ
 		if (!isAdmin()) {
-			for (const sel of ['.metadata-section', '.image-section', '.jump-section', '.parentdir-section', '.page-navigation-section']) {
-				const el = document.querySelector(sel);
-				if (el) el.remove();
-			}
 			const randBtn = document.querySelector('[data-viewer-action="fetchRandom"]');
 			if (randBtn) randBtn.remove();
+			const pageNav = document.querySelector('.page-navigation-section');
+			if (pageNav) pageNav.remove();
 		}
 		setTimeout(() => { cd(0); }, 500);
 		if (isAdmin()) setTimeout(fetchPageList, 500);

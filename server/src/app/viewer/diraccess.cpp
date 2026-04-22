@@ -25,7 +25,7 @@ crow::json::wvalue get_imgs(const crow::request&req){
 	if(!mgr.is_valid(node)
 		|| !node->has_only_img()
 		||!node->refresh(0)
-		||!VIEWER::can_view_node(req, node)
+		||!VIEWER::can_view_node(req, node->parent())
 	)
 		return crow::json::wvalue();
 	crow::json::wvalue ret;

@@ -312,9 +312,17 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 
 		if (type === 'doc') {
 			// PDFなどのドキュメントは新しいタブ/ウィンドウで開く
-			document.getElementById('title').innerHTML = filename;
-			document.getElementById('counter').innerHTML = 1;
+			// 一般ユーザUIでは imageContainer をDOMから除去している場合があるため、
+			// 先に新規タブで開く（ブロックされても、UIがあればリンクを表示する）。
+			try { window.open(objUrl, '_blank', 'noopener,noreferrer'); } catch (e) {}
+
+			const titleEl = document.getElementById('title');
+			const counterEl = document.getElementById('counter');
+			if (titleEl) titleEl.innerHTML = filename;
+			if (counterEl) counterEl.innerHTML = 1;
+
 			const imageContainer = document.getElementById('imageContainer');
+			if (!imageContainer) return;
 			imageContainer.innerHTML = '';
 
 			// ポップアップがブロックされる可能性があるため、フォールバックリンクも用意する
@@ -338,15 +346,7 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 			document.getElementById('parentContainer').innerHTML = '';
 			scrollToContent(message);
 
-			// 自動で開く（失敗してもリンクから開ける）
-			try {
-				const w = window.open(objUrl, '_blank', 'noopener,noreferrer');
-				if (!w) {
-					// ブロックされた場合は何もしない（リンクで開ける）
-				}
-			} catch (e) {
-				// 例外時もリンクで開ける
-			}
+			// window.open は先に実施済み（ブロックされた場合もリンクで開ける）
 			if (mediaList && currentIndex !== null) {
 				displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
 			}

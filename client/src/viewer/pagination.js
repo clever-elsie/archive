@@ -11,10 +11,6 @@ function calculatePageSize() {
 }
 
 export function fetch_page(idx) {
-	if (!isAdmin()) {
-		alert('ページアクセスは管理者のみ利用できます');
-		return;
-	}
 	const container = document.getElementById('thumbnailContainer');
 	document.getElementById('page_num').value = idx;
 	
