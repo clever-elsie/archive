@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <regex>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -23,6 +24,12 @@ struct AuthorizationMiddleware {
 
   struct Entry {
     std::string_view path;
+    Handler handler;
+  };
+
+  struct RegexEntry {
+    uint8_t mid;
+    std::regex pattern;
     Handler handler;
   };
 
@@ -131,6 +138,8 @@ struct AuthorizationMiddleware {
       // viewer (admin only)
       add(crow::HTTPMethod::POST,  "/req/img/reload",    &h_require_admin);
       add(crow::HTTPMethod::PATCH, "/req/img/info_renew",&h_require_admin);
+      add(crow::HTTPMethod::POST, "/req/img/rand/<int>", &h_require_admin);
+      add(crow::HTTPMethod::POST, "/req/img/page_data", &h_require_admin);
 
       // user management (admin only)
       add(crow::HTTPMethod::GET,  "/req/user/list",   &h_require_admin);
@@ -141,6 +150,24 @@ struct AuthorizationMiddleware {
       return t;
     }();
     return tbl;
+  }
+
+  static inline const std::vector<RegexEntry>& regex_rules() {
+    // パラメータ付きルートなど、完全一致に落とせないものをregexで扱う。
+    // 数は少数の想定なので線形走査で十分。
+    static const std::vector<RegexEntry> rs = []() {
+      std::vector<RegexEntry> v;
+      auto add = [&](crow::HTTPMethod m, const char* re, Handler h) {
+        v.push_back(RegexEntry{method_id(m), std::regex(re), h});
+      };
+
+      // viewer (admin only)
+      // /req/img/rand/<int> → /req/img/rand/123 のような実URLを許可/拒否したい
+      add(crow::HTTPMethod::POST, R"(^/req/img/rand/\d+$)", &h_require_admin);
+
+      return v;
+    }();
+    return rs;
   }
 
   void before_handle(crow::request& req, crow::response& res, context& ctx) {
@@ -163,6 +190,14 @@ struct AuthorizationMiddleware {
       const Entry& e = it->second;
       if (e.path != path) continue; // hash衝突は厳密一致で排除
       if (!e.handler(req, res)) return; // handler側でres.end済み
+      return;
+    }
+
+    // 完全一致に無ければ regex ルールを評価
+    for (const auto& r : regex_rules()) {
+      if (r.mid != mid) continue;
+      if (!std::regex_match(std::string(path), r.pattern)) continue;
+      (void)r.handler(req, res);
       return;
     }
   }

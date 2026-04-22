@@ -26,6 +26,11 @@ bool load_params(const string& filepath) {
     vector<string> allowed_origins;
     for (const auto& origin : data["ALLOWED_ORIGINS"])
       allowed_origins.push_back(origin.s());
+    vector<string> viewer_pub_list;
+    if (data.has("VIEWER_PUB_LIST")) {
+      for (const auto& p : data["VIEWER_PUB_LIST"])
+        viewer_pub_list.push_back(p.s());
+    }
     params = CONFIG::Params(
       data["SESSION_TIMEOUT_MINUTES"].i(),
       data["SERVER_PORT"].i(),
@@ -36,7 +41,8 @@ bool load_params(const string& filepath) {
       move(allowed_origins),
       data["ALLOWED_METHODS"].s(),
       data["ALLOWED_HEADERS"].s(),
-      data["VIEWER_DIR"].s()
+      data["VIEWER_DIR"].s(),
+      move(viewer_pub_list)
     );
     
   } catch (const exception& e) {

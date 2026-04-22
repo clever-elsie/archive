@@ -6,6 +6,7 @@
 #include <app/viewer/retrieve.hpp>
 #include <app/viewer/inline_helper.hpp>
 #include <app/viewer/manager.hpp>
+#include <app/viewer/access_control.hpp>
 
 namespace VIEWER{
 using namespace std;
@@ -20,9 +21,16 @@ crow::response retrieve_query(const crow::request& req){
 		std::cout<<line<<'\n';
 	}
 	vector<Info*>dirs;
-	for(auto it=mgr.leaf_dirs.begin();it!=mgr.leaf_dirs.end();++it)
-		if((*it)->refresh(0)&&queryAST->evaluate(**it))
-			dirs.push_back(*it);
+	if(VIEWER::is_admin_req(req)){
+		for(auto it=mgr.leaf_dirs.begin();it!=mgr.leaf_dirs.end();++it)
+			if((*it)->refresh(0) && queryAST->evaluate(**it))
+				dirs.push_back(*it);
+	}else{
+		for(auto it=mgr.leaf_dirs.begin();it!=mgr.leaf_dirs.end();++it)
+			if((*it)->refresh(0) && queryAST->evaluate(**it))
+				if(VIEWER::can_view_node(req, *it))
+					dirs.push_back(*it);
+	}
 	Info::SortingOrder order = json["order_key"].s()=="last_write_time"?Info::SortingOrder::last_write_time:Info::SortingOrder::name;
 	bool descendant = json["order"].s()=="descendant";
 	Info::sort(dirs, order, descendant);

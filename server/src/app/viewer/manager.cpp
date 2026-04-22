@@ -136,6 +136,33 @@ void manager::cache_monitor_loop() {
   }
 }
 
+static std::string norm_rel(std::string_view in) {
+  std::string s(in);
+  // 先頭の "./" を除去
+  while (s.rfind("./", 0) == 0) s.erase(0, 2);
+  // 先頭の "/" を除去（相対パスのみ扱う）
+  while (!s.empty() && s.front() == '/') s.erase(s.begin());
+  // 末尾の "/" を除去
+  while (!s.empty() && s.back() == '/') s.pop_back();
+  // 連続スラッシュの縮約（簡易）
+  for (std::string::size_type i = 0; i + 1 < s.size();) {
+    if (s[i] == '/' && s[i + 1] == '/') s.erase(i + 1, 1);
+    else ++i;
+  }
+  return s;
+}
+
+void manager::set_public_dirs(const std::vector<std::string>& rel_paths) {
+  std::lock_guard<std::mutex> lock(imtex);
+  public_dirs.clear();
+  public_dirs.reserve(rel_paths.size() * 2 + 8);
+  for (const auto& p : rel_paths) {
+    const std::string n = norm_rel(p);
+    // "" は root を意味する（明示された場合のみ root を pub とみなす）
+    public_dirs.insert(n);
+  }
+}
+
 void manager::trigger_full_scan_if_needed() {
   if (cache_loaded_from_file.load() && !is_full_scanning.load()) {
     is_full_scanning = true;

@@ -17,7 +17,7 @@ vector<Info*> get_rand_dirs(const int cnt){
 	return vector(seen.begin(),seen.end());
 }
 
-crow::json::wvalue get_rand_imgs(int cnt){
+crow::json::wvalue get_rand_imgs(const crow::request& req, int cnt){
 	constexpr int max_limit=24;
 	if(cnt<0) return crow::json::wvalue();
 	if(cnt>max_limit) cnt=max_limit;

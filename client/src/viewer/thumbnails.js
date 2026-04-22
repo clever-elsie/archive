@@ -29,7 +29,11 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 			img.alt = 'Image';
 			if (item.imageInfo.isVertical) img.classList.add('thumbnail');
 			else img.classList.add('cutthumbnail');
-			img.onclick = function() { fetchImageList(item.id); };
+			if (isAdmin()) {
+				img.onclick = function() { fetchImageList(item.id); };
+			} else {
+				img.style.cursor = 'default';
+			}
 			const title = document.createElement('figcaption');
 			title.innerText = getTitleFromImgPath(item.img);
 			const figure = document.createElement('figure');
@@ -77,6 +81,7 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 }
 
 export function fetchRandomImage() {
+	if (!isAdmin()) { alert('ランダム機能は管理者のみ利用できます'); return; }
 	const cnt = window.innerWidth > window.innerHeight ? 5 : 12;
 	authenticatedFetch('/req/img/rand/' + cnt, { method: 'POST' })
 		.then(response => response.json())
@@ -87,6 +92,7 @@ export function fetchRandomImage() {
 }
 
 export function fetchImageList(id) {
+	if (!isAdmin()) { alert('ページアクセスは管理者のみ利用できます'); return; }
 	clearNavigationControls();
 	revokeAllMediaObjectUrls();
 	authenticatedFetch('/req/img', { method: 'POST', body: JSON.stringify({ id }) })

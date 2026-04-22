@@ -11,7 +11,10 @@ const viewerActionHandlers = {
 	infoDelete() { Info('delete'); },
 	jmpImg2() { jmpImg2(); },
 	throwQuery() { throw_query(); },
-	fetchRandom() { fetchRandomImage(); },
+	fetchRandom() {
+		if (!isAdmin()) { alert('ランダム機能は管理者のみ利用できます'); return; }
+		fetchRandomImage();
+	},
 	cdPar() { cd(window.par_id); },
 	cdCur() { cd(window.cur_id); },
 	fetchPagePrev() { fetch_page(State.pagination.prev); },

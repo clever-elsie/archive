@@ -8,12 +8,14 @@
 #include <app/viewer/tag.hpp>
 #include <app/viewer/diraccess.hpp>
 #include <app/viewer/manager.hpp>
+#include <manager/config.hpp>
 
 namespace VIEWER{
 void setup(App& app, std::string&& viewer_dir){
   namespace fs = std::filesystem;
   manager&mgr = manager::get_instance();
   mgr.base_dir = std::move(viewer_dir);
+  mgr.set_public_dirs(CONFIG::params.VIEWER_PUB_LIST);
   mgr.start_initial_load(mgr.base_dir);
 
   CROW_ROUTE(app,"/req/img/rand/<int>")

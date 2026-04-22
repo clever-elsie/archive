@@ -18,15 +18,17 @@ struct Params {
   std::string ALLOWED_METHODS;
   std::string ALLOWED_HEADERS;
   std::string VIEWER_DIR;
+  std::vector<std::string> VIEWER_PUB_LIST;
 
   Params()=default;
-  template<class STR1,class STR2,class STR3,class VEC,class STR4,class STR5,class STR6>
-  Params(int sstm, int sp, STR1&& cert, STR2&& key, STR3&& jwt, bool isdev, VEC&& origins, STR4&& methods, STR5&& headers, STR6&& viewer)
+  template<class STR1,class STR2,class STR3,class VEC,class STR4,class STR5,class STR6, class VEC2>
+  Params(int sstm, int sp, STR1&& cert, STR2&& key, STR3&& jwt, bool isdev, VEC&& origins, STR4&& methods, STR5&& headers, STR6&& viewer, VEC2&& viewer_pub_list)
   :SESSION_TIMEOUT_MINUTES(sstm), SERVER_PORT(sp),
    SSL_CERT_PATH(cert), SSL_KEY_PATH(key), JWT_SECRET_KEY(jwt),
    IS_DEVELOPMENT(isdev),
    ALLOWED_ORIGINS(origins), ALLOWED_METHODS(methods),
-   ALLOWED_HEADERS(headers), VIEWER_DIR(viewer){}
+   ALLOWED_HEADERS(headers), VIEWER_DIR(viewer),
+   VIEWER_PUB_LIST(viewer_pub_list){}
   Params(const Params&)=default;
   Params(Params&&)=default;
   Params& operator=(const Params&)=default;

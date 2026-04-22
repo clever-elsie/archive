@@ -12,6 +12,7 @@
 #include <app/viewer/inline_helper.hpp>
 #include <app/viewer/file_server.hpp>
 #include <app/viewer/manager.hpp>
+#include <app/viewer/access_control.hpp>
 
 namespace VIEWER{
 using namespace std;
@@ -30,10 +31,14 @@ crow::response redirect_media(const crow::request& req){
   uint64_t idv;
   try{ idv = static_cast<uint64_t>(std::stoull(id_c)); }catch(...){ return crow::response(400, "bad id"); }
   Info* node=mgr.get_info_from_id(idv);
+  if(!node || !mgr.is_valid(node)) return crow::response(404, "not found");
 
   // パス解決（サンドボックス: base_dir 配下）
   if(!(type=="image"||type=="video"||type=="audio"||type=="text"||type=="doc"))
     return crow::response(400, "Unknown type");
+
+  if(!VIEWER::is_admin_req(req) && !VIEWER::can_view_node(req, node))
+    return crow::response(403, "forbidden");
 
   std::filesystem::path rel;
   try{

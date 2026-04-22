@@ -11,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <memory>
+#include <unordered_set>
 
 #include <ext/pb_ds/tree_policy.hpp>
 #include <ext/pb_ds/assoc_container.hpp>
@@ -30,6 +31,7 @@ struct manager{
   // 可乱択二分木（順序統計木）に変更
   tree<Info*, __gnu_pbds::null_type, LeafCmp> leaf_dirs;
   unordered_set<Info*> valid_info_ptrs; // 有効ポインタ集合
+  unordered_set<string> public_dirs; // VIEWER_DIR からの相対パス（正規化済み、フル一致）
   unique_ptr<Info> root_dir; // 下から順にデストラクタが呼ばれるので，root_dirが先に破棄されるように下に書く
   mutex imtex;
   random_device rds;
@@ -58,6 +60,9 @@ public:
     static manager instance;
     return instance;
   }
+  static Info* get_root_dir(){
+    return get_instance().root_dir.get();
+  }
   string rel_join(const string&dir){
     size_t start=0;
     while(dir[start]=='.'||dir[start]=='/')start++;
@@ -73,6 +78,9 @@ public:
 
   bool load_dir_cache(const string&cache_file);
   bool save_dir_cache(const string&cache_file);
+
+  // 公開ディレクトリ集合（configの相対パス配列）を正規化して構築
+  void set_public_dirs(const std::vector<std::string>& rel_paths);
   
   // キャッシュ更新システム
   void start_cache_monitor();

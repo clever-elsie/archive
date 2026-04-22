@@ -11,6 +11,7 @@
 #include <app/viewer/inline_helper.hpp>
 #include <app/viewer/manager.hpp>
 #include <app/viewer/diraccess.hpp>
+#include <app/viewer/access_control.hpp>
 
 namespace VIEWER{
 using namespace std;
@@ -21,7 +22,11 @@ crow::json::wvalue get_imgs(const crow::request&req){
 	auto data = crow::json::load(req.body);
 	uint64_t idv = static_cast<uint64_t>(data["id"].i());
 	Info* node = mgr.get_info_from_id(idv);
-	if(!mgr.is_valid(node) || !node->has_only_img()||!node->refresh(0))
+	if(!mgr.is_valid(node)
+		|| !node->has_only_img()
+		||!node->refresh(0)
+		||!VIEWER::can_view_node(req, node)
+	)
 		return crow::json::wvalue();
 	crow::json::wvalue ret;
 	ret["id"]=idv;
@@ -61,6 +66,9 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	Info* tar=mgr.get_info_from_id(idv);
 	if(!mgr.is_valid(tar)||!tar->refresh(0)) return crow::json::wvalue();
 
+	if(!VIEWER::can_view_node(req, tar))
+		return crow::json::wvalue();
+
 	const Info::SortingOrder order_type = data.has("order_key") && data["order_key"].s()=="last_write_time"?Info::SortingOrder::last_write_time:Info::SortingOrder::name;
 	const bool descendant = data.has("order") && data["order"].s()=="descendant";
 
@@ -70,13 +78,16 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 
 	const auto[imgvec,dirvec]=tar->imgdirs_or_elsedirs(order_type,descendant);
 	crow::json::wvalue::list dir,img;
-	for(const auto&an_img:imgvec)
-		pb_next(img, an_img->current_thumbnail_relative_path(), an_img->id());
+	for(const auto&an_img:imgvec){
+		if(VIEWER::can_view_node(req, an_img))
+			pb_next(img, an_img->current_thumbnail_relative_path(), an_img->id());
+	}
 	const auto& imgs=tar->media_relative_paths<Info::MediaType::image>(); // 画像だけは順序指定を無視して名前昇順
 	for(const auto&an_img:imgs)
 		pb_next(img, an_img, tar->id());
 
 	for(const auto&d:dirvec){
+		if(!VIEWER::can_view_node(req, d)) continue;
 		crow::json::wvalue next;
 		next["path"]=std::move(d->relative_path());
 		next["dirname"]=std::move(d->dirname());
