@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 #include <string_view>
 
@@ -13,18 +14,6 @@
 
 namespace VIEWER {
 
-inline std::string norm_rel(std::string_view in) {
-  std::string s(in);
-  while (s.rfind("./", 0) == 0) s.erase(0, 2);
-  while (!s.empty() && s.front() == '/') s.erase(s.begin());
-  while (!s.empty() && s.back() == '/') s.pop_back();
-  for (std::string::size_type i = 0; i + 1 < s.size();) {
-    if (s[i] == '/' && s[i + 1] == '/') s.erase(i + 1, 1);
-    else ++i;
-  }
-  return s;
-}
-
 inline bool is_admin_req(const crow::request& req) {
   const std::string token = MIDDLEWARE::extract_token(req);
   if (token.empty() || !AUTH::validate_token_wrapper(token)) return false;
@@ -35,8 +24,10 @@ inline bool is_admin_req(const crow::request& req) {
 
 inline bool is_public_dir_rel(std::string_view rel) {
   manager& mgr = manager::get_instance();
-  const std::string key = norm_rel(rel);
-  return mgr.public_dirs.contains(key);
+  return mgr
+    .norm_rel(rel)
+    .and_then([&mgr](const std::string& key)->std::optional<bool> { return mgr.public_dirs.contains(key); })
+    .value_or(false);
 }
 
 inline bool can_view_node(const crow::request& req, const Info* node) {

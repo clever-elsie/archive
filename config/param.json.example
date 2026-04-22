@@ -18,7 +18,8 @@
   ],
   "ALLOWED_METHODS": "GET, POST, OPTIONS",
   "ALLOWED_HEADERS": "Content-Type, X-CSRF-Token",
-  "VIEWER_DIR": "/home/user/archive/data"
+  "VIEWER_DIR": "/home/user/archive/data",
+  "VIEWER_PUB_LIST": []
 }
 
 # 設定項目の説明:
@@ -32,6 +33,9 @@
 # ALLOWED_METHODS: CORSで許可するHTTPメソッド（カンマ区切り）
 # ALLOWED_HEADERS: CORSで許可するHTTPヘッダー（カンマ区切り）
 # VIEWER_DIR: viewerのベースディレクトリ
+# VIEWER_PUB_LIST: viewerで「公開」扱いにするディレクトリ（VIEWER_DIRからの相対パス配列）
+#   - 例: ["public", "public/books", "music"] のようにフル相対パスを列挙（祖先の自動公開はしない）
+#   - root（VIEWER_DIRそのもの）は常にpub
 #
 # 本番環境では以下を設定してください:
 # - IS_DEVELOPMENT: false

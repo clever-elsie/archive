@@ -12,6 +12,8 @@
 #include <string_view>
 #include <memory>
 #include <unordered_set>
+#include <filesystem>
+#include <optional>
 
 #include <ext/pb_ds/tree_policy.hpp>
 #include <ext/pb_ds/assoc_container.hpp>
@@ -78,6 +80,11 @@ public:
 
   bool load_dir_cache(const string&cache_file);
   bool save_dir_cache(const string&cache_file);
+
+  // 相対パスの正規化（絶対パスなら base_dir 配下か検証して相対化）
+  // 成功: 正規化済み相対パス（rootは ""）
+  // 失敗: nullopt（base_dir外、..を含む等）
+  std::optional<std::string> norm_rel(std::string_view in) const;
 
   // 公開ディレクトリ集合（configの相対パス配列）を正規化して構築
   void set_public_dirs(const std::vector<std::string>& rel_paths);
