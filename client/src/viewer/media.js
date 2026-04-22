@@ -2,9 +2,23 @@ import { State } from './state.js';
 import { generateMediaURL } from './api/media.js';
 import { clearNavigationControls } from './ui.js';
 
+function scrollToContent(element) {
+	if (!element || typeof element.scrollIntoView !== 'function') return;
+	// DOM反映直後のスクロールを安定させる
+	requestAnimationFrame(() => {
+		try {
+			element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		} catch (e) {
+			// 古いブラウザ向けフォールバック
+			element.scrollIntoView(true);
+		}
+	});
+}
+
 // メディア用外部コントロール（音量・フルスクリーン）の管理
 const MediaControls = {
 	storageKey: 'viewer_media_volume',
+	autoAdvanceStorageKey: 'viewer_media_auto_advance',
 
 	getInitialVolume() {
 		try {
@@ -24,6 +38,29 @@ const MediaControls = {
 			localStorage.setItem(this.storageKey, String(volume));
 		} catch (e) {
 			console.warn('音量設定の保存に失敗しました', e);
+		}
+	},
+
+	getInitialAutoAdvanceEnabled() {
+		try {
+			const raw = localStorage.getItem(this.autoAdvanceStorageKey);
+			if (raw == null) return false;
+			return raw === '1' || raw === 'true';
+		} catch (e) {
+			console.warn('自動遷移設定の読み込みに失敗しました', e);
+			return false;
+		}
+	},
+
+	isAutoAdvanceEnabled() {
+		return this.getInitialAutoAdvanceEnabled();
+	},
+
+	saveAutoAdvanceEnabled(enabled) {
+		try {
+			localStorage.setItem(this.autoAdvanceStorageKey, enabled ? '1' : '0');
+		} catch (e) {
+			console.warn('自動遷移設定の保存に失敗しました', e);
 		}
 	},
 
@@ -64,6 +101,24 @@ const MediaControls = {
 		fullscreenButton.className = 'ctrlbutton external-fullscreen-button';
 		fullscreenButton.innerHTML = '<i class="fas fa-expand"></i> フルスクリーン';
 
+		const autoAdvanceButton = document.createElement('button');
+		autoAdvanceButton.type = 'button';
+		autoAdvanceButton.className = 'ctrlbutton external-auto-advance-button';
+		autoAdvanceButton.setAttribute('aria-pressed', 'false');
+		const renderAutoAdvance = () => {
+			const enabled = this.isAutoAdvanceEnabled();
+			autoAdvanceButton.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+			autoAdvanceButton.innerHTML = enabled
+				? '<i class="fas fa-forward"></i> 自動遷移: ON'
+				: '<i class="fas fa-forward"></i> 自動遷移: OFF';
+		};
+		renderAutoAdvance();
+		autoAdvanceButton.addEventListener('click', () => {
+			const next = !this.isAutoAdvanceEnabled();
+			this.saveAutoAdvanceEnabled(next);
+			renderAutoAdvance();
+		});
+
 		if (type !== 'video') {
 			fullscreenButton.style.display = 'none';
 		} else {
@@ -80,6 +135,7 @@ const MediaControls = {
 
 		controls.appendChild(label);
 		controls.appendChild(slider);
+		controls.appendChild(autoAdvanceButton);
 		controls.appendChild(fullscreenButton);
 		container.appendChild(controls);
 	}
@@ -227,7 +283,6 @@ export function displayPrevNextButtons(currentIndex, mediaList, displayFunc) {
 
 // メディア表示（共通）
 export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex = null) {
-	window.location.href = '#top';
 	clearNavigationControls();
 	const id = State.directory.currentId;
 	const filename = mediaURL.split('/').pop();
@@ -247,6 +302,7 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 					document.getElementById('imageContainer').innerHTML = '';
 					document.getElementById('imageContainer').appendChild(content);
 					document.getElementById('parentContainer').innerHTML = '';
+					scrollToContent(content);
 					if (mediaList && currentIndex !== null) {
 						displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
 					}
@@ -280,6 +336,7 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 			message.appendChild(openBtn);
 			imageContainer.appendChild(message);
 			document.getElementById('parentContainer').innerHTML = '';
+			scrollToContent(message);
 
 			// 自動で開く（失敗してもリンクから開ける）
 			try {
@@ -322,6 +379,19 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 			media.addEventListener('canplay', hidePopup, { once: true });
 			media.addEventListener('loadeddata', hidePopup, { once: true });
 			media.addEventListener('loadedmetadata', hidePopup, { once: true });
+
+			// 自動遷移（ONのとき、再生終了でnextと同等の動き）
+			let didAutoAdvance = false;
+			media.addEventListener('ended', () => {
+				if (didAutoAdvance) return;
+				if (!MediaControls.isAutoAdvanceEnabled()) return;
+				if (!mediaList || currentIndex === null) return;
+				if (currentIndex >= mediaList.length - 1) return;
+				const nextItem = mediaList[currentIndex + 1];
+				if (!nextItem) return;
+				didAutoAdvance = true;
+				displayAnyMedia(type, nextItem.path, mediaList, currentIndex + 1);
+			});
 		}
 		document.getElementById('title').innerHTML = filename;
 		document.getElementById('counter').innerHTML = 1;
@@ -330,6 +400,7 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 		imageContainer.appendChild(elem);
 		MediaControls.attach(media, type);
 		document.getElementById('parentContainer').innerHTML = '';
+		scrollToContent(media);
 		if (mediaList && currentIndex !== null) {
 			displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
 		}

@@ -614,6 +614,10 @@ figcaption {
 	margin-right: 0.25rem;
 }
 
+.external-auto-advance-button i {
+	margin-right: 0.25rem;
+}
+
 /* コントロールボタン */
 .ctrlbutton {
 	background: rgba(255, 255, 255, 0.1);

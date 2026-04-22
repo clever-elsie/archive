@@ -729,6 +729,10 @@ audio {
 	margin-right: 0.25rem;
 }
 
+.external-auto-advance-button i {
+	margin-right: 0.25rem;
+}
+
 /* フィギュア */
 figure {
     text-align: center;

@@ -87,7 +87,6 @@ export function fetchRandomImage() {
 }
 
 export function fetchImageList(id) {
-	window.location.href='#top';
 	clearNavigationControls();
 	revokeAllMediaObjectUrls();
 	authenticatedFetch('/req/img', { method: 'POST', body: JSON.stringify({ id }) })
@@ -172,6 +171,18 @@ export function fetchImageList(id) {
 				container.appendChild(imgContainer);
 				if (titlediv.innerHTML === '')
 					titlediv.innerHTML = item.fileName.img.substring(0, item.fileName.img.lastIndexOf('/')).split('/').slice(-2).join('/');
+			});
+
+			// 画像表示時は「最初の画像」にスクロールを合わせる
+			requestAnimationFrame(() => {
+				const first = document.getElementById('0') || container.firstElementChild;
+				if (first && typeof first.scrollIntoView === 'function') {
+					try {
+						first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+					} catch (e) {
+						first.scrollIntoView(true);
+					}
+				}
 			});
 		}).catch(error => {
 			console.error('画像の読み込み中にエラーが発生しました:', error);
