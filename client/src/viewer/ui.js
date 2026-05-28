@@ -97,7 +97,7 @@ export function clearNavigationControls() {
 }
 
 export function clearViewerContainers() {
-	['parentContainer', 'imageContainer', 'thumbnailContainer'].forEach(id => {
+	['parentContainer', 'imageContainer', 'thumbnailContainer', 'search_page_list'].forEach(id => {
 		const el = document.getElementById(id);
 		if (el) el.innerHTML = '';
 	});

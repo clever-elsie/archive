@@ -1,9 +1,73 @@
 import { State } from './state.js';
+import { calculatePageSize } from './pagination.js';
 import { generateMediaURL } from './api/media.js';
 import { preloadAndCalculateImageSize, calculateOptimalImageSize, revokeAllMediaObjectUrls } from './media.js';
 import { getTitleFromImgPath } from './utils.js';
 import { updateMetadataEditSection } from './metadata.js';
 import { clearNavigationControls } from './ui.js';
+
+function getSearchPageListElement() {
+	return document.getElementById('search_page_list');
+}
+
+function clearSearchPagination() {
+	State.search.results = [];
+	State.search.pages = [];
+	State.search.currentPage = 0;
+	State.search.pageSize = 0;
+	State.search.totalPages = 0;
+	State.search.active = false;
+	const searchPageList = getSearchPageListElement();
+	if (searchPageList) searchPageList.innerHTML = '';
+}
+
+function updateSearchPageButtons(currentPage = 0) {
+	const searchPageList = getSearchPageListElement();
+	if (!searchPageList) return;
+	searchPageList.innerHTML = '';
+	const totalPages = State.search.totalPages;
+	if (!totalPages) return;
+	const buttons = new Set();
+	for (let i = 0; i < Math.min(2, totalPages); i++) buttons.add(i);
+	for (let i = Math.max(0, totalPages - 2); i < totalPages; i++) buttons.add(i);
+	for (let i = Math.max(0, currentPage - 2); i <= Math.min(totalPages - 1, currentPage + 2); i++) buttons.add(i);
+	const milestoneInterval = Math.max(1, Math.floor(totalPages / 10));
+	for (let i = 0; i < totalPages; i += milestoneInterval) buttons.add(i);
+	const sortedButtons = Array.from(buttons).sort((a, b) => a - b);
+	sortedButtons.forEach(pageNum => {
+		const sel = document.createElement('button');
+		sel.innerText = String(pageNum);
+		sel.className = 'pagebutton';
+		if (pageNum === currentPage) sel.classList.add('current-page');
+		sel.addEventListener('click', function() {
+			showSearchPage(pageNum);
+		});
+		searchPageList.append(sel);
+	});
+}
+
+function showSearchPage(pageIndex) {
+	if (!State.search.active || State.search.totalPages === 0) return;
+	pageIndex = Math.max(0, Math.min(State.search.totalPages - 1, pageIndex));
+	State.search.currentPage = pageIndex;
+	const pageItems = State.search.pages[pageIndex] || [];
+	const container = document.getElementById('thumbnailContainer');
+	if (container) displayThumbnailImages(container, pageItems, undefined, true);
+	updateSearchPageButtons(pageIndex);
+}
+
+function setSearchResults(results) {
+	const pageSize = calculatePageSize();
+	State.search.results = Array.isArray(results) ? results : [];
+	State.search.pageSize = pageSize;
+	State.search.totalPages = Math.max(0, Math.ceil(State.search.results.length / pageSize));
+	State.search.pages = [];
+	for (let idx = 0; idx < State.search.totalPages; idx++) {
+		State.search.pages.push(State.search.results.slice(idx * pageSize, (idx + 1) * pageSize));
+	}
+	State.search.currentPage = 0;
+	State.search.active = State.search.totalPages > 0;
+}
 
 export function displayThumbnailImages(container, images, currentId, clearContainer = true) {
 	const loadingPopup = document.createElement('div');
@@ -77,6 +141,7 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 }
 
 export function fetchRandomImage() {
+	clearSearchPagination();
 	const cnt = window.innerWidth > window.innerHeight ? 5 : 12;
 	authenticatedFetch('/req/img/rand/' + cnt, { method: 'POST' })
 		.then(response => response.json())
@@ -87,6 +152,7 @@ export function fetchRandomImage() {
 }
 
 export function fetchImageList(id) {
+	clearSearchPagination();
 	clearNavigationControls();
 	revokeAllMediaObjectUrls();
 	authenticatedFetch('/req/img', { method: 'POST', body: JSON.stringify({ id }) })
@@ -195,16 +261,22 @@ export function fetchImageList(id) {
 
 export async function throw_query(e) {
 	if (e && e.preventDefault) e.preventDefault();
-	let par = document.getElementById('thumbnailContainer');
-	par.innerHTML = '';
+	clearSearchPagination();
+	const par = document.getElementById('thumbnailContainer');
+	if (par) par.innerHTML = '';
 	let query = document.getElementById('query_box').value;
 	query = query.replace(/　/g, ' ');
 	const json = { "query" : query, "order" : State.sort.order, "order_key" : State.sort.key };
 	const response = await authenticatedFetch('/req/img/retrieve', { method: 'POST', body: JSON.stringify(json) });
 	if (response && response.ok) {
 		const result = await response.json();
-		displayThumbnailImages(par, result);
-	} else {
+		setSearchResults(result);
+		if (State.search.totalPages > 0) {
+			showSearchPage(0);
+		} else if (par) {
+			par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">検索結果が見つかりませんでした</div>';
+		}
+	} else if (par) {
 		par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">クエリの解析に失敗しました</div>';
 	}
 }
