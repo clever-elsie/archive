@@ -1,5 +1,5 @@
 import { State } from './state.js';
-import { displayThumbnailImages } from './thumbnails.js';
+import { displayThumbnailImages, clearSearchPagination } from './thumbnails.js';
 
 export function call_page_num() {
 	fetch_page(Number(document.getElementById('page_num').value));
@@ -11,6 +11,7 @@ export function calculatePageSize() {
 }
 
 export function fetch_page(idx) {
+	clearSearchPagination();
 	const container = document.getElementById('thumbnailContainer');
 	document.getElementById('page_num').value = idx;
 	

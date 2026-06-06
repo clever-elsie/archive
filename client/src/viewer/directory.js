@@ -1,6 +1,6 @@
 import { State } from './state.js';
 import { displayVideoFrame, displayAudioFrame, displayTextFrame, displayDocFrame } from './media.js';
-import { displayThumbnailImages } from './thumbnails.js';
+import { displayThumbnailImages, clearSearchPagination } from './thumbnails.js';
 import { detectMediaType } from './mediaTypes.js';
 import { resetViewerUI } from './ui.js';
 
@@ -81,6 +81,7 @@ export function cd(eventOrIndex) {
 		eventOrIndex.preventDefault();
 	}
 
+	clearSearchPagination();
 	resetViewerUI();
 	const par = document.getElementById('thumbnailContainer');
 

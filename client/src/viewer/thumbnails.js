@@ -10,7 +10,7 @@ function getSearchPageListElement() {
 	return document.getElementById('search_page_list');
 }
 
-function clearSearchPagination() {
+export function clearSearchPagination() {
 	State.search.results = [];
 	State.search.pages = [];
 	State.search.currentPage = 0;
@@ -152,7 +152,6 @@ export function fetchRandomImage() {
 }
 
 export function fetchImageList(id) {
-	clearSearchPagination();
 	clearNavigationControls();
 	revokeAllMediaObjectUrls();
 	authenticatedFetch('/req/img', { method: 'POST', body: JSON.stringify({ id }) })
