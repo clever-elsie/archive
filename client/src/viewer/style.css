@@ -1,10 +1,5 @@
 @import url("../common.css");
 
-/*
- * レスポンシブ責務: 幅 768px 以下の見た目の最終調整は common_mobile.css（共通）と
- * viewer/mobile.css（viewer 専用）に集約する。ここ（style.css）ではデスクトップ基準のみ定義する。
- */
-
 /* メタデータセクション */
 .metadata-section {
 	display: grid;
