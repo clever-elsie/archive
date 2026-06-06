@@ -107,7 +107,18 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 			const jmpCtrl = document.getElementById(cid);
 			if (jmpCtrl) jmpCtrl.innerHTML = '';
 			if (currentId !== undefined && jmpCtrl) {
-				const idx = combinedData.findIndex(item => String(item.id) === String(currentId));
+				let navList = combinedData;
+				let idx = -1;
+				if (State.search.active && State.search.results && State.search.results.length > 0) {
+					idx = State.search.results.findIndex(item => String(item.id) === String(currentId));
+					if (idx !== -1) {
+						navList = State.search.results;
+					}
+				}
+				if (idx === -1) {
+					idx = combinedData.findIndex(item => String(item.id) === String(currentId));
+				}
+
 				const navDiv = document.createElement('div');
 				navDiv.style.textAlign = 'center';
 				navDiv.style.margin = '1em';
@@ -115,14 +126,14 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 					const prevBtn = document.createElement('button');
 					prevBtn.className = 'ctrlbutton';
 					prevBtn.innerText = 'prev';
-					prevBtn.onclick = () => fetchImageList(combinedData[idx - 1].id);
+					prevBtn.onclick = () => fetchImageList(navList[idx - 1].id);
 					navDiv.appendChild(prevBtn);
 				}
-				if (idx < combinedData.length - 1) {
+				if (idx >= 0 && idx < navList.length - 1) {
 					const nextBtn = document.createElement('button');
 					nextBtn.className = 'ctrlbutton';
 					nextBtn.innerText = 'next';
-					nextBtn.onclick = () => fetchImageList(combinedData[idx + 1].id);
+					nextBtn.onclick = () => fetchImageList(navList[idx + 1].id);
 					navDiv.appendChild(nextBtn);
 				}
 				jmpCtrl.appendChild(navDiv);

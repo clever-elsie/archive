@@ -81,8 +81,15 @@ window.addEventListener('DOMContentLoaded', function() {
 	}
 
 	// Enterで検索/ページジャンプ
-	const query = document.getElementById('query_box');
-	if (query) query.addEventListener('keydown', function(e){ if (e.key === 'Enter') throw_query(e); });
+	const searchForm = document.getElementById('search_form');
+	if (searchForm) {
+		searchForm.addEventListener('submit', function(e) {
+			throw_query(e);
+		});
+	} else {
+		const query = document.getElementById('query_box');
+		if (query) query.addEventListener('keydown', function(e){ if (e.key === 'Enter') throw_query(e); });
+	}
 	const pageNum = document.getElementById('page_num');
 	if (pageNum) pageNum.addEventListener('keydown', function(e){ if (e.key === 'Enter') call_page_num(); });
 });

@@ -70,12 +70,12 @@
 		<!-- 検索セクション -->
 		<section class="search-section">
 			<h3 id="THUM"><i class="fas fa-search"></i> その他の作品</h3>
-			<div class="search-controls">
-				<input id="query_box" type="text" placeholder="検索クエリを入力" class="modern-input"/>
+			<form id="search_form" class="search-controls" action="javascript:void(0);">
+				<input id="query_box" type="text" placeholder="検索クエリを入力" class="modern-input" enterkeyhint="search"/>
 				<button type="button" class="btn btn-primary" data-scroll-to="#THUM" data-viewer-action="throwQuery">
 					<i class="fas fa-search"></i> 検索
 				</button>
-			</div>
+			</form>
 		</section>
 
 		<!-- ナビゲーションコントロール -->
