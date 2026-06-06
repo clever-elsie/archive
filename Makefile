@@ -32,7 +32,7 @@ watch:
 	watch systemctl status $(SERVICE)
 
 clean:
-	rm -rf build
+	cd build && make clean || true
 
 install: build
 	sudo systemctl daemon-reload

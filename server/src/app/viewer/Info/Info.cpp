@@ -21,35 +21,24 @@ namespace VIEWER{
 // 《》が末尾にないか，ルビ中に「ひらがな，カタカナ，アルファベット，数字」以外が含まれていればルビ無しとする
 // ルビ無しはr[0]>=r[2]を意味する:rは戻り値
 std::array<size_t, 4> find_ruby(const std::string&dirname){
-  const char* const begin = dirname.data();
-  const char* const end = begin + dirname.size();
-  const char* it = dirname.data();
-  static std::string_view ruby_char="《》";
-  static const char* ruby_char_it=ruby_char.data();
-  static const uint32_t ruby_begin = utf8::decode_one(ruby_char_it, ruby_char.end());
-  static const uint32_t ruby_end = utf8::decode_one(ruby_char_it, ruby_char.end());
-  std::array<size_t, 4> ruby_range{0, 0, 0, 0};
-  while(it<end){
-    size_t idx = it-begin;
-    uint32_t cp = utf8::decode_one(it, end);
-    if(cp==ruby_begin) ruby_range[0] = idx, ruby_range[1] = it-begin;
-    if(cp==ruby_end) ruby_range[2] = idx, ruby_range[3] = it-begin;
-  }
-  if((ruby_range[0]>=ruby_range[2]) // ルビ無し
-   ||(ruby_range[3] != dirname.size()) // ルビが末尾でない
-  ) return{0,0,0,0};
-  // 《》内に「ひらがな，カタカナ，アルファベット，数字」以外が含まているか
-  bool has_non_ruby_char = false;
-  it = begin+ruby_range[1]; // 《の次の文字の先頭
-  while(it<begin+ruby_range[2]){ // 》まで
-    uint32_t cp = utf8::decode_one(it, begin+ruby_range[2]);
-    if(!utf8::isalpha(cp) && !utf8::isdigit(cp) && !utf8::ishiragana(cp) && !utf8::iskatakana(cp)){
-      has_non_ruby_char = true;
-      break;
+    const size_t rbegin = dirname.rfind("《"); // 《.*》の《の先頭位置
+    const size_t rend   = dirname.rfind("》"); // 《.*》の》の先頭位置
+    if(rbegin >= rend || rbegin == std::string::npos || rend == std::string::npos)
+        return {0,0,0,0}; // ルビは存在しない
+    const size_t inner_begin = rbegin + 3; // 《.*》の中の文字列の先頭位置
+    const size_t outer_end   = rend + 3;   // 《.*》の》の後ろの位置
+    const char*const inner_string_begin = dirname.data() + inner_begin;
+    const char*const inner_string_end   = dirname.data() + rend;
+    const char* itr = inner_string_begin;
+    while(itr<inner_string_end){
+        uint32_t cp = utf8::decode_one(itr, inner_string_end);
+        if(!utf8::isalpha(cp)
+         &&!utf8::isdigit(cp)
+         &&!utf8::ishiragana(cp)
+         &&!utf8::iskatakana(cp))
+            return {0,0,0,0}; // 無効なルビ
     }
-  }
-  if(has_non_ruby_char) return{0,0,0,0};
-  return ruby_range;
+    return {rbegin, inner_begin, rend, outer_end};
 }
 
 Path::Path(const filesystem::path&path_)
@@ -60,7 +49,6 @@ sortkey(Info::to_key(path_.filename()))
 
 std::string Info::remove_suffix_ruby_and_attribute(const std::string&dirname){
   // ルビ削除の前に将来的には属性削除も行う
-  //static const std::regex suffix_regex("([^《]*)《[^》]*》.*");
   auto[rbegin,rbegin_inner,rend_inner,rend]=find_ruby(dirname);
   if(rbegin<rend_inner)
     return std::string(dirname.begin(), dirname.begin()+rbegin);
@@ -69,7 +57,6 @@ std::string Info::remove_suffix_ruby_and_attribute(const std::string&dirname){
 
 // ディレクトリの名前からソートキーを生成
 std::string Info::to_key(const std::string&dirname){
-  // 将来的に，必要ならば事前に属性削除を行う
   // 英語は全て小文字に変換
   // カタカナは全てひらがなに変換
   // 濁音，半濁音，拗音は清音に戻す

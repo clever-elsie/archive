@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.25)
 project(HOME-SERVER VERSION 1.2.2 LANGUAGES CXX)
 
 # C++23を要求
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # gnu++23を使う
 set(CMAKE_CXX_EXTENSIONS ON)
@@ -34,6 +34,14 @@ target_link_libraries(home-server
     Crow::Crow
     ZLIB::ZLIB
 )
+
+set(ENV_LDFLAGS "$ENV{LDFLAGS}")
+if(NOT "${ENV_LDFLAGS}" STREQUAL "")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${ENV_LDFLAGS}")
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} ${ENV_LDFLAGS}")
+    #set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} ${ENV_LDFLAGS}")
+    message(STATUS "LDFLAGS applied: ${ENV_LDFLAGS}")
+endif()
 
 target_compile_definitions(home-server PRIVATE CROW_ENABLE_SSL=1)
 

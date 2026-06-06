@@ -5,10 +5,7 @@
 *.a
 *.so
 *.dll
-build/
-dist/
-bin/
-obj/
+/build/
 
 # CMake
 CMakeCache.txt
@@ -16,6 +13,8 @@ CMakeFiles/
 cmake_install.cmake
 *.cmake
 !CMakeLists.txt
+build.ninja
+compile_commands.json
 
 ## Docker (不要)
 # .dockerignore

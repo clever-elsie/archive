@@ -1,7 +1,7 @@
 # HOME-SERVER
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![C++](https://img.shields.io/badge/C%2B%2B-23-blue.svg)](https://isocpp.org/std/the-standard)
+[![C++](https://img.shields.io/badge/C%2B%2B-26-blue.svg)](https://isocpp.org/std/the-standard)
 [![CMake](https://img.shields.io/badge/CMake-3.25+-green.svg)](https://cmake.org/)
 
 archiveは、メディアビューアー、メモ管理、ユーザー管理機能を統合したWebベースのホームサーバーシステムです。
@@ -63,10 +63,14 @@ make install
 ## セットアップ
 
 ### 前提条件
-- C++23対応のコンパイラ (GCC 13.0以上)
+- C++26対応のコンパイラ (GCC 14以上)
 - OpenSSLライブラリ
 - systemd (Linux)
 - nginx または Apache
+
+新しいコンパイラを導入していて実行時にリンクエラーが発生する場合，LDFLAGSを確認してください．  
+例えば`/usr/local/bin/g++`を使う場合，
+`export LDFLAGS="-Wl,-rpath=/usr/local/lib64 -L/usr/local/bin/lib64`のように記述する必要があります．
 
 ### 1. nginxの設定
 ```bash
@@ -85,7 +89,7 @@ sudo systemctl reload nginx
 # 依存関係のインストール
 sudo apt install build-essential cmake libssl-dev pkg-config
 
-# C++23対応のためGCC 13+をインストール（Ubuntu 22.04以降）
+# C++26対応のためGCC 14+をインストール（Ubuntu 24.04以降）
 apt search '^g\+\+-[0-9]+$' # これで見つかる一番新しいバージョンを使う
 sudo apt install gcc-14 g++-14
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-13 130 \
