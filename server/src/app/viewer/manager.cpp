@@ -91,6 +91,7 @@ bool manager::save_dir_cache(const string&cache_file){
     
     // 書き込み成功時のみ元ファイルを置き換え
     fs::rename(temp_file, target);
+    dir_cache_dirty = false;
     dir_cache_last_write_time = fs::last_write_time(target);
     return true;
   } catch(...) {
@@ -119,10 +120,11 @@ void manager::cache_monitor_loop() {
   while (!should_stop_cache_monitor) {
     std::unique_lock<std::mutex> lock(cache_mutex);
     
-    // 1時間待機（または停止信号で中断）
-    if (cache_cv.wait_for(lock, cache_update_interval, [this] { 
-      return should_stop_cache_monitor.load(); 
-    })) break; // 停止信号を受信
+    // 1時間待機（または停止信号や汚染マーク/スキャン完了通知で中断）
+    cache_cv.wait_for(lock, cache_update_interval, [this] { 
+      return should_stop_cache_monitor.load() || dir_cache_dirty.load(); 
+    });
+    if (should_stop_cache_monitor.load()) break; // 停止信号を受信
     
     // フルスキャン中でない場合のみキャッシュ更新を実行
     if (!is_full_scanning.load() && dir_cache_dirty.load()) {
@@ -130,7 +132,6 @@ void manager::cache_monitor_loop() {
       // ユーザーアクセスがないタイミングでキャッシュ更新
       if (root_dir && dir_cache_dirty.load()) {
         save_dir_cache(dir_cache_file);
-        dir_cache_dirty = false;
       }
     }
   }
@@ -179,12 +180,14 @@ void manager::trigger_full_scan_if_needed() {
       std::lock_guard<std::mutex> lock(imtex);
       if (root_dir) root_dir->refresh(998244353ul);
       is_full_scanning = false;
+      cache_cv.notify_all();
     });
   }
 }
-
+ 
 void manager::mark_cache_dirty() {
   dir_cache_dirty = true;
+  cache_cv.notify_all();
 }
 
 void manager::start_initial_load(const std::string& base_dir){

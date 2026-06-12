@@ -39,10 +39,16 @@ bool Info::refresh(size_t depth){
       refresh_from_parent();
       return false;
     }
-    if(time_result.value > this->last_write_time){ // 更新有り
+    auto current_time = time_result.value;
+    std::error_code ec;
+    auto info_time = std::filesystem::last_write_time(path.path / ".info", ec);
+    if (!ec) {
+      current_time = std::max(current_time, info_time);
+    }
+    if(current_time > this->last_write_time){ // 更新有り
       mgr.leaf_dirs.erase(this);
       reload_info(), reload_leaf();
-      this->last_write_time = time_result.value;
+      this->last_write_time = current_time;
       has_update = true;
       mgr.leaf_dirs.insert(this);
     }
@@ -55,9 +61,15 @@ bool Info::refresh(size_t depth){
       refresh_from_parent();
       return false;
     }
-    if(time_result.value > this->last_write_time){ // 更新有り
-      reload_dir(depth), reload_leaf();
-      this->last_write_time = time_result.value;
+    auto current_time = time_result.value;
+    std::error_code ec;
+    auto info_time = std::filesystem::last_write_time(path.path / ".info", ec);
+    if (!ec) {
+      current_time = std::max(current_time, info_time);
+    }
+    if(current_time > this->last_write_time){ // 更新有り
+      reload_dir(depth), reload_leaf(), reload_info();
+      this->last_write_time = current_time;
       has_update = true;
     }
     if(depth) // 再帰的に更新
