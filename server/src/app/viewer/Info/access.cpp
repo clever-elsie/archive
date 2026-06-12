@@ -27,7 +27,10 @@ std::string Info::current_thumbnail_relative_path()const{
   const auto& imgs=this->media_vector<MediaType::image>();
   if(imgs.empty()) return "";
   manager&mgr=manager::get_instance();
-  return std::filesystem::relative(filesystem::path(this->path.path)/imgs[0],mgr.base_dir).string();
+  std::error_code ec;
+  auto rel = std::filesystem::relative(filesystem::path(this->path.path)/imgs[0],mgr.base_dir, ec);
+  if(ec) return "";
+  return rel.string();
 }
 
 std::vector<std::string> Info::all_thumbnail_relative_paths()const{
@@ -53,8 +56,13 @@ std::vector<std::string> Info::media_relative_paths(SortingOrder order, bool des
     elem=(this->path.path/elem).string();
   if(order==SortingOrder::last_write_time){
     std::ranges::sort(ret,[](const auto&a,const auto&b){
-        auto at=filesystem::last_write_time(a);
-        auto bt=filesystem::last_write_time(b);
+        std::error_code ec_a, ec_b;
+        auto at=filesystem::last_write_time(a, ec_a);
+        auto bt=filesystem::last_write_time(b, ec_b);
+        if(ec_a || ec_b){
+          if(ec_a && ec_b) return a<b;
+          return ec_a ? true : false;
+        }
         if(at==bt) return a<b;
         return at<bt;
     });

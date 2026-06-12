@@ -39,7 +39,18 @@ crow::response retrieve_query(const crow::request& req){
 	bool descendant = order_c && std::string(order_c) == "descendant";
 	Info::sort(dirs, order, descendant);
 	crow::json::wvalue::list ret;
-	for(auto const &dir:dirs) pb_next(ret,dir->current_thumbnail_relative_path(), dir->id());
+	for(auto const &dir:dirs) {
+		std::error_code ec;
+		if (!std::filesystem::exists(dir->full_path(), ec) || ec) {
+			continue; // Skip directories that do not exist
+		}
+		try {
+			std::string thumb = dir->current_thumbnail_relative_path();
+			pb_next(ret, thumb, dir->id());
+		} catch(...) {
+			// Ignore directories that fail to resolve
+		}
+	}
 	return crow::response(200,crow::json::wvalue(move(ret)));
 }
 
