@@ -19,12 +19,17 @@ using namespace std;
 crow::json::wvalue get_imgs(const crow::request&req){
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
-	auto data = crow::json::load(req.body);
-	uint64_t idv = static_cast<uint64_t>(data["id"].i());
+	const char* id_c = req.url_params.get("id");
+	if(!id_c) return crow::json::wvalue();
+	uint64_t idv;
+	try {
+		idv = static_cast<uint64_t>(std::stoull(id_c));
+	} catch(...) {
+		return crow::json::wvalue();
+	}
 	Info* node = mgr.get_info_from_id(idv);
 	if(!mgr.is_valid(node)
 		|| !node->has_only_img()
-		||!node->refresh(0)
 		||!VIEWER::can_view_node(req, node->parent())
 	)
 		return crow::json::wvalue();
@@ -60,17 +65,25 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
 	namespace F = std::filesystem;
-	auto data = crow::json::load(req.body);
 
-	const uint64_t idv=static_cast<uint64_t>(data["id"].i());
+	const char* id_c = req.url_params.get("id");
+	if(!id_c) return crow::json::wvalue();
+	uint64_t idv;
+	try {
+		idv = static_cast<uint64_t>(std::stoull(id_c));
+	} catch(...) {
+		return crow::json::wvalue();
+	}
 	Info* tar=mgr.get_info_from_id(idv);
-	if(!mgr.is_valid(tar)||!tar->refresh(0)) return crow::json::wvalue();
+	if(!mgr.is_valid(tar)) return crow::json::wvalue();
 
 	if(!VIEWER::can_view_node(req, tar))
 		return crow::json::wvalue();
 
-	const Info::SortingOrder order_type = data.has("order_key") && data["order_key"].s()=="last_write_time"?Info::SortingOrder::last_write_time:Info::SortingOrder::name;
-	const bool descendant = data.has("order") && data["order"].s()=="descendant";
+	const char* order_key_c = req.url_params.get("order_key");
+	const char* order_c = req.url_params.get("order");
+	const Info::SortingOrder order_type = (order_key_c && std::string(order_key_c) == "last_write_time") ? Info::SortingOrder::last_write_time : Info::SortingOrder::name;
+	const bool descendant = order_c && std::string(order_c) == "descendant";
 
 	crow::json::wvalue ret;
 	ret["cur"]=idv;

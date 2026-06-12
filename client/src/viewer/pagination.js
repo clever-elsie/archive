@@ -21,12 +21,12 @@ export function fetch_page(idx) {
 	// ページサイズをStateに保存
 	State.pagination.page_size = page_size;
 	
-	authenticatedFetch('/req/img/page_data', { 
-		method: 'POST', 
-		body: JSON.stringify({ 
-			idx: Number(idx), 
-			page_size: Number(page_size) 
-		}) 
+	const params = new URLSearchParams({
+		idx: Number(idx),
+		page_size: Number(page_size)
+	});
+	authenticatedFetch(`/req/img/page_data?${params.toString()}`, { 
+		method: 'GET'
 	})
 		.then(response => response.json())
 		.then(data => {

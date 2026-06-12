@@ -154,7 +154,7 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 export function fetchRandomImage() {
 	clearSearchPagination();
 	const cnt = window.innerWidth > window.innerHeight ? 5 : 12;
-	authenticatedFetch('/req/img/rand/' + cnt, { method: 'POST' })
+	authenticatedFetch('/req/img/rand/' + cnt, { method: 'GET' })
 		.then(response => response.json())
 		.then(data => {
 			let container = document.getElementById('thumbnailContainer');
@@ -165,7 +165,7 @@ export function fetchRandomImage() {
 export function fetchImageList(id) {
 	clearNavigationControls();
 	revokeAllMediaObjectUrls();
-	authenticatedFetch('/req/img', { method: 'POST', body: JSON.stringify({ id }) })
+	authenticatedFetch('/req/img?id=' + encodeURIComponent(id), { method: 'GET' })
 	.then(response => response.json())
 	.then(data => {
 		State.metadata.infoId = id;
@@ -276,8 +276,12 @@ export async function throw_query(e) {
 	if (par) par.innerHTML = '';
 	let query = document.getElementById('query_box').value;
 	query = query.replace(/　/g, ' ');
-	const json = { "query" : query, "order" : State.sort.order, "order_key" : State.sort.key };
-	const response = await authenticatedFetch('/req/img/retrieve', { method: 'POST', body: JSON.stringify(json) });
+	const params = new URLSearchParams({
+		query: query,
+		order: State.sort.order,
+		order_key: State.sort.key
+	});
+	const response = await authenticatedFetch(`/req/img/retrieve?${params.toString()}`, { method: 'GET' });
 	if (response && response.ok) {
 		const result = await response.json();
 		setSearchResults(result);

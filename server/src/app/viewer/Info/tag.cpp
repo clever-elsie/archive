@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <inline_helper.hpp>
 #include <app/viewer/Info.hpp>
+#include <app/viewer/manager.hpp>
 
 namespace VIEWER{
 
@@ -12,6 +13,7 @@ int Info::add_tag(std::string&& tag){
   std::ofstream ofs(info,ios_base::app);
   ofs<<tag<<'\n';
   this->tag.emplace(std::move(tag));
+  manager::get_instance().mark_cache_dirty();
   return 201;
 }
 
@@ -22,6 +24,7 @@ int Info::remove_tag(const std::string& tag){
   std::ofstream ofs(info,ios_base::trunc);
   for(const auto&x:this->tag)
     ofs<<x<<'\n';
+  manager::get_instance().mark_cache_dirty();
   return 200;
 }
 

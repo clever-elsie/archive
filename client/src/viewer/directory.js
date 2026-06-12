@@ -85,13 +85,13 @@ export function cd(eventOrIndex) {
 	resetViewerUI();
 	const par = document.getElementById('thumbnailContainer');
 
-	authenticatedFetch('/req/img/dir_access', {
-		method: 'POST',
-		body: JSON.stringify({
-			'id': eventOrIndex,
-			'order_key': State.sort.key,
-			'order': State.sort.order
-		})
+	const params = new URLSearchParams({
+		'id': eventOrIndex,
+		'order_key': State.sort.key,
+		'order': State.sort.order
+	});
+	authenticatedFetch(`/req/img/dir_access?${params.toString()}`, {
+		method: 'GET'
 	})
 	.then(response => response.json())
 	.then(data => {

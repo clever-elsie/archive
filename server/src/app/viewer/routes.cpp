@@ -19,19 +19,19 @@ void setup(App& app, std::string&& viewer_dir){
   mgr.start_initial_load(mgr.base_dir);
 
   CROW_ROUTE(app,"/req/img/rand/<int>")
-    .methods(crow::HTTPMethod::POST)
+    .methods(crow::HTTPMethod::GET)
       (VIEWER::get_rand_imgs);
   CROW_ROUTE(app,"/req/img")
-    .methods(crow::HTTPMethod::POST)
+    .methods(crow::HTTPMethod::GET)
       (VIEWER::get_imgs);
   CROW_ROUTE(app,"/req/img/page_data")
-    .methods(crow::HTTPMethod::POST)
+    .methods(crow::HTTPMethod::GET)
       (VIEWER::get_page_data);
   CROW_ROUTE(app,"/req/img/retrieve")
-    .methods(crow::HTTPMethod::POST)
+    .methods(crow::HTTPMethod::GET)
       (VIEWER::retrieve_query);
   CROW_ROUTE(app,"/req/img/dir_access")
-    .methods(crow::HTTPMethod::POST)
+    .methods(crow::HTTPMethod::GET)
       (VIEWER::get_dir_list);
   // ファイル構造キャッシュリロード
   CROW_ROUTE(app,"/req/img/reload")

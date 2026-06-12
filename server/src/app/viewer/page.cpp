@@ -10,12 +10,19 @@ using namespace std;
 crow::json::wvalue get_page_data(const crow::request&req){
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
-	auto data = crow::json::load(req.body);
-	if(!data.has("idx")||!data.has("page_size"))
+	const char* idx_c = req.url_params.get("idx");
+	const char* page_size_c = req.url_params.get("page_size");
+	if(!idx_c || !page_size_c)
 		return crow::json::wvalue();
 
-	const int64_t idx = data["idx"].i();
-	const int64_t page_size = data["page_size"].i();
+	int64_t idx;
+	int64_t page_size;
+	try {
+		idx = std::stoll(idx_c);
+		page_size = std::stoll(page_size_c);
+	} catch(...) {
+		return crow::json::wvalue();
+	}
 	
 	crow::json::wvalue ret;
 	const uint64_t n = mgr.leaf_dirs.size();
@@ -31,10 +38,9 @@ crow::json::wvalue get_page_data(const crow::request&req){
 		uint64_t end = min(n, start + page_size);
 		for(uint64_t k = start; k < end; ++k){
 			auto it = mgr.leaf_dirs.find_by_order(k);
-			if(it != mgr.leaf_dirs.end())
-				if((*it)->refresh(0))
-					pb_next(items, (*it)->current_thumbnail_relative_path(), (*it)->id());
-				else --k;
+			if(it != mgr.leaf_dirs.end()) {
+				pb_next(items, (*it)->current_thumbnail_relative_path(), (*it)->id());
+			}
 		}
 	}
 	ret["items"] = crow::json::wvalue(items);

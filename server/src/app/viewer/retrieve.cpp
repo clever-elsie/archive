@@ -14,8 +14,12 @@ using namespace std;
 crow::response retrieve_query(const crow::request& req){
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
-	const crow::json::rvalue json = crow::json::load(req.body);
-	auto queryAST = RETRIEVE::parse_query(json["query"].s());
+	const char* query_c = req.url_params.get("query");
+	const char* order_key_c = req.url_params.get("order_key");
+	const char* order_c = req.url_params.get("order");
+	if(!query_c) return crow::response(400);
+
+	auto queryAST = RETRIEVE::parse_query(std::string(query_c));
 	if(!queryAST) return crow::response(400);
 	for(const auto&line:queryAST->to_string()){
 		std::cout<<line<<'\n';
@@ -23,16 +27,16 @@ crow::response retrieve_query(const crow::request& req){
 	vector<Info*>dirs;
 	if(VIEWER::is_admin_req(req)){
 		for(auto it=mgr.leaf_dirs.begin();it!=mgr.leaf_dirs.end();++it)
-			if((*it)->refresh(0) && queryAST->evaluate(**it))
+			if(queryAST->evaluate(**it))
 				dirs.push_back(*it);
 	}else{
 		for(auto it=mgr.leaf_dirs.begin();it!=mgr.leaf_dirs.end();++it)
-			if((*it)->refresh(0) && queryAST->evaluate(**it))
+			if(queryAST->evaluate(**it))
 				if(VIEWER::can_view_node(req, *it))
 					dirs.push_back(*it);
 	}
-	Info::SortingOrder order = json["order_key"].s()=="last_write_time"?Info::SortingOrder::last_write_time:Info::SortingOrder::name;
-	bool descendant = json["order"].s()=="descendant";
+	Info::SortingOrder order = (order_key_c && std::string(order_key_c) == "last_write_time") ? Info::SortingOrder::last_write_time : Info::SortingOrder::name;
+	bool descendant = order_c && std::string(order_c) == "descendant";
 	Info::sort(dirs, order, descendant);
 	crow::json::wvalue::list ret;
 	for(auto const &dir:dirs) pb_next(ret,dir->current_thumbnail_relative_path(), dir->id());
