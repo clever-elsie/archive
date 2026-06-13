@@ -92,8 +92,40 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 	const auto[imgvec,dirvec]=tar->imgdirs_or_elsedirs(order_type,descendant);
 	crow::json::wvalue::list dir,img;
 	for(const auto&an_img:imgvec){
-		if(VIEWER::can_view_node(req, an_img))
-			pb_next(img, an_img->current_thumbnail_relative_path(), an_img->id());
+		if(VIEWER::can_view_node(req, an_img)) {
+			crow::json::wvalue next;
+			next["img"] = an_img->current_thumbnail_relative_path();
+			next["id"] = an_img->id();
+			if (an_img->has_only_img()) {
+				next["click_action"] = "gallery";
+			} else {
+				auto videos = an_img->media_relative_paths(Info::MediaType::video);
+				auto audios = an_img->media_relative_paths(Info::MediaType::audio);
+				auto texts = an_img->media_relative_paths(Info::MediaType::text);
+				auto docs = an_img->media_relative_paths(Info::MediaType::doc);
+				size_t total_media = videos.size() + audios.size() + texts.size() + docs.size();
+
+				if (!an_img->has_subdirectories() && total_media == 1) {
+					next["click_action"] = "play_media";
+					if (!videos.empty()) {
+						next["media_type"] = "video";
+						next["media_path"] = videos[0];
+					} else if (!audios.empty()) {
+						next["media_type"] = "audio";
+						next["media_path"] = audios[0];
+					} else if (!texts.empty()) {
+						next["media_type"] = "text";
+						next["media_path"] = texts[0];
+					} else if (!docs.empty()) {
+						next["media_type"] = "doc";
+						next["media_path"] = docs[0];
+					}
+				} else {
+					next["click_action"] = "navigate";
+				}
+			}
+			img.push_back(std::move(next));
+		}
 	}
 	const auto& imgs=tar->media_relative_paths<Info::MediaType::image>(); // 画像だけは順序指定を無視して名前昇順
 	for(const auto&an_img:imgs)

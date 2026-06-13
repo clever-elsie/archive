@@ -141,6 +141,7 @@ struct Info : public RETRIEVE::Retrieval{
   std::string relative_path()const;
   std::filesystem::path full_path()const{ return path.path; }
   std::string dirname()const{ return path.dirname_without_ruby; }
+  inline bool has_subdirectories()const{ return !dirs.empty(); }
   inline bool has_only_img()const{
     for(const auto&v:media|std::views::drop(1))
       if(!v.empty()) return false;

@@ -127,6 +127,7 @@ void Info::reload_dir(size_t depth){
     auto exists_result = SafeFS::exists(dirs[i]->path.path);
     if (!exists_result.success()) {
       handle_filesystem_error(exists_result.ec, "reload_dir exists");
+      ++i;
       continue;
     }
     if(!exists_result.value){
@@ -142,6 +143,7 @@ void Info::reload_dir(size_t depth){
       auto exists_result = SafeFS::exists(filesystem::path(this->path.path)/files[i]);
       if(!exists_result.success()){
         handle_filesystem_error(exists_result.ec, op_name);
+        ++i;
         continue;
       }
       if(!exists_result.value){

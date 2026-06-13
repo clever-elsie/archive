@@ -1,7 +1,7 @@
 import { State } from './state.js';
 import { calculatePageSize } from './pagination.js';
 import { generateMediaURL } from './api/media.js';
-import { preloadAndCalculateImageSize, calculateOptimalImageSize, revokeAllMediaObjectUrls } from './media.js';
+import { preloadAndCalculateImageSize, calculateOptimalImageSize, revokeAllMediaObjectUrls, displayVideoFrame, displayAudioFrame, displayTextFrame, displayDocFrame } from './media.js';
 import { getTitleFromImgPath } from './utils.js';
 import { updateMetadataEditSection } from './metadata.js';
 import { clearNavigationControls } from './ui.js';
@@ -93,7 +93,27 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 			img.alt = 'Image';
 			if (item.imageInfo.isVertical) img.classList.add('thumbnail');
 			else img.classList.add('cutthumbnail');
-			img.onclick = function() { fetchImageList(item.id); };
+			img.onclick = function() {
+				if (item.id === State.directory.currentId) {
+					fetchImageList(item.id);
+				} else if (item.click_action === 'play_media') {
+					if (item.media_type === 'video') {
+						displayVideoFrame(item.media_path, null, null);
+					} else if (item.media_type === 'audio') {
+						displayAudioFrame(item.media_path, null, null);
+					} else if (item.media_type === 'text') {
+						displayTextFrame(item.media_path, null, null);
+					} else if (item.media_type === 'doc') {
+						displayDocFrame(item.media_path, null, null);
+					}
+				} else if (item.click_action === 'navigate') {
+					if (typeof window.cd === 'function') {
+						window.cd(item.id);
+					}
+				} else {
+					fetchImageList(item.id);
+				}
+			};
 			const title = document.createElement('figcaption');
 			title.innerText = getTitleFromImgPath(item.img);
 			const figure = document.createElement('figure');
