@@ -187,8 +187,8 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 		});
 		for (let cid of ['jmpControll','jmpControll2']) {
 			const jmpCtrl = document.getElementById(cid);
-			if (jmpCtrl) jmpCtrl.innerHTML = '';
 			if (currentId !== undefined && jmpCtrl) {
+				jmpCtrl.innerHTML = '';
 				let navList = combinedData;
 				let idx = -1;
 				if (State.search.active && State.search.results && State.search.results.length > 0) {
