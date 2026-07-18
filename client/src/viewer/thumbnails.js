@@ -147,9 +147,7 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 			}
 			
 			visualEl.onclick = function() {
-				if (item.id === State.directory.currentId) {
-					fetchImageList(item.id);
-				} else if (item.click_action === 'play_media') {
+				if (item.click_action === 'play_media') {
 					if (item.id !== undefined && item.id !== 0) {
 						State.directory.currentId = item.id;
 						window.cur_id = item.id;
@@ -168,6 +166,8 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 					} else if (item.media_type === 'doc') {
 						displayDocFrame(item.media_path, playlist, index >= 0 ? index : 0);
 					}
+				} else if (item.id === State.directory.currentId) {
+					fetchImageList(item.id);
 				} else if (item.click_action === 'navigate') {
 					if (typeof window.cd === 'function') {
 						window.cd(item.id);

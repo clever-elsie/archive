@@ -257,7 +257,7 @@ export function hideImageLoadingPopup() {
 
 // 共通prev/nextボタン
 export function displayPrevNextButtons(currentIndex, mediaList, displayFunc) {
-	console.log("displayPrevNextButtons CALLED:", { currentIndex, mediaListLength: mediaList ? mediaList.length : null });
+
 	const cids = ['jmpControll','jmpControll2'];
 	for (let cid of cids) {
 		const container = document.getElementById(cid);
@@ -284,7 +284,7 @@ export function displayPrevNextButtons(currentIndex, mediaList, displayFunc) {
 
 // メディア表示（共通）
 export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex = null) {
-	console.log("displayAnyMedia CALLED:", { type, mediaURL, mediaListLength: mediaList ? mediaList.length : null, currentIndex });
+
 	clearNavigationControls();
 	let id = State.directory.currentId;
 	if (mediaList && currentIndex !== null && mediaList[currentIndex] && mediaList[currentIndex].id) {
