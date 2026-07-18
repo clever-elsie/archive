@@ -32,25 +32,37 @@ bool Info::refresh(size_t depth){
     refresh_from_parent();
     return false;
   }
-  if(has_only_img()){ // 葉ノード（画像のみ）
-    auto time_result = SafeFS::last_write_time(path.path/media_vector<MediaType::image>()[0]);
-    if(!time_result.success()){
-      handle_filesystem_error(time_result.ec, "last_write_time (leaf)");
-      refresh_from_parent();
-      return false;
+  if(is_trackable()){ // 葉ノード/追跡対象
+    std::filesystem::path first_media_file;
+    for (size_t i = 0; i < media_type_count(); ++i) {
+      const auto& vec = media_vector(static_cast<MediaType>(i));
+      if (!vec.empty()) {
+        first_media_file = filesystem::path(path.path) / vec[0];
+        break;
+      }
     }
-    auto current_time = time_result.value;
+
+    filesystem::file_time_type current_time = this->last_write_time;
+    if (!first_media_file.empty()) {
+      auto time_result = SafeFS::last_write_time(first_media_file);
+      if(!time_result.success()){
+        handle_filesystem_error(time_result.ec, "last_write_time (leaf)");
+        refresh_from_parent();
+        return false;
+      }
+      current_time = time_result.value;
+    }
     std::error_code ec;
     auto info_time = std::filesystem::last_write_time(path.path / ".info", ec);
     if (!ec) {
       current_time = std::max(current_time, info_time);
     }
     if(current_time > this->last_write_time){ // 更新有り
-      mgr.leaf_dirs.erase(this);
+      mgr.unregister_node(this);
       reload_info(), reload_leaf();
       this->last_write_time = current_time;
       has_update = true;
-      mgr.leaf_dirs.insert(this);
+      mgr.register_node(this);
     }
   }else if(is_directory){ // ディレクトリ
     auto time_result = SafeFS::last_write_time(path.path);
@@ -109,6 +121,13 @@ void Info::reload_info(){
 }
 
 void Info::reload_leaf(){
+  if (video_tree_ptr) {
+    for (auto& vf : video_files) {
+      video_tree_ptr->erase(vf.get());
+    }
+  }
+  video_files.clear();
+
   auto iter_result = SafeFS::directory_iterator(this->path.path);
   if(!iter_result.success()){
     handle_filesystem_error(iter_result.ec, "reload_leaf directory_iterator");
@@ -119,6 +138,23 @@ void Info::reload_leaf(){
     classify_and_push(itr.path(), new_media);
   media = std::move(new_media);
   sort_media_arrays();
+
+  const auto& videos = media_vector(MediaType::video);
+  for (const auto& vid : videos) {
+    std::filesystem::path full_p = this->path.path / vid;
+    auto time_result = SafeFS::last_write_time(full_p);
+    std::filesystem::file_time_type last_t;
+    if (time_result.success()) {
+      last_t = time_result.value;
+    } else {
+      last_t = std::filesystem::file_time_type::clock::now();
+    }
+    auto vf = std::make_unique<VideoFile>(this, vid, std::filesystem::path(vid).filename().string(), last_t);
+    if (video_tree_ptr) {
+      video_tree_ptr->insert(vf.get());
+    }
+    video_files.push_back(std::move(vf));
+  }
 }
 
 void Info::reload_dir(size_t depth){

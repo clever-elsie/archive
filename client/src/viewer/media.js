@@ -284,7 +284,10 @@ export function displayPrevNextButtons(currentIndex, mediaList, displayFunc) {
 // メディア表示（共通）
 export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex = null) {
 	clearNavigationControls();
-	const id = State.directory.currentId;
+	let id = State.directory.currentId;
+	if (mediaList && currentIndex !== null && mediaList[currentIndex] && mediaList[currentIndex].id) {
+		id = mediaList[currentIndex].id;
+	}
 	const filename = mediaURL.split('/').pop();
 
 	generateMediaURL(type, id, filename).then(objUrl => {
@@ -301,7 +304,7 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 					document.getElementById('counter').innerHTML = 1;
 					document.getElementById('imageContainer').innerHTML = '';
 					document.getElementById('imageContainer').appendChild(content);
-					document.getElementById('parentContainer').innerHTML = '';
+
 					scrollToContent(content);
 					if (mediaList && currentIndex !== null) {
 						displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));
@@ -343,7 +346,7 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 
 			message.appendChild(openBtn);
 			imageContainer.appendChild(message);
-			document.getElementById('parentContainer').innerHTML = '';
+
 			scrollToContent(message);
 
 			// window.open は先に実施済み（ブロックされた場合もリンクで開ける）
@@ -399,7 +402,7 @@ export function displayAnyMedia(type, mediaURL, mediaList = null, currentIndex =
 		imageContainer.innerHTML = '';
 		imageContainer.appendChild(elem);
 		MediaControls.attach(media, type);
-		document.getElementById('parentContainer').innerHTML = '';
+
 		scrollToContent(media);
 		if (mediaList && currentIndex !== null) {
 			displayPrevNextButtons(currentIndex, mediaList, (item, list, idx) => displayAnyMedia(type, item.path, list, idx));

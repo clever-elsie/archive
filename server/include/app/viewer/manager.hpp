@@ -19,19 +19,33 @@
 #include <ext/pb_ds/assoc_container.hpp>
 
 #include <app/viewer/Info.hpp>
-
 namespace VIEWER{
 using namespace std;
 
 template<class key, class value, class cmp=std::less<key>>
 using tree=__gnu_pbds::tree<key, value, cmp, __gnu_pbds::rb_tree_tag, __gnu_pbds::tree_order_statistics_node_update>;
 
+enum class TreeType {
+  all,
+  images,
+  movies,
+  texts,
+  pdfs,
+  musics,
+  size_
+};
+
 struct manager{
   constexpr static std::chrono::hours cache_update_interval{1}; // 1時間間隔
   constexpr static const char dir_cache_file[]="config/dir_cache.json";
   string base_dir;
-  // 可乱択二分木（順序統計木）に変更
-  tree<Info*, __gnu_pbds::null_type, LeafCmp> leaf_dirs;
+  
+  std::array<tree<Info*, __gnu_pbds::null_type, LeafCmp>, static_cast<size_t>(TreeType::size_)> trackable_trees;
+  VideoTree video_tree;
+  
+  void register_node(Info* node);
+  void unregister_node(Info* node);
+  
   unordered_set<Info*> valid_info_ptrs; // 有効ポインタ集合
   unordered_set<string> public_dirs; // VIEWER_DIR からの相対パス（正規化済み、フル一致）
   unique_ptr<Info> root_dir; // 下から順にデストラクタが呼ばれるので，root_dirが先に破棄されるように下に書く

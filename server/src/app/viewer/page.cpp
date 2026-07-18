@@ -7,6 +7,19 @@
 namespace VIEWER{
 using namespace std;
 
+namespace {
+TreeType parse_filter(const char* filter_c) {
+	if (!filter_c) return TreeType::all;
+	std::string_view f(filter_c);
+	if (f == "images") return TreeType::images;
+	if (f == "movies") return TreeType::movies;
+	if (f == "texts") return TreeType::texts;
+	if (f == "pdfs") return TreeType::pdfs;
+	if (f == "musics") return TreeType::musics;
+	return TreeType::all;
+}
+}
+
 crow::json::wvalue get_page_data(const crow::request&req){
 	manager& mgr = manager::get_instance();
 	lock_guard<mutex> lock(mgr.imtex);
@@ -24,8 +37,12 @@ crow::json::wvalue get_page_data(const crow::request&req){
 		return crow::json::wvalue();
 	}
 	
+	const char* filter_c = req.url_params.get("filter");
+	TreeType filter_type = parse_filter(filter_c);
+	const auto& target_tree = mgr.trackable_trees[static_cast<size_t>(filter_type)];
+	
 	crow::json::wvalue ret;
-	const uint64_t n = mgr.leaf_dirs.size();
+	const uint64_t n = target_tree.size();
 	const uint64_t page_cnt = (n + page_size - 1) / page_size;
 	
 	ret["total_pages"] = page_cnt;
@@ -37,9 +54,9 @@ crow::json::wvalue get_page_data(const crow::request&req){
 		uint64_t start = (uint64_t)idx * page_size;
 		uint64_t end = min(n, start + page_size);
 		for(uint64_t k = start; k < end; ++k){
-			auto it = mgr.leaf_dirs.find_by_order(k);
-			if(it != mgr.leaf_dirs.end()) {
-				pb_next(items, (*it)->current_thumbnail_relative_path(), (*it)->id());
+			auto it = target_tree.find_by_order(k);
+			if(it != target_tree.end()) {
+				pb_next(items, *it);
 			}
 		}
 	}

@@ -48,9 +48,26 @@ unique_ptr<Info> Info::from_json(unordered_map<uint64_t, Info*>&id2info, const c
   using namespace std::chrono;
   info->last_write_time=filesystem::file_time_type::clock::time_point(seconds(json["last_write_time"].i()));
   manager& mgr = manager::get_instance();
+  info->video_tree_ptr = &mgr.video_tree;
+  const auto& videos = info->media_vector(MediaType::video);
+  for (const auto& vid : videos) {
+    std::filesystem::path full_p = info->full_path() / vid;
+    auto time_result = SafeFS::last_write_time(full_p);
+    std::filesystem::file_time_type last_t;
+    if (time_result.success()) {
+      last_t = time_result.value;
+    } else {
+      last_t = std::filesystem::file_time_type::clock::now();
+    }
+    auto vf = std::make_unique<VideoFile>(info.get(), vid, std::filesystem::path(vid).filename().string(), last_t);
+    if (info->video_tree_ptr) {
+      info->video_tree_ptr->insert(vf.get());
+    }
+    info->video_files.push_back(std::move(vf));
+  }
+
   mgr.valid_info_ptrs.insert(info.get());
-  if(info->has_only_img())
-    mgr.leaf_dirs.insert(info.get());
+  mgr.register_node(info.get());
   info->sort_dirs();
   info->sort_media_arrays();
   return info;

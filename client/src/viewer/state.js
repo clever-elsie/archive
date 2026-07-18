@@ -9,6 +9,7 @@ export const State = {
 		active: false
 	},
 	sort: { key: 'name', order: 'ascendant' },
+	filter: 'all',
 	directory: { parentId: 0, currentId: 0 },
 	media: { lastObjectUrls: [] },
 	metadata: { infoId: -1, infoPath: '' }

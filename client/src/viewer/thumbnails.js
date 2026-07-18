@@ -78,6 +78,13 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 	if (clearContainer) revokeAllMediaObjectUrls();
 	const imagePromises = images.map(item => {
 		const id = item.id !== undefined ? item.id : State.directory.currentId;
+		if (!item.img) {
+			return Promise.resolve({
+				...item,
+				imageInfo: { width: 300, height: 200, isVertical: false },
+				objUrl: null
+			});
+		}
 		const filename = item.img.split('/').pop();
 		return generateMediaURL('image', id, filename)
 			.then(objUrl => preloadAndCalculateImageSize(objUrl)
@@ -88,23 +95,78 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 		if (lp) lp.remove();
 		if (clearContainer) container.innerHTML = '';
 		combinedData.forEach(item => {
-			const img = document.createElement('img');
-			img.src = item.objUrl;
-			img.alt = 'Image';
-			if (item.imageInfo.isVertical) img.classList.add('thumbnail');
-			else img.classList.add('cutthumbnail');
-			img.onclick = function() {
+			let visualEl;
+			if (item.objUrl) {
+				const img = document.createElement('img');
+				img.src = item.objUrl;
+				img.alt = 'Image';
+				if (item.imageInfo.isVertical) img.classList.add('thumbnail');
+				else img.classList.add('cutthumbnail');
+				visualEl = img;
+			} else {
+				const placeholder = document.createElement('div');
+				placeholder.className = 'thumbnail-placeholder';
+				if (item.imageInfo.isVertical) placeholder.classList.add('thumbnail');
+				else placeholder.classList.add('cutthumbnail');
+				
+				let iconHtml = '<i class="fas fa-folder"></i>';
+				let label = 'Folder';
+				
+				if (item.click_action === 'play_media' || item.media_type) {
+					if (item.media_type === 'video') {
+						iconHtml = '<i class="fas fa-video"></i>';
+						label = 'Video';
+					} else if (item.media_type === 'audio') {
+						iconHtml = '<i class="fas fa-music"></i>';
+						label = 'Audio';
+					} else if (item.media_type === 'text') {
+						iconHtml = '<i class="fas fa-file-alt"></i>';
+						label = 'Text';
+					} else if (item.media_type === 'doc') {
+						iconHtml = '<i class="far fa-file-pdf"></i>';
+						label = 'PDF';
+					}
+				} else {
+					if (item.dir_type === 'only_movies' || item.dir_type === 'only_one_movie') {
+						iconHtml = '<i class="fas fa-video"></i>';
+						label = 'Video';
+					} else if (item.dir_type === 'only_text') {
+						iconHtml = '<i class="fas fa-file-alt"></i>';
+						label = 'Text';
+					} else if (item.dir_type === 'only_pdfs') {
+						iconHtml = '<i class="far fa-file-pdf"></i>';
+						label = 'PDF';
+					} else if (item.dir_type === 'only_musics') {
+						iconHtml = '<i class="fas fa-music"></i>';
+						label = 'Music';
+					}
+				}
+				
+				placeholder.innerHTML = `<div class="placeholder-icon">${iconHtml}</div><div class="placeholder-label">${label}</div>`;
+				visualEl = placeholder;
+			}
+			
+			visualEl.onclick = function() {
 				if (item.id === State.directory.currentId) {
 					fetchImageList(item.id);
 				} else if (item.click_action === 'play_media') {
+					if (item.id !== undefined && item.id !== 0) {
+						State.directory.currentId = item.id;
+						window.cur_id = item.id;
+					}
+					const playlist = combinedData
+						.filter(x => x.click_action === 'play_media' && x.media_type === item.media_type)
+						.map(x => ({ path: x.media_path, filename: x.dirname, id: x.id }));
+					const index = playlist.findIndex(x => x.path === item.media_path);
+
 					if (item.media_type === 'video') {
-						displayVideoFrame(item.media_path, null, null);
+						displayVideoFrame(item.media_path, playlist, index >= 0 ? index : 0);
 					} else if (item.media_type === 'audio') {
-						displayAudioFrame(item.media_path, null, null);
+						displayAudioFrame(item.media_path, playlist, index >= 0 ? index : 0);
 					} else if (item.media_type === 'text') {
-						displayTextFrame(item.media_path, null, null);
+						displayTextFrame(item.media_path, playlist, index >= 0 ? index : 0);
 					} else if (item.media_type === 'doc') {
-						displayDocFrame(item.media_path, null, null);
+						displayDocFrame(item.media_path, playlist, index >= 0 ? index : 0);
 					}
 				} else if (item.click_action === 'navigate') {
 					if (typeof window.cd === 'function') {
@@ -115,9 +177,9 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 				}
 			};
 			const title = document.createElement('figcaption');
-			title.innerText = getTitleFromImgPath(item.img);
+			title.innerText = item.dirname || getTitleFromImgPath(item.img || '');
 			const figure = document.createElement('figure');
-			figure.appendChild(img);
+			figure.appendChild(visualEl);
 			figure.appendChild(title);
 			const div = document.createElement('div');
 			div.appendChild(figure);
@@ -174,7 +236,10 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 export function fetchRandomImage() {
 	clearSearchPagination();
 	const cnt = window.innerWidth > window.innerHeight ? 5 : 12;
-	authenticatedFetch('/req/img/rand/' + cnt, { method: 'GET' })
+	const params = new URLSearchParams({
+		filter: State.filter
+	});
+	authenticatedFetch('/req/img/rand/' + cnt + '?' + params.toString(), { method: 'GET' })
 		.then(response => response.json())
 		.then(data => {
 			let container = document.getElementById('thumbnailContainer');
@@ -185,41 +250,20 @@ export function fetchRandomImage() {
 export function fetchImageList(id) {
 	clearNavigationControls();
 	revokeAllMediaObjectUrls();
+	State.directory.currentId = id;
+	window.cur_id = id;
 	authenticatedFetch('/req/img?id=' + encodeURIComponent(id), { method: 'GET' })
 	.then(response => response.json())
 	.then(data => {
 		State.metadata.infoId = id;
-		const image_total = Object.keys(data['img']).length;
-		document.getElementById('counter').innerHTML = image_total;
 		const titlediv = document.getElementById('title');
 		const container = document.getElementById('imageContainer');
 		const parentContainer = document.getElementById('parentContainer');
 		container.innerHTML = '';
 		titlediv.innerHTML = '';
 		parentContainer.innerHTML = '';
-		const loadingDiv = document.createElement('div');
-		loadingDiv.id = 'loading-progress';
-		loadingDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (0/' + image_total + ')</div>';
-		container.appendChild(loadingDiv);
-		
-		let loadedCount = 0;
-		const updateProgress = () => {
-			loadedCount++;
-			const progressDiv = document.getElementById('loading-progress');
-			if (progressDiv) {
-				progressDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (' + loadedCount + '/' + image_total + ')</div>';
-			}
-		};
-		
-		const imagePromises = data['img'].map(fileName => {
-			const filename = fileName.img.split('/').pop();
-			return generateMediaURL('image', id, filename)
-				.then(objUrl => preloadAndCalculateImageSize(objUrl)
-					.then(imageInfo => {
-						updateProgress();
-						return { fileName, imageInfo, objUrl };
-					}));
-		});
+
+		// 1. タグ情報の更新
 		const tags = document.getElementById('tags');
 		tags.innerHTML = '';
 		if (data['tags'] && data['tags'].length > 0) {
@@ -227,65 +271,127 @@ export function fetchImageList(id) {
 		}
 		State.metadata.infoPath = data['info'];
 		updateMetadataEditSection();
-		Promise.all(imagePromises).then(combinedData => {
-			container.innerHTML = '';
-			combinedData.forEach((item, index) => {
-				const img = document.createElement('img');
-				img.src = item.objUrl;
-				img.classList.add('main-image');
-				img.dataset.originalWidth = item.imageInfo.width;
-				img.dataset.originalHeight = item.imageInfo.height;
-				const optimalSize = calculateOptimalImageSize(item.imageInfo);
-				img.style.width = optimalSize.width + 'px';
-				img.style.height = optimalSize.height + 'px';
-				img.style.maxWidth = optimalSize.maxWidth + 'px';
-				img.style.maxHeight = optimalSize.maxHeight + 'px';
-				const imgContainer = document.createElement('div');
-				const place = document.createElement('p');
-				imgContainer.id = index;
-				place.innerText = String(index);
-				place.classList.add('counter_place');
-				imgContainer.appendChild(img);
-				imgContainer.appendChild(place);
-				img.onclick = function(event) {
-					const rect = img.getBoundingClientRect();
-					const clickY = event.clientY - rect.top;
-					const imageHeight = rect.height;
-					const isUpperHalf = clickY < imageHeight / 2;
-					if (isUpperHalf) {
-						if (index > 0) {
-							const prevImg = document.getElementById(String(index - 1));
-							if (prevImg) prevImg.scrollIntoView({ behavior: 'auto', block: 'center' });
-						}
-					} else {
-						if (index + 1 < image_total) {
-							const nextImg = document.getElementById(String(index + 1));
-							if (nextImg) nextImg.scrollIntoView({ behavior: 'auto', block: 'center' });
-						}
-					}
-				};
-				container.appendChild(imgContainer);
-				if (titlediv.innerHTML === '')
-					titlediv.innerHTML = item.fileName.img.substring(0, item.fileName.img.lastIndexOf('/')).split('/').slice(-2).join('/');
-			});
 
-			// 画像表示時は「最初の画像」にスクロールを合わせる
-			requestAnimationFrame(() => {
-				const first = document.getElementById('0') || container.firstElementChild;
-				if (first && typeof first.scrollIntoView === 'function') {
-					try {
-						first.scrollIntoView({ behavior: 'smooth', block: 'start' });
-					} catch (e) {
-						first.scrollIntoView(true);
-					}
+		// 2. 親ディレクトリ（兄弟）または中身の展開
+		const dirType = data['dir_type'] || 'only_images';
+		if (parentContainer && data['parent']) {
+			const isMultiFile = dirType === 'only_movies' || dirType === 'only_musics' || dirType === 'only_text' || dirType === 'only_pdfs';
+			displayThumbnailImages(parentContainer, data['parent'], isMultiFile ? undefined : id, true);
+		}
+
+		if (dirType === 'only_images') {
+			const image_total = Object.keys(data['img']).length;
+			document.getElementById('counter').innerHTML = image_total;
+			const loadingDiv = document.createElement('div');
+			loadingDiv.id = 'loading-progress';
+			loadingDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (0/' + image_total + ')</div>';
+			container.appendChild(loadingDiv);
+			
+			let loadedCount = 0;
+			const updateProgress = () => {
+				loadedCount++;
+				const progressDiv = document.getElementById('loading-progress');
+				if (progressDiv) {
+					progressDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (' + loadedCount + '/' + image_total + ')</div>';
 				}
+			};
+			
+			const imagePromises = data['img'].map(fileName => {
+				const filename = fileName.img.split('/').pop();
+				return generateMediaURL('image', id, filename)
+					.then(objUrl => preloadAndCalculateImageSize(objUrl)
+						.then(imageInfo => {
+							updateProgress();
+							return { fileName, imageInfo, objUrl };
+						}));
 			});
-		}).catch(error => {
-			console.error('画像の読み込み中にエラーが発生しました:', error);
-			container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">画像の読み込みに失敗しました</div>';
-		});
-		if (parentContainer && data['parent']) displayThumbnailImages(parentContainer, data['parent'], id, true);
-		else parentContainer.innerHTML = '';
+			Promise.all(imagePromises).then(combinedData => {
+				container.innerHTML = '';
+				combinedData.forEach((item, index) => {
+					const img = document.createElement('img');
+					img.src = item.objUrl;
+					img.classList.add('main-image');
+					img.dataset.originalWidth = item.imageInfo.width;
+					img.dataset.originalHeight = item.imageInfo.height;
+					const optimalSize = calculateOptimalImageSize(item.imageInfo);
+					img.style.width = optimalSize.width + 'px';
+					img.style.height = optimalSize.height + 'px';
+					img.style.maxWidth = optimalSize.maxWidth + 'px';
+					img.style.maxHeight = optimalSize.maxHeight + 'px';
+					const imgContainer = document.createElement('div');
+					const place = document.createElement('p');
+					imgContainer.id = index;
+					place.innerText = String(index);
+					place.classList.add('counter_place');
+					imgContainer.appendChild(img);
+					imgContainer.appendChild(place);
+					img.onclick = function(event) {
+						const rect = img.getBoundingClientRect();
+						const clickY = event.clientY - rect.top;
+						const imageHeight = rect.height;
+						const isUpperHalf = clickY < imageHeight / 2;
+						if (isUpperHalf) {
+							if (index > 0) {
+								const prevImg = document.getElementById(String(index - 1));
+								if (prevImg) prevImg.scrollIntoView({ behavior: 'auto', block: 'center' });
+							}
+						} else {
+							if (index + 1 < image_total) {
+								const nextImg = document.getElementById(String(index + 1));
+								if (nextImg) nextImg.scrollIntoView({ behavior: 'auto', block: 'center' });
+							}
+						}
+					};
+					container.appendChild(imgContainer);
+					if (titlediv.innerHTML === '')
+						titlediv.innerHTML = item.fileName.img.substring(0, item.fileName.img.lastIndexOf('/')).split('/').slice(-2).join('/');
+				});
+
+				requestAnimationFrame(() => {
+					const first = document.getElementById('0') || container.firstElementChild;
+					if (first && typeof first.scrollIntoView === 'function') {
+						try {
+							first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+						} catch (e) {
+							first.scrollIntoView(true);
+						}
+					}
+				});
+			}).catch(error => {
+				console.error('画像の読み込み中にエラーが発生しました:', error);
+				container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">画像の読み込みに失敗しました</div>';
+			});
+		} else if (dirType === 'only_one_movie' || dirType === 'only_movies') {
+			const list = data['videos'] || [];
+			if (list.length > 0) {
+				displayVideoFrame(list[0].path, list, 0);
+			} else {
+				container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">動画ファイルが見つかりませんでした</div>';
+			}
+		} else if (dirType === 'only_text') {
+			const list = data['texts'] || [];
+			if (list.length > 0) {
+				displayTextFrame(list[0].path, list, 0);
+			} else {
+				container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">テキストファイルが見つかりませんでした</div>';
+			}
+		} else if (dirType === 'only_pdfs') {
+			const list = data['pdfs'] || [];
+			if (list.length > 0) {
+				displayDocFrame(list[0].path, list, 0);
+			} else {
+				container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">PDFファイルが見つかりませんでした</div>';
+			}
+		} else if (dirType === 'only_musics') {
+			const list = data['audios'] || [];
+			if (list.length > 0) {
+				displayAudioFrame(list[0].path, list, 0);
+			} else {
+				container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">音声ファイルが見つかりませんでした</div>';
+			}
+		} else {
+			container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">無効なフォルダタイプです</div>';
+		}
 	});
 }
 
@@ -299,7 +405,8 @@ export async function throw_query(e) {
 	const params = new URLSearchParams({
 		query: query,
 		order: State.sort.order,
-		order_key: State.sort.key
+		order_key: State.sort.key,
+		filter: State.filter
 	});
 	const response = await authenticatedFetch(`/req/img/retrieve?${params.toString()}`, { method: 'GET' });
 	if (response && response.ok) {

@@ -14,7 +14,7 @@ crow::response info_renew(const crow::request&req){
 	uint64_t idv=static_cast<uint64_t>(data["id"].i());
 	string tar=data["data"].s();
 	Info* node=mgr.get_info_from_id(idv);
-	if(!mgr.is_valid(node) || !node->has_only_img()) return crow::response(404);
+	if(!mgr.is_valid(node) || !node->is_trackable()) return crow::response(404);
 	if(data["AD"].s()=="add")
 		return crow::response(node->add_tag(std::move(tar)));
 	else return crow::response(node->remove_tag(tar));

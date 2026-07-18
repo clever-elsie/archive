@@ -35,7 +35,7 @@ inline bool can_view_node(const crow::request& req, const Info* node) {
   if (is_admin_req(req)) return true;
   // root は常に「遷移の起点」として許可（ただし中身は別途フィルタ）
   if (node == manager::get_root_dir()) return true;
-  if(node->has_only_img()) return is_public_dir_rel(node->parent()->relative_path());
+  if(node->is_trackable()) return is_public_dir_rel(node->parent()->relative_path());
   return is_public_dir_rel(node->relative_path());
 }
 

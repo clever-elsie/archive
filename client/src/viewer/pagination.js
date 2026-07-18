@@ -23,7 +23,8 @@ export function fetch_page(idx) {
 	
 	const params = new URLSearchParams({
 		idx: Number(idx),
-		page_size: Number(page_size)
+		page_size: Number(page_size),
+		filter: State.filter
 	});
 	authenticatedFetch(`/req/img/page_data?${params.toString()}`, { 
 		method: 'GET'

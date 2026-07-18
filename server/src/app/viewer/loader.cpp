@@ -43,7 +43,7 @@ void load_leaf_dir(const string&base){
 crow::response reload_leaf(const crow::request&req){
 	manager& mgr = manager::get_instance();
 	load_leaf_dir(mgr.base_dir);
-	if(mgr.leaf_dirs.size()==0) return crow::response(400);
+	if(mgr.trackable_trees[static_cast<size_t>(TreeType::all)].size()==0) return crow::response(400);
 	return crow::response(200);
 }
 } // namespace VIEWER

@@ -54,15 +54,25 @@ window.addEventListener('DOMContentLoaded', function() {
 	controls.style.margin = '1em 0';
 	controls.innerHTML = `
 		<label style="margin-right:0.5em;">並び替え:</label>
-		<select id="sort_mode">
+		<select id="sort_mode" style="margin-right:1.5em;">
 			<option value="name_asc">名前順</option>
 			<option value="mtime_desc">新しい順</option>
 			<option value="mtime_asc">古い順</option>
+		</select>
+		<label style="margin-right:0.5em;">絞り込み:</label>
+		<select id="filter_mode">
+			<option value="all">すべて</option>
+			<option value="images">画像</option>
+			<option value="movies">動画</option>
+			<option value="texts">テキスト</option>
+			<option value="pdfs">PDF</option>
+			<option value="musics">音楽</option>
 		</select>
 	`;
 	const container = document.getElementById('thumbnailContainer');
 	if (container && container.parentNode) container.parentNode.insertBefore(controls, container);
 	const sortSelect = document.getElementById('sort_mode');
+	const filterSelect = document.getElementById('filter_mode');
 	function setSortFromMode(mode) {
 		switch (mode) {
 			case 'name_asc': State.sort.key = 'name'; State.sort.order = 'ascendant'; break;
@@ -78,6 +88,15 @@ window.addEventListener('DOMContentLoaded', function() {
 	if (sortSelect) {
 		sortSelect.value = getModeFromSort();
 		sortSelect.addEventListener('change', function() { setSortFromMode(this.value); cd(State.directory.currentId); });
+	}
+	if (filterSelect) {
+		filterSelect.value = State.filter;
+		filterSelect.addEventListener('change', function() {
+			State.filter = this.value;
+			if (typeof fetch_page === 'function') {
+				fetch_page(0);
+			}
+		});
 	}
 
 	// Enterで検索/ページジャンプ

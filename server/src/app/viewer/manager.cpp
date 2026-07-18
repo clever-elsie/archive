@@ -207,6 +207,41 @@ void manager::shutdown(){
     initial_load_thread.join();
 }
 
+void manager::register_node(Info* node) {
+  if (!node->is_trackable()) return;
+  trackable_trees[static_cast<size_t>(TreeType::all)].insert(node);
+  
+  auto type = node->directory_type();
+  if (type == DirectoryType::only_images) {
+    trackable_trees[static_cast<size_t>(TreeType::images)].insert(node);
+  } else if (type == DirectoryType::only_movies || type == DirectoryType::only_one_movie) {
+    trackable_trees[static_cast<size_t>(TreeType::movies)].insert(node);
+  } else if (type == DirectoryType::only_text) {
+    trackable_trees[static_cast<size_t>(TreeType::texts)].insert(node);
+  } else if (type == DirectoryType::only_pdfs) {
+    trackable_trees[static_cast<size_t>(TreeType::pdfs)].insert(node);
+  } else if (type == DirectoryType::only_musics) {
+    trackable_trees[static_cast<size_t>(TreeType::musics)].insert(node);
+  }
+}
+
+void manager::unregister_node(Info* node) {
+  trackable_trees[static_cast<size_t>(TreeType::all)].erase(node);
+  
+  auto type = node->directory_type();
+  if (type == DirectoryType::only_images) {
+    trackable_trees[static_cast<size_t>(TreeType::images)].erase(node);
+  } else if (type == DirectoryType::only_movies || type == DirectoryType::only_one_movie) {
+    trackable_trees[static_cast<size_t>(TreeType::movies)].erase(node);
+  } else if (type == DirectoryType::only_text) {
+    trackable_trees[static_cast<size_t>(TreeType::texts)].erase(node);
+  } else if (type == DirectoryType::only_pdfs) {
+    trackable_trees[static_cast<size_t>(TreeType::pdfs)].erase(node);
+  } else if (type == DirectoryType::only_musics) {
+    trackable_trees[static_cast<size_t>(TreeType::musics)].erase(node);
+  }
+}
+
 manager::~manager() {
   shutdown();
 }

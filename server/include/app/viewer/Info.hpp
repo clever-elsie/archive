@@ -14,9 +14,55 @@
 #include <crow/json.h>
 #include <app/viewer/safe_filesystem.hpp>
 #include <app/retrieve.hpp>
+#include <ext/pb_ds/assoc_container.hpp>
+#include <ext/pb_ds/tree_policy.hpp>
 
-namespace VIEWER{
+namespace VIEWER {
 using namespace std;
+
+struct Info;
+
+struct VideoFile : public RETRIEVE::Retrieval {
+  Info* parent_node;
+  string path; // 相対パス
+  string name; // ファイル名
+  filesystem::file_time_type last_write_time;
+
+  VideoFile(Info* parent, const string& path_, const string& name_, filesystem::file_time_type time)
+    : parent_node(parent), path(path_), name(name_), last_write_time(time) {}
+
+  virtual bool match(const string& s) const override;
+  uint64_t id() const;
+};
+
+struct VideoFileCmp {
+  bool operator()(const VideoFile* a, const VideoFile* b) const noexcept {
+    if (a->last_write_time != b->last_write_time) {
+      return a->last_write_time > b->last_write_time;
+    }
+    return a->path < b->path;
+  }
+};
+
+using VideoTree = __gnu_pbds::tree<
+  VideoFile*,
+  __gnu_pbds::null_type,
+  VideoFileCmp,
+  __gnu_pbds::rb_tree_tag,
+  __gnu_pbds::tree_order_statistics_node_update
+>;
+using namespace std;
+
+enum class DirectoryType {
+  only_images,
+  only_movies,
+  only_one_movie,
+  only_text,
+  only_pdfs,
+  only_musics,
+  only_directories,
+  mixed_directory
+};
 
 struct Path{
   // ファイル名は最終的に filename《.*》.attributeのように任意個の属性とルビを末尾に付けるものとする
@@ -142,12 +188,10 @@ struct Info : public RETRIEVE::Retrieval{
   std::filesystem::path full_path()const{ return path.path; }
   std::string dirname()const{ return path.dirname_without_ruby; }
   inline bool has_subdirectories()const{ return !dirs.empty(); }
-  inline bool has_only_img()const{
-    for(const auto&v:media|std::views::drop(1))
-      if(!v.empty()) return false;
-    if(!dirs.empty()) return false;
-    return media[0].size()>0;
-  }
+  inline const std::vector<std::unique_ptr<Info>>& get_dirs() const { return dirs; }
+  DirectoryType directory_type() const;
+  bool is_trackable() const;
+  static std::string directory_type_to_string(DirectoryType type);
   inline bool has_any_media() const{
     for (const auto& v : media)
       if (!v.empty()) return true;
@@ -181,6 +225,9 @@ struct Info : public RETRIEVE::Retrieval{
       default: throw std::invalid_argument("invalid MediaType");
     }
   }
+  public:
+  VideoTree* video_tree_ptr = nullptr;
+  std::vector<std::unique_ptr<VideoFile>> video_files;
   private:
   friend struct LeafCmp;
 };

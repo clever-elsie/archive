@@ -88,7 +88,8 @@ Info::Info(const filesystem::path&dir,Info*par_)
 :path(dir),
 tag(),
 dirs(),media(),par(par_?:this),
-is_directory(false),has_filesystem_error(false){
+is_directory(false),has_filesystem_error(false),
+video_tree_ptr(&manager::get_instance().video_tree){
   {
     auto time_result = SafeFS::last_write_time(dir);
     if(!time_result.success()){
@@ -124,28 +125,129 @@ is_directory(false),has_filesystem_error(false){
     }
   }
   sort();
-  if(auto imgs=media_vector<MediaType::image>();!imgs.empty()) {
-    auto img_time_result = SafeFS::last_write_time(filesystem::path(path.path)/imgs[0]);
-    if (img_time_result.success())
-      last_write_time = img_time_result.value;
-    else{
-      handle_filesystem_error(img_time_result.ec, "last_write_time (leaf)");
-      dirs.clear();
-      for(auto&mt:media) mt.clear();
-      // これはディレクトリなので両方空なら呼出し元にdeleteされる
+  std::filesystem::path first_media_file;
+  for (size_t i = 0; i < media_type_count(); ++i) {
+    const auto& vec = media_vector(static_cast<MediaType>(i));
+    if (!vec.empty()) {
+      first_media_file = filesystem::path(path.path) / vec[0];
+      break;
     }
   }
+
+  if (!first_media_file.empty()) {
+    auto media_time_result = SafeFS::last_write_time(first_media_file);
+    if (media_time_result.success()) {
+      last_write_time = media_time_result.value;
+    } else {
+      handle_filesystem_error(media_time_result.ec, "last_write_time (leaf)");
+      dirs.clear();
+      for(auto&mt:media) mt.clear();
+    }
+  }
+  const auto& videos = media_vector(MediaType::video);
+  for (const auto& vid : videos) {
+    std::filesystem::path full_p = this->path.path / vid;
+    auto time_result = SafeFS::last_write_time(full_p);
+    std::filesystem::file_time_type last_t;
+    if (time_result.success()) {
+      last_t = time_result.value;
+    } else {
+      last_t = std::filesystem::file_time_type::clock::now();
+    }
+    auto vf = std::make_unique<VideoFile>(this, vid, std::filesystem::path(vid).filename().string(), last_t);
+    if (video_tree_ptr) {
+      video_tree_ptr->insert(vf.get());
+    }
+    video_files.push_back(std::move(vf));
+  }
+
   manager& mgr = manager::get_instance();
   mgr.valid_info_ptrs.insert(this);
-  if(has_only_img())
-    mgr.leaf_dirs.insert(this);
+  mgr.register_node(this);
 }
 
 Info::~Info(){
   manager& mgr = manager::get_instance();
   mgr.valid_info_ptrs.erase(this);
-  if(has_only_img())
-    mgr.leaf_dirs.erase(this);
+  if (video_tree_ptr) {
+    for (auto& vf : video_files) {
+      video_tree_ptr->erase(vf.get());
+    }
+  }
+  mgr.unregister_node(this);
+}
+
+DirectoryType Info::directory_type() const {
+  const auto& images = media_vector<MediaType::image>();
+  const auto& videos = media_vector<MediaType::video>();
+  const auto& audios = media_vector<MediaType::audio>();
+  const auto& texts = media_vector<MediaType::text>();
+  const auto& docs = media_vector<MediaType::doc>();
+  
+  bool has_dirs = !dirs.empty();
+  bool has_images = !images.empty();
+  bool has_videos = !videos.empty();
+  bool has_audios = !audios.empty();
+  bool has_texts = !texts.empty();
+  bool has_docs = !docs.empty();
+  
+  if (has_dirs) {
+    if (!has_images && !has_videos && !has_audios && !has_texts && !has_docs) {
+      return DirectoryType::only_directories;
+    }
+    return DirectoryType::mixed_directory;
+  }
+  
+  // dirs が空の場合
+  if (videos.size() == 1 && images.size() <= 1 && !has_audios && !has_texts && !has_docs) {
+    return DirectoryType::only_one_movie;
+  }
+  
+  if (has_videos && !has_images && !has_audios && !has_texts && !has_docs) {
+    return DirectoryType::only_movies;
+  }
+  
+  if (has_images && !has_videos && !has_audios && !has_texts && !has_docs) {
+    return DirectoryType::only_images;
+  }
+  
+  if (has_texts && !has_images && !has_videos && !has_audios && !has_docs) {
+    return DirectoryType::only_text;
+  }
+
+  if (has_docs && !has_images && !has_videos && !has_audios && !has_texts) {
+    return DirectoryType::only_pdfs;
+  }
+  
+  if (has_audios && !has_images && !has_videos && !has_texts && !has_docs) {
+    return DirectoryType::only_musics;
+  }
+  
+  return DirectoryType::mixed_directory;
+}
+
+bool Info::is_trackable() const {
+  auto type = directory_type();
+  return type == DirectoryType::only_images ||
+         type == DirectoryType::only_movies ||
+         type == DirectoryType::only_one_movie ||
+         type == DirectoryType::only_text ||
+         type == DirectoryType::only_pdfs ||
+         type == DirectoryType::only_musics;
+}
+
+std::string Info::directory_type_to_string(DirectoryType type) {
+  switch (type) {
+    case DirectoryType::only_images: return "only_images";
+    case DirectoryType::only_movies: return "only_movies";
+    case DirectoryType::only_one_movie: return "only_one_movie";
+    case DirectoryType::only_text: return "only_text";
+    case DirectoryType::only_pdfs: return "only_pdfs";
+    case DirectoryType::only_musics: return "only_musics";
+    case DirectoryType::only_directories: return "only_directories";
+    case DirectoryType::mixed_directory: return "mixed_directory";
+  }
+  return "mixed_directory";
 }
 
 
@@ -174,6 +276,14 @@ bool Info::should_retry() const {
   // 一時的なエラーかどうかを判定
   return last_error == std::errc::resource_unavailable_try_again ||
          last_error == std::errc::interrupted;
+}
+
+bool VideoFile::match(const string& s) const {
+  return name.contains(s) || path.contains(s) || (parent_node && parent_node->match(s));
+}
+
+uint64_t VideoFile::id() const {
+  return parent_node ? parent_node->id() : 0;
 }
 
 } // namespace VIEWER

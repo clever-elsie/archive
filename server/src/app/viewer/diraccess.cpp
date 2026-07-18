@@ -29,12 +29,13 @@ crow::json::wvalue get_imgs(const crow::request&req){
 	}
 	Info* node = mgr.get_info_from_id(idv);
 	if(!mgr.is_valid(node)
-		|| !node->has_only_img()
+		|| !node->is_trackable()
 		||!VIEWER::can_view_node(req, node->parent())
 	)
 		return crow::json::wvalue();
 	crow::json::wvalue ret;
 	ret["id"]=idv;
+	ret["dir_type"]=Info::directory_type_to_string(node->directory_type());
 
 	// 画像リスト
 	crow::json::wvalue::list img_list;
@@ -45,18 +46,88 @@ crow::json::wvalue get_imgs(const crow::request&req){
 	}
 	ret["img"]=std::move(img_list);
 
+	// 各カテゴリのリスト
+	auto add_media_list = [&](const char* key, Info::MediaType type) {
+		crow::json::wvalue::list list;
+		for(auto const & path : node->media_relative_paths(type)) {
+			crow::json::wvalue next;
+			next["path"] = path;
+			next["filename"] = std::filesystem::path(path).filename().string();
+			next["id"] = idv;
+			list.push_back(std::move(next));
+		}
+		ret[key] = std::move(list);
+	};
+	add_media_list("videos", Info::MediaType::video);
+	add_media_list("audios", Info::MediaType::audio);
+	add_media_list("texts", Info::MediaType::text);
+	add_media_list("pdfs", Info::MediaType::doc);
+
 	// タグ
 	crow::json::wvalue::list ts;
 	for(const auto&x:node->normalized_tags())
 		ts.push_back(x);
 	ret["tags"]=crow::json::wvalue(ts);
 
-	// 親ディレクトリの全画像ディレクトリサムネイル
 	crow::json::wvalue::list parent_list;
-	const auto& thumbnail_paths = node->parent_all_thumbnail_relative_paths();
-	const auto& parent_imgdirs = node->parent()->imgdirs_or_elsedirs().first;
-	for(const auto&d:parent_imgdirs)
-		pb_next(parent_list, d->current_thumbnail_relative_path(), d->id());
+	auto type = node->directory_type();
+	if (type == DirectoryType::only_movies || type == DirectoryType::only_musics || type == DirectoryType::only_text || type == DirectoryType::only_pdfs) {
+		if (type == DirectoryType::only_movies) {
+			for(auto const & vid : node->media_relative_paths(Info::MediaType::video)) {
+				crow::json::wvalue next;
+				next["id"] = idv;
+				next["img"] = "";
+				next["click_action"] = "play_media";
+				next["media_type"] = "video";
+				next["media_path"] = vid;
+				next["dirname"] = std::filesystem::path(vid).filename().string();
+				next["dir_type"] = "file";
+				parent_list.push_back(std::move(next));
+			}
+		} else if (type == DirectoryType::only_musics) {
+			for(auto const & aud : node->media_relative_paths(Info::MediaType::audio)) {
+				crow::json::wvalue next;
+				next["id"] = idv;
+				next["img"] = "";
+				next["click_action"] = "play_media";
+				next["media_type"] = "audio";
+				next["media_path"] = aud;
+				next["dirname"] = std::filesystem::path(aud).filename().string();
+				next["dir_type"] = "file";
+				parent_list.push_back(std::move(next));
+			}
+		} else if (type == DirectoryType::only_text) {
+			for(auto const & txt : node->media_relative_paths(Info::MediaType::text)) {
+				crow::json::wvalue next;
+				next["id"] = idv;
+				next["img"] = "";
+				next["click_action"] = "play_media";
+				next["media_type"] = "text";
+				next["media_path"] = txt;
+				next["dirname"] = std::filesystem::path(txt).filename().string();
+				next["dir_type"] = "file";
+				parent_list.push_back(std::move(next));
+			}
+		} else if (type == DirectoryType::only_pdfs) {
+			for(auto const & doc : node->media_relative_paths(Info::MediaType::doc)) {
+				crow::json::wvalue next;
+				next["id"] = idv;
+				next["img"] = "";
+				next["click_action"] = "play_media";
+				next["media_type"] = "doc";
+				next["media_path"] = doc;
+				next["dirname"] = std::filesystem::path(doc).filename().string();
+				next["dir_type"] = "file";
+				parent_list.push_back(std::move(next));
+			}
+		}
+	} else {
+		for(const auto& d : node->parent()->get_dirs()) {
+			if (d->is_trackable()) {
+				pb_next(parent_list, d.get());
+			}
+		}
+	}
 	ret["parent"] = std::move(parent_list);
 	return crow::json::wvalue(ret);
 }
@@ -96,34 +167,9 @@ crow::json::wvalue get_dir_list(const crow::request&req){
 			crow::json::wvalue next;
 			next["img"] = an_img->current_thumbnail_relative_path();
 			next["id"] = an_img->id();
-			if (an_img->has_only_img()) {
-				next["click_action"] = "gallery";
-			} else {
-				auto videos = an_img->media_relative_paths(Info::MediaType::video);
-				auto audios = an_img->media_relative_paths(Info::MediaType::audio);
-				auto texts = an_img->media_relative_paths(Info::MediaType::text);
-				auto docs = an_img->media_relative_paths(Info::MediaType::doc);
-				size_t total_media = videos.size() + audios.size() + texts.size() + docs.size();
-
-				if (!an_img->has_subdirectories() && total_media == 1) {
-					next["click_action"] = "play_media";
-					if (!videos.empty()) {
-						next["media_type"] = "video";
-						next["media_path"] = videos[0];
-					} else if (!audios.empty()) {
-						next["media_type"] = "audio";
-						next["media_path"] = audios[0];
-					} else if (!texts.empty()) {
-						next["media_type"] = "text";
-						next["media_path"] = texts[0];
-					} else if (!docs.empty()) {
-						next["media_type"] = "doc";
-						next["media_path"] = docs[0];
-					}
-				} else {
-					next["click_action"] = "navigate";
-				}
-			}
+			next["click_action"] = "gallery";
+			next["dir_type"] = Info::directory_type_to_string(an_img->directory_type());
+			next["dirname"] = an_img->dirname();
 			img.push_back(std::move(next));
 		}
 	}
