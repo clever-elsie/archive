@@ -101,42 +101,6 @@ bool manager::save_dir_cache(const string&cache_file){
   }
 }
 
-// キャッシュ更新システムの実装
-void manager::start_cache_monitor() {
-  if (cache_monitor_thread.joinable()) return;
-  
-  should_stop_cache_monitor = false;
-  cache_monitor_thread = std::thread(&manager::cache_monitor_loop, this);
-}
-
-void manager::stop_cache_monitor() {
-  should_stop_cache_monitor = true;
-  cache_cv.notify_all();
-  if (cache_monitor_thread.joinable())
-    cache_monitor_thread.join();
-}
-
-void manager::cache_monitor_loop() {
-  while (!should_stop_cache_monitor) {
-    std::unique_lock<std::mutex> lock(cache_mutex);
-    
-    // 1時間待機（または停止信号や汚染マーク/スキャン完了通知で中断）
-    cache_cv.wait_for(lock, cache_update_interval, [this] { 
-      return should_stop_cache_monitor.load() || dir_cache_dirty.load(); 
-    });
-    if (should_stop_cache_monitor.load()) break; // 停止信号を受信
-    
-    // フルスキャン中でない場合のみキャッシュ更新を実行
-    if (!is_full_scanning.load() && dir_cache_dirty.load()) {
-      lock.unlock();
-      // ユーザーアクセスがないタイミングでキャッシュ更新
-      if (root_dir && dir_cache_dirty.load()) {
-        save_dir_cache(dir_cache_file);
-      }
-    }
-  }
-}
-
 std::optional<std::string> manager::norm_rel(std::string_view in) const {
   namespace fs = std::filesystem;
   fs::path p = fs::path(in).lexically_normal();
@@ -171,23 +135,8 @@ void manager::set_public_dirs(const std::vector<std::string>& rel_paths) {
   }
 }
 
-void manager::trigger_full_scan_if_needed() {
-  if (cache_loaded_from_file.load() && !is_full_scanning.load()) {
-    is_full_scanning = true;
-    
-    if (full_scan_thread.joinable()) full_scan_thread.join();
-    full_scan_thread = std::thread([this]() {
-      std::lock_guard<std::mutex> lock(imtex);
-      if (root_dir) root_dir->refresh(998244353ul);
-      is_full_scanning = false;
-      cache_cv.notify_all();
-    });
-  }
-}
- 
 void manager::mark_cache_dirty() {
   dir_cache_dirty = true;
-  cache_cv.notify_all();
 }
 
 void manager::start_initial_load(const std::string& base_dir){
@@ -200,9 +149,6 @@ void manager::start_initial_load(const std::string& base_dir){
 }
 
 void manager::shutdown(){
-  stop_cache_monitor();
-  if (full_scan_thread.joinable())
-    full_scan_thread.join();
   if (initial_load_thread.joinable())
     initial_load_thread.join();
 }

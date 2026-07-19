@@ -286,4 +286,28 @@ uint64_t VideoFile::id() const {
   return parent_node ? parent_node->id() : 0;
 }
 
+void Info::reload_info(){
+  const filesystem::path info=this->path.path / ".info";
+  auto exists_result = SafeFS::exists(info);
+  if(!exists_result.success() || !exists_result.value) {
+    if(!exists_result.success())
+      handle_filesystem_error(exists_result.ec, "reload_info exists");
+    return;
+  }
+  ifstream ifs(info);
+  if(ifs.fail()){
+    std::error_code ec(ifs.rdstate(), std::iostream_category());
+    handle_filesystem_error(ec, "reload_info .info");
+    return;
+  }
+  string buf;
+  decltype(tag) new_tag;
+  while(getline(ifs,buf)){
+    if(buf.size()<1)continue;
+    if(buf.back()=='\n')buf.pop_back();
+    new_tag.emplace(buf);
+  }
+  tag=std::move(new_tag);
+}
+
 } // namespace VIEWER

@@ -131,13 +131,8 @@ struct Info : public RETRIEVE::Retrieval{
     return tag.contains(s) || path.contains(s);
   }
 
-  public: // 操作 refresh.cpp
-  bool refresh(size_t depth);
-  private: // 操作 refresh.cpp
+  private:
   void reload_info();
-  void reload_leaf();
-  void reload_dir(size_t depth);
-  bool refresh_from_parent();
 
   public: // 操作 sort.cpp
   void sort();

@@ -28,16 +28,15 @@ void load_leaf_dir(const string&base){
 			CROW_LOG_INFO<<"load_leaf_dir full scan done";
 		}else{
 			CROW_LOG_INFO<<"load_leaf_dir cache loaded";
-			// キャッシュから読み込んだ場合、バックグラウンドでフルスキャンを実行
-			mgr.trigger_full_scan_if_needed();
 		}
 	}else{
-		// refresh は imtex を保持した呼び出し元からのみ呼ぶ契約
-		mgr.root_dir->refresh(998244353ul/*this number is no means if you want to more depth, you can change it*/);
-		CROW_LOG_INFO<<"load_leaf_dir refresh differential done";
+		// 既存のキャッシュツリーを破棄して一からフルスキャンを実行
+		mgr.root_dir.reset();
+		mgr.root_dir=make_unique<Info>(base,nullptr);
+		lock.unlock();
+		mgr.save_dir_cache(mgr.dir_cache_file);
+		CROW_LOG_INFO<<"load_leaf_dir reload full scan done";
 	}
-	// キャッシュ監視を開始
-	mgr.start_cache_monitor();
 }
 
 crow::response reload_leaf(const crow::request&req){
