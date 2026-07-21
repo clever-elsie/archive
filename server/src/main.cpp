@@ -1,3 +1,4 @@
+#include <thread>
 #include <manager/config.hpp>
 #include <manager/auth/routes.hpp>
 #include <manager/auth/authorization_middleware.hpp>
@@ -23,6 +24,8 @@ int main(int argc, char* argv[]) {
 	VIEWER::setup(app, std::move(CONFIG::params.VIEWER_DIR));
 	MEMO::setup(app);
 	
-	app.multithreaded().run();
+	const unsigned hwc = std::thread::hardware_concurrency();
+	constexpr unsigned low = 4u;
+	app.concurrency(std::min(low, hwc)).run();
 	VIEWER::manager::get_instance().shutdown(); // 終了前にバックグラウンドスレッドを停止
 } 
