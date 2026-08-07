@@ -13,6 +13,7 @@
 #include <app/viewer/file_server.hpp>
 #include <app/viewer/manager.hpp>
 #include <app/viewer/access_control.hpp>
+#include <app/viewer/zip_util.hpp>
 
 namespace VIEWER{
 using namespace std;
@@ -44,6 +45,24 @@ crow::response redirect_media(const crow::request& req){
   try{
     rel = node->locate_media(Info::classify(filename), filename);
   }catch(int e){ return crow::response(e); }
+
+  std::filesystem::path full_p = std::filesystem::path(mgr.base_dir) / rel;
+
+  // zipファイルの場合は、1枚目の画像バイナリを直接抽出してレスポンス送信（raw=1 が指定された場合はZIP本体を返却）
+  if(rel.extension() == ".zip" && std::filesystem::is_regular_file(full_p)) {
+    const char* raw_c = req.url_params.get("raw");
+    bool is_raw = raw_c && (std::string(raw_c) == "1" || std::string(raw_c) == "true");
+
+    if (!is_raw) {
+      auto extracted = zip_util::extract_first_image(full_p);
+      if(extracted) {
+        crow::response res(200, extracted->mime_type, std::string(extracted->data.begin(), extracted->data.end()));
+        res.set_header("Cache-Control", "public, max-age=86400");
+        res.set_header("X-Content-Type-Options", "nosniff");
+        return res;
+      }
+    }
+  }
 
   std::string internal_uri = std::string("/_protected_media/") + rel.generic_string();
 

@@ -1,4 +1,5 @@
 #include <app/viewer/Info.hpp>
+#include <app/viewer/zip_util.hpp>
 
 namespace VIEWER{
 
@@ -23,15 +24,33 @@ Info::MediaType Info::classify(const std::filesystem::path& filename){
     ".zip", ".7z", ".gz", ".bz2", ".xz", ".tar"
   };
   
-  // 最後の拡張子が圧縮形式の場合、その前の拡張子で分類
-  // 現時点ではディレクトリzipは未対応
+  // 最後の拡張子が圧縮形式の場合
   if(std::ranges::contains(compress_exts, ext)){
     std::string stem = filename.stem().string();
-    if(stem.empty()) return MediaType::size_;
-    // .tar.gz のような場合を考慮（stemが.tarになる）
-    std::filesystem::path stem_path(stem);
-    ext = stem_path.extension().string();
-    if(ext.empty()) return MediaType::size_;
+    if(!stem.empty()){
+      std::filesystem::path stem_path(stem);
+      std::string inner_ext = stem_path.extension().string();
+      if(!inner_ext.empty()){
+        // .tar.gz のような二重圧縮拡張子の場合はさらに前を取得
+        if(std::ranges::contains(compress_exts, inner_ext)){
+          stem_path = stem_path.stem();
+          inner_ext = stem_path.extension().string();
+        }
+        if(!inner_ext.empty()){
+          for(size_t i=0;i<exts.size();++i)
+            if(std::ranges::contains(exts[i].first, inner_ext))
+              return Info::MediaType(i);
+        }
+      }
+    }
+    
+    // 単一拡張子の.zipファイルで、実在する場合は中身を読み込み画像が含まれるかチェック
+    if(ext == ".zip" && std::filesystem::is_regular_file(filename)){
+      if(zip_util::contains_images(filename)){
+        return MediaType::image;
+      }
+    }
+    return MediaType::size_;
   }
   
   for(size_t i=0;i<exts.size();++i)

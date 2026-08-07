@@ -236,6 +236,62 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 	});
 }
 
+function renderMainImageGallery(container, titlediv, combinedData) {
+	container.innerHTML = '';
+	const image_total = combinedData.length;
+	combinedData.forEach((item, index) => {
+		const img = document.createElement('img');
+		img.src = item.objUrl;
+		img.classList.add('main-image');
+		img.dataset.originalWidth = item.imageInfo.width;
+		img.dataset.originalHeight = item.imageInfo.height;
+		const optimalSize = calculateOptimalImageSize(item.imageInfo);
+		img.style.width = optimalSize.width + 'px';
+		img.style.height = optimalSize.height + 'px';
+		img.style.maxWidth = optimalSize.maxWidth + 'px';
+		img.style.maxHeight = optimalSize.maxHeight + 'px';
+		const imgContainer = document.createElement('div');
+		const place = document.createElement('p');
+		imgContainer.id = index;
+		place.innerText = String(index);
+		place.classList.add('counter_place');
+		imgContainer.appendChild(img);
+		imgContainer.appendChild(place);
+		img.onclick = function(event) {
+			const rect = img.getBoundingClientRect();
+			const clickY = event.clientY - rect.top;
+			const imageHeight = rect.height;
+			const isUpperHalf = clickY < imageHeight / 2;
+			if (isUpperHalf) {
+				if (index > 0) {
+					const prevImg = document.getElementById(String(index - 1));
+					if (prevImg) prevImg.scrollIntoView({ behavior: 'auto', block: 'center' });
+				}
+			} else {
+				if (index + 1 < image_total) {
+					const nextImg = document.getElementById(String(index + 1));
+					if (nextImg) nextImg.scrollIntoView({ behavior: 'auto', block: 'center' });
+				}
+			}
+		};
+		container.appendChild(imgContainer);
+		if (titlediv.innerHTML === '' && item.fileName && item.fileName.img) {
+			titlediv.innerHTML = item.fileName.img.substring(0, item.fileName.img.lastIndexOf('/')).split('/').slice(-2).join('/');
+		}
+	});
+
+	requestAnimationFrame(() => {
+		const first = document.getElementById('0') || container.firstElementChild;
+		if (first && typeof first.scrollIntoView === 'function') {
+			try {
+				first.scrollIntoView({ behavior: 'smooth', block: 'start' });
+			} catch (e) {
+				first.scrollIntoView(true);
+			}
+		}
+	});
+}
+
 export function fetchRandomImage() {
 	clearSearchPagination();
 	const cnt = window.innerWidth > window.innerHeight ? 5 : 12;
@@ -287,83 +343,86 @@ export function fetchImageList(id) {
 			document.getElementById('counter').innerHTML = image_total;
 			const loadingDiv = document.createElement('div');
 			loadingDiv.id = 'loading-progress';
-			loadingDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (0/' + image_total + ')</div>';
+			loadingDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">データを読み込み中...</div>';
 			container.appendChild(loadingDiv);
 			
-			let loadedCount = 0;
-			const updateProgress = () => {
-				loadedCount++;
-				const progressDiv = document.getElementById('loading-progress');
-				if (progressDiv) {
-					progressDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (' + loadedCount + '/' + image_total + ')</div>';
-				}
-			};
-			
-			const imagePromises = data['img'].map(fileName => {
-				const filename = fileName.img.split('/').pop();
-				return generateMediaURL('image', id, filename)
-					.then(objUrl => preloadAndCalculateImageSize(objUrl)
-						.then(imageInfo => {
-							updateProgress();
-							return { fileName, imageInfo, objUrl };
-						}));
-			});
-			Promise.all(imagePromises).then(combinedData => {
-				container.innerHTML = '';
-				combinedData.forEach((item, index) => {
-					const img = document.createElement('img');
-					img.src = item.objUrl;
-					img.classList.add('main-image');
-					img.dataset.originalWidth = item.imageInfo.width;
-					img.dataset.originalHeight = item.imageInfo.height;
-					const optimalSize = calculateOptimalImageSize(item.imageInfo);
-					img.style.width = optimalSize.width + 'px';
-					img.style.height = optimalSize.height + 'px';
-					img.style.maxWidth = optimalSize.maxWidth + 'px';
-					img.style.maxHeight = optimalSize.maxHeight + 'px';
-					const imgContainer = document.createElement('div');
-					const place = document.createElement('p');
-					imgContainer.id = index;
-					place.innerText = String(index);
-					place.classList.add('counter_place');
-					imgContainer.appendChild(img);
-					imgContainer.appendChild(place);
-					img.onclick = function(event) {
-						const rect = img.getBoundingClientRect();
-						const clickY = event.clientY - rect.top;
-						const imageHeight = rect.height;
-						const isUpperHalf = clickY < imageHeight / 2;
-						if (isUpperHalf) {
-							if (index > 0) {
-								const prevImg = document.getElementById(String(index - 1));
-								if (prevImg) prevImg.scrollIntoView({ behavior: 'auto', block: 'center' });
-							}
-						} else {
-							if (index + 1 < image_total) {
-								const nextImg = document.getElementById(String(index + 1));
-								if (nextImg) nextImg.scrollIntoView({ behavior: 'auto', block: 'center' });
-							}
-						}
-					};
-					container.appendChild(imgContainer);
-					if (titlediv.innerHTML === '')
-						titlediv.innerHTML = item.fileName.img.substring(0, item.fileName.img.lastIndexOf('/')).split('/').slice(-2).join('/');
-				});
+			const zipItem = Array.isArray(data['img']) ? data['img'].find(item => item.img && item.img.toLowerCase().endsWith('.zip')) : null;
 
-				requestAnimationFrame(() => {
-					const first = document.getElementById('0') || container.firstElementChild;
-					if (first && typeof first.scrollIntoView === 'function') {
-						try {
-							first.scrollIntoView({ behavior: 'smooth', block: 'start' });
-						} catch (e) {
-							first.scrollIntoView(true);
+			if (zipItem && typeof window.JSZip !== 'undefined') {
+				const filename = zipItem.img.split('/').pop();
+				loadingDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">ZIPアーカイブをダウンロード中...</div>';
+
+				generateMediaURL('image', id, filename, true)
+					.then(zipObjUrl => fetch(zipObjUrl))
+					.then(res => {
+						if (!res.ok) throw new Error('ZIPの取得に失敗しました');
+						return res.arrayBuffer();
+					})
+					.then(buffer => window.JSZip.loadAsync(buffer))
+					.then(async zip => {
+						loadingDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">ZIP内部の画像を解凍中...</div>';
+						const imgExtensions = ['.png', '.jpg', '.jpeg', '.webp', '.gif'];
+						const imageEntries = [];
+
+						zip.forEach((relativePath, zipEntry) => {
+							if (!zipEntry.dir) {
+								const lower = relativePath.toLowerCase();
+								if (imgExtensions.some(ext => lower.endsWith(ext))) {
+									imageEntries.push({ relativePath, zipEntry });
+								}
+							}
+						});
+
+						imageEntries.sort((a, b) => a.relativePath.localeCompare(b.relativePath));
+						document.getElementById('counter').innerHTML = imageEntries.length;
+
+						const extractedImages = [];
+						for (let i = 0; i < imageEntries.length; i++) {
+							const entry = imageEntries[i];
+							const blob = await entry.zipEntry.async('blob');
+							const objUrl = URL.createObjectURL(blob);
+							const imageInfo = await preloadAndCalculateImageSize(objUrl);
+							extractedImages.push({
+								fileName: { img: entry.relativePath },
+								imageInfo,
+								objUrl
+							});
 						}
+						return extractedImages;
+					})
+					.then(combinedData => {
+						renderMainImageGallery(container, titlediv, combinedData);
+					})
+					.catch(error => {
+						console.error('ZIPの解凍・読み込み中にエラーが発生しました:', error);
+						container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">ZIPの解凍・読み込みに失敗しました</div>';
+					});
+			} else {
+				let loadedCount = 0;
+				const updateProgress = () => {
+					loadedCount++;
+					const progressDiv = document.getElementById('loading-progress');
+					if (progressDiv) {
+						progressDiv.innerHTML = '<div style="text-align: center; padding: 2rem; color: #64ffda;">画像を読み込み中... (' + loadedCount + '/' + image_total + ')</div>';
 					}
+				};
+
+				const imagePromises = data['img'].map(fileName => {
+					const filename = fileName.img.split('/').pop();
+					return generateMediaURL('image', id, filename)
+						.then(objUrl => preloadAndCalculateImageSize(objUrl)
+							.then(imageInfo => {
+								updateProgress();
+								return { fileName, imageInfo, objUrl };
+							}));
 				});
-			}).catch(error => {
-				console.error('画像の読み込み中にエラーが発生しました:', error);
-				container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">画像の読み込みに失敗しました</div>';
-			});
+				Promise.all(imagePromises).then(combinedData => {
+					renderMainImageGallery(container, titlediv, combinedData);
+				}).catch(error => {
+					console.error('画像の読み込み中にエラーが発生しました:', error);
+					container.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">画像の読み込みに失敗しました</div>';
+				});
+			}
 		} else if (dirType === 'only_one_movie' || dirType === 'only_movies') {
 			const list = data['videos'] || [];
 			if (list.length > 0) {
