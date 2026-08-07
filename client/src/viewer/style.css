@@ -329,21 +329,27 @@ img:hover {
 	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
-/* サムネイル画像のスタイル */
 .thumbnail {
-	/* 横長画像用: 幅を制限し、高さは自動調整 */
 	max-width: 200px;
 	width: 100%;
 	height: auto;
 	object-fit: contain;
 }
 
+/* 横長サムネ */
 .cutthumbnail {
-	/* 縦長画像用: 高さを制限し、幅は自動調整 */
-	max-height: 300px;
 	width: 100%;
 	height: auto;
 	object-fit: contain;
+}
+
+/* 横長サムネイル用2列スパン設定 */
+.thumbnail-item-wide {
+	grid-column: span 2;
+}
+
+.thumbnail-item-wide figcaption {
+	max-width: 100%;
 }
 
 /* サムネイルグリッド内の画像コンテナ */

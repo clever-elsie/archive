@@ -182,6 +182,9 @@ export function displayThumbnailImages(container, images, currentId, clearContai
 			figure.appendChild(visualEl);
 			figure.appendChild(title);
 			const div = document.createElement('div');
+			if (!item.imageInfo.isVertical) {
+				div.classList.add('thumbnail-item-wide');
+			}
 			div.appendChild(figure);
 			container.appendChild(div);
 		});
