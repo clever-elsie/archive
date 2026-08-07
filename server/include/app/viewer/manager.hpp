@@ -49,22 +49,29 @@ struct manager{
   unordered_set<Info*> valid_info_ptrs; // 有効ポインタ集合
   unordered_set<string> public_dirs; // VIEWER_DIR からの相対パス（正規化済み、フル一致）
   unique_ptr<Info> root_dir; // 下から順にデストラクタが呼ばれるので，root_dirが先に破棄されるように下に書く
-  mutex imtex;
+  mutex imtex;        // アクセス権用mutex
+  mutex reload_mutex; // reload専用mutex
   random_device rds;
   mt19937_64 R;
   filesystem::file_time_type dir_cache_last_write_time;
   std::atomic<bool> dir_cache_dirty;
+  
+  std::atomic<bool> stop_requested;
   
   // キャッシュ更新システム用
   std::thread initial_load_thread; // 初期読み込みスレッド
   std::atomic<bool> cache_loaded_from_file;
   std::atomic<bool> initial_load_started;
 private:
-  manager():R(rds()),dir_cache_dirty(false),cache_loaded_from_file(false),initial_load_started(false){}
+  manager():R(rds()),stop_requested(false),dir_cache_dirty(false),cache_loaded_from_file(false),initial_load_started(false){}
   manager(const manager&)=delete;
   manager(manager&&)=delete;
   manager& operator=(const manager&)=delete;
   manager& operator=(manager&&)=delete;
+public:
+  void request_stop() noexcept { stop_requested.store(true, std::memory_order_relaxed); }
+  bool is_stop_requested() const noexcept { return stop_requested.load(std::memory_order_relaxed); }
+  void reset_stop_request() noexcept { stop_requested.store(false, std::memory_order_relaxed); }
 public:
   static manager& get_instance(){
     static manager instance;

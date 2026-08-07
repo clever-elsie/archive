@@ -46,8 +46,6 @@ bool manager::load_dir_cache(const string&cache_file){
     ss << ifstream(target).rdbuf();
     return crow::json::load(ss.str());
   }(target);
-  lock_guard<mutex> lock(imtex);
-  unordered_map<uint64_t,Info*> id2info;
   if(json_data.error()) {
     // 無効なJSONファイルを削除
     CROW_LOG_ERROR<<"load_dir_cache "<<target<<" invalid (parse error)";
@@ -56,7 +54,9 @@ bool manager::load_dir_cache(const string&cache_file){
     return false;
   }
   try{
-    root_dir=Info::load(json_data);
+    auto loaded_root = Info::load(json_data);
+    lock_guard<mutex> lock(imtex);
+    root_dir = std::move(loaded_root);
   }catch(const std::exception& e){
     // スキーマ不整合などで失敗した場合もキャッシュを削除してフルロードにフォールバック
     CROW_LOG_ERROR<<"load_dir_cache "<<target<<" invalid (schema): "<<e.what();
@@ -149,11 +149,13 @@ void manager::start_initial_load(const std::string& base_dir){
 }
 
 void manager::shutdown(){
+  request_stop();
   if (initial_load_thread.joinable())
     initial_load_thread.join();
 }
 
 void manager::register_node(Info* node) {
+  lock_guard<mutex> lock(imtex);
   if (!node->is_trackable()) return;
   trackable_trees[static_cast<size_t>(TreeType::all)].insert(node);
   
@@ -172,6 +174,7 @@ void manager::register_node(Info* node) {
 }
 
 void manager::unregister_node(Info* node) {
+  lock_guard<mutex> lock(imtex);
   trackable_trees[static_cast<size_t>(TreeType::all)].erase(node);
   
   auto type = node->directory_type();

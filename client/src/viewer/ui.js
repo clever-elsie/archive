@@ -41,12 +41,14 @@ export function updateSystemReloadButton() {
 export function reload_leaf_req(e) {
 	if (e && e.preventDefault) e.preventDefault();
 	if (!isAdmin()) { alert('システムリロードは管理者のみ実行できます'); return; }
-	State.pagination.prev = 0; State.pagination.next = 0; State.pagination.size = 0;
-	State.directory.parentId = 0; State.directory.currentId = 0;
-	document.getElementById('page_list').innerHTML = '';
-	resetViewerUI();
 	authenticatedFetch('/req/img/reload', { method: 'POST' })
-		.then(() => { fetchPageList(); });
+		.then(res => {
+			if (res && res.ok) {
+				if (isAdmin()) fetchPageList();
+				cd(State.directory.currentId);
+			}
+		})
+		.catch(err => console.error('reload_leaf_req error:', err));
 }
 
 export function jmpImg2() {

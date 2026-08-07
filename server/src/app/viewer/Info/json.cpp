@@ -24,14 +24,20 @@ unique_ptr<Info> Info::from_json(unordered_map<uint64_t, Info*>&id2info, const c
       throw std::runtime_error("invalid dir_cache.json: missing key " + missing_keys);
   }
 
+  manager& mgr = manager::get_instance();
+  if (mgr.is_stop_requested()) return nullptr;
+
   unique_ptr<Info> info=make_unique<Info>();
   id2info[json["id"].u()]=info.get();
   info->par=id2info[json["par"].u()];
   info->path=Path(filesystem::path(json["path"].s()));
   for(const auto&tag:json["tag"].lo())
     info->tag.insert(tag.s());
-  for(const auto&dir:json["dirs"].lo())
-    info->dirs.push_back(from_json(id2info,dir));
+  for(const auto&dir:json["dirs"].lo()) {
+    if (mgr.is_stop_requested()) return nullptr;
+    if (auto d = from_json(id2info,dir))
+      info->dirs.push_back(std::move(d));
+  }
   static auto media_push_back = [](auto&media, const auto&json){
     for(const auto&data:json)
       media.push_back(data.s());
@@ -47,7 +53,6 @@ unique_ptr<Info> Info::from_json(unordered_map<uint64_t, Info*>&id2info, const c
   info->is_directory=json["is_directory"].b();
   using namespace std::chrono;
   info->last_write_time=filesystem::file_time_type::clock::time_point(seconds(json["last_write_time"].i()));
-  manager& mgr = manager::get_instance();
   info->video_tree_ptr = &mgr.video_tree;
   const auto& videos = info->media_vector(MediaType::video);
   for (const auto& vid : videos) {
@@ -61,12 +66,16 @@ unique_ptr<Info> Info::from_json(unordered_map<uint64_t, Info*>&id2info, const c
     }
     auto vf = std::make_unique<VideoFile>(info.get(), vid, std::filesystem::path(vid).filename().string(), last_t);
     if (info->video_tree_ptr) {
+      lock_guard<mutex> lock(mgr.imtex);
       info->video_tree_ptr->insert(vf.get());
     }
     info->video_files.push_back(std::move(vf));
   }
 
-  mgr.valid_info_ptrs.insert(info.get());
+  {
+    lock_guard<mutex> lock(mgr.imtex);
+    mgr.valid_info_ptrs.insert(info.get());
+  }
   mgr.register_node(info.get());
   info->sort_dirs();
   info->sort_media_arrays();

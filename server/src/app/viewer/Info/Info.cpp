@@ -90,6 +90,9 @@ tag(),
 dirs(),media(),par(par_?:this),
 is_directory(false),has_filesystem_error(false),
 video_tree_ptr(&manager::get_instance().video_tree){
+  manager& mgr = manager::get_instance();
+  if (mgr.is_stop_requested()) return;
+
   {
     auto time_result = SafeFS::last_write_time(dir);
     if(!time_result.success()){
@@ -107,6 +110,8 @@ video_tree_ptr(&manager::get_instance().video_tree){
     reload_info();
   }
   
+  if (mgr.is_stop_requested()) return;
+
   // 安全なdirectory_iterator作成
   auto iter_result = SafeFS::directory_iterator(dir);
   if (!iter_result.success()) {
@@ -115,6 +120,7 @@ video_tree_ptr(&manager::get_instance().video_tree){
   }
   
   for(const auto&itr:iter_result.value){
+    if (mgr.is_stop_requested()) return;
     if(itr.is_directory()){
       auto n = make_unique<Info>(itr.path(),this);
       if(n && !n->empty())
@@ -124,6 +130,7 @@ video_tree_ptr(&manager::get_instance().video_tree){
       classify_and_push(itr.path(), media);
     }
   }
+  if (mgr.is_stop_requested()) return;
   sort();
   std::filesystem::path first_media_file;
   for (size_t i = 0; i < media_type_count(); ++i) {
@@ -156,22 +163,28 @@ video_tree_ptr(&manager::get_instance().video_tree){
     }
     auto vf = std::make_unique<VideoFile>(this, vid, std::filesystem::path(vid).filename().string(), last_t);
     if (video_tree_ptr) {
+      lock_guard<mutex> lock(manager::get_instance().imtex);
       video_tree_ptr->insert(vf.get());
     }
     video_files.push_back(std::move(vf));
   }
 
-  manager& mgr = manager::get_instance();
-  mgr.valid_info_ptrs.insert(this);
+  {
+    lock_guard<mutex> lock(mgr.imtex);
+    mgr.valid_info_ptrs.insert(this);
+  }
   mgr.register_node(this);
 }
 
 Info::~Info(){
   manager& mgr = manager::get_instance();
-  mgr.valid_info_ptrs.erase(this);
-  if (video_tree_ptr) {
-    for (auto& vf : video_files) {
-      video_tree_ptr->erase(vf.get());
+  {
+    lock_guard<mutex> lock(mgr.imtex);
+    mgr.valid_info_ptrs.erase(this);
+    if (video_tree_ptr) {
+      for (auto& vf : video_files) {
+        video_tree_ptr->erase(vf.get());
+      }
     }
   }
   mgr.unregister_node(this);

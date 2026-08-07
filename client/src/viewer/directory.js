@@ -81,20 +81,30 @@ export function cd(eventOrIndex) {
 		eventOrIndex.preventDefault();
 	}
 
+	const targetId = (typeof eventOrIndex === 'number' || typeof eventOrIndex === 'string') ? eventOrIndex : (State.directory.currentId || 0);
+
 	clearSearchPagination();
 	resetViewerUI();
 	const par = document.getElementById('thumbnailContainer');
 
 	const params = new URLSearchParams({
-		'id': eventOrIndex,
+		'id': targetId,
 		'order_key': State.sort.key,
 		'order': State.sort.order
 	});
 	authenticatedFetch(`/req/img/dir_access?${params.toString()}`, {
 		method: 'GET'
 	})
-	.then(response => response.json())
+	.then(response => {
+		if (!response || !response.ok) {
+			throw new Error(`HTTP error ${response ? response.status : 'unknown'}`);
+		}
+		return response.json();
+	})
 	.then(data => {
+		if (!data || data['cur'] === undefined) {
+			throw new Error('Invalid dir_access response');
+		}
 		State.directory.currentId = data['cur'];
 		State.directory.parentId = data['par'];
 		// 後方互換: HTML内の onclick 参照用
@@ -118,9 +128,14 @@ export function cd(eventOrIndex) {
 	})
 	.catch(error => {
 		console.error('cd() error:', error);
-		if (par) {
-			par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">ディレクトリの読み込みに失敗しました</div>';
+		if (targetId != 0) {
+			console.warn(`cd(${targetId}) failed, falling back to cd(0)`);
+			cd(0);
+		} else {
+			if (par) {
+				par.innerHTML = '<div style="text-align: center; padding: 2rem; color: #ff6b6b;">ディレクトリの読み込みに失敗しました</div>';
+			}
+			State.directory.currentId = 0;
 		}
-		State.directory.currentId = 0;
 	});
 }
