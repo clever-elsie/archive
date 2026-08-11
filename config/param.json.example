@@ -16,9 +16,11 @@
     "https://127.0.0.1:3000",
     "https://127.0.0.1:8080"
   ],
-  "ALLOWED_METHODS": "GET, POST, OPTIONS",
+  "ALLOWED_METHODS": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
   "ALLOWED_HEADERS": "Content-Type, X-CSRF-Token",
   "VIEWER_DIR": "/home/user/archive/data",
+  "USER_STORE_PATH": "users.json",
+  "VIEWER_SCAN_INTERVAL_SECONDS": 10800,
   "VIEWER_PUB_LIST": []
 }
 
@@ -33,12 +35,15 @@
 # ALLOWED_METHODS: CORSで許可するHTTPメソッド（カンマ区切り）
 # ALLOWED_HEADERS: CORSで許可するHTTPヘッダー（カンマ区切り）
 # VIEWER_DIR: viewerのベースディレクトリ
+# USER_STORE_PATH: ユーザー情報を保存するファイルのパス（既定値: users.json）
+# VIEWER_SCAN_INTERVAL_SECONDS: viewerの定期スキャン間隔（秒、例は3時間）
 # VIEWER_PUB_LIST: viewerで「公開」扱いにするディレクトリ（VIEWER_DIRからの相対パス配列）
-#   - 例: ["public", "public/books", "music"] のようにフル相対パスを列挙（祖先の自動公開はしない）
+#   - 例: ["public", "public/books", "music"] のようにフル相対パスを列挙
+#   - A/Bを許可すると、Aはトラバーサルのために許可されるが、A直下の別内容は公開されない
 #   - root（VIEWER_DIRそのもの）は常にpub
 #
 # 本番環境では以下を設定してください:
 # - IS_DEVELOPMENT: false
 # - ALLOWED_ORIGINS: 実際のドメインのみ
 # - SSL_CERT_PATH, SSL_KEY_PATH: 実際の証明書パス
-# - JWT_SECRET_KEY: 強力な秘密鍵に変更 
+# - JWT_SECRET_KEY: 強力な秘密鍵に変更

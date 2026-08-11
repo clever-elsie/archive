@@ -1,348 +1,409 @@
 #include <app/memo/memo.hpp>
-#include <manager/auth/middleware.hpp>
 
-namespace MEMO{
+#include <algorithm>
+#include <optional>
 
-crow::response memo_fetch_all(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  
-  lock_guard<mutex> lock(mmtex);
-  
-  // ユーザーディレクトリを確保
-  if (!ensure_user_directory(username))
-    return error_response("ユーザーディレクトリの作成に失敗しました");
-  
-  string user_path = get_user_memo_path(username);
-  crow::json::wvalue::list v;
-  
-  if (filesystem::exists(user_path)) {
-    for (const auto &file : filesystem::directory_iterator(user_path)) {
-      filesystem::path path = file.path();
-      if (path.extension().string() == ".json") {
-        MemoData memo = MemoData::load(path.string());
-        v.push_back(format_for_response(path.string(), memo, true));
-      }
-    }
-  }
-  
-  return crow::response(200, crow::json::wvalue(std::move(v)));
+#include <manager/auth/auth.hpp>
+
+namespace MEMO {
+
+namespace {
+
+crow::response memo_error(
+    int status,
+    const char* code,
+    const std::string& message) {
+  (void)code;
+  crow::json::wvalue body;
+  body["error"] = message;
+  return crow::response(status, std::move(body));
 }
 
-crow::response memo_search(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  
-  lock_guard<mutex> lock(mmtex);
-  
-  const char* query_c = req.url_params.get("query");
-  string query = query_c ? string(query_c) : string();
-  
-  string user_path = get_user_memo_path(username);
-  crow::json::wvalue::list v;
-  if(!filesystem::exists(user_path))
-    return crow::response(200, crow::json::wvalue(std::move(v)));
-  const auto queryAST = RETRIEVE::parse_query(query);
-  if(!queryAST) return crow::response(400);
-  for (const auto &file : filesystem::directory_iterator(user_path)) {
-    filesystem::path path = file.path();
-    if (path.extension().string() == ".json") {
-      MemoData memo = MemoData::load(path.string());
-      if (queryAST->evaluate(memo))
-        v.push_back(format_for_response(path.string(), memo, true));
-    }
-  }
-  return crow::response(200, crow::json::wvalue(std::move(v)));
+crow::response memo_success(
+    const char* code,
+    const char* message,
+    crow::json::wvalue data) {
+  (void)code;
+  (void)message;
+  return crow::response(200, std::move(data));
 }
 
-crow::response memo_create_new(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  
-  lock_guard<mutex> lock(mmtex);
-  
-  auto data = crow::json::load(req.body);
-  set<string> tag;
-  string format = "txt"; // デフォルトはtxt
-  
-  // タグを読み込み
-  if (data.has("tag")) {
-    auto tag_array = data["tag"];
-    for (size_t i = 0; i < tag_array.size(); i++)
-      tag.insert(tag_array[i].s());
-  }
-  
-  // 形式を読み込み
-  if (data.has("format")) {
-    format = data["format"].s();
-    if (!is_valid_format(format))
-      return error_response("無効な形式です");
-  }
-  
-  // ユーザーディレクトリを確保
-  if (!ensure_user_directory(username)) 
-    return error_response("ユーザーディレクトリの作成に失敗しました");
-  
-  // 一意なファイル名を生成
-  string filename = generate_unique_filename(username);
-  if (filename.empty())
-    return error_response("ファイル名の生成に失敗しました");
-  
-  const string file_path = get_user_memo_path(username) + filename;
-  const string timestamp = get_current_timestamp();
-  MemoData memo{tag, "", format, timestamp, timestamp, file_path};
-  if (!memo.save(file_path))
-    return error_response("メモの作成に失敗しました");
-  return crow::response(200, format_for_response(file_path, memo, true));
-}
-
-crow::response memo_renew(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  lock_guard<mutex> lock(mmtex);
-  auto data = crow::json::load(req.body);
-  string filename = data["filename"].s();
-  string new_data = data["memo"].s();
-  // ファイル名の安全性をチェック
-  for(const auto& pattern : {"..", "/", "\\"})
-    if (filename.find(pattern) != string::npos)
-      return error_response("無効なファイル名です");
-  
-  string file_path = get_user_memo_path(username) + filename;
-  if (!filesystem::exists(file_path))
-    return error_response("ファイルが存在しません");
-
-  MemoData memo = MemoData::load(file_path);
-  memo.data = new_data;
-  memo.updated_at = get_current_timestamp();
-  if (!memo.save(file_path))
-    return error_response("メモの保存に失敗しました");
+crow::response memo_success(const char* code, const char* message) {
+  (void)code;
+  (void)message;
   return crow::response(200);
+}
+
+std::optional<crow::json::rvalue> body_json(const crow::request& req) {
+  auto json = crow::json::load(req.body);
+  if (!json)
+    return std::nullopt;
+  // rvalue owns the parser buffer through its move-only ownership state.
+  // Copying it into optional leaves fields pointing at freed memory.
+  return std::move(json);
+}
+
+std::optional<std::string> string_field(
+    const crow::json::rvalue& json,
+    const char* name) {
+  if (!json.has(name) || json[name].t() != crow::json::type::String)
+    return std::nullopt;
+  return json[name].s();
+}
+
+std::optional<std::filesystem::path> existing_memo_path(
+    const std::string& username,
+    const std::string& filename) {
+  const auto path = safe_user_memo_path(username, filename);
+  if (!path)
+    return std::nullopt;
+  std::error_code ec;
+  const auto status = std::filesystem::symlink_status(*path, ec);
+  if (ec || status.type() == std::filesystem::file_type::symlink ||
+      status.type() != std::filesystem::file_type::regular)
+    return std::nullopt;
+  return path;
+}
+
+std::optional<std::string> principal_username(const crow::request& req) {
+  const auto principal = AUTH::principal_from_request(req);
+  if (!principal)
+    return std::nullopt;
+  return principal->username;
+}
+
+bool read_tags(
+    const crow::json::rvalue& json,
+    std::set<std::string>& tags) {
+  if (!json.has("tag"))
+    return true;
+  if (json["tag"].t() != crow::json::type::List)
+    return false;
+  for (const auto& item : json["tag"]) {
+    if (item.t() != crow::json::type::String)
+      return false;
+    tags.insert(item.s());
+  }
+  return true;
+}
+
+std::vector<std::filesystem::path> memo_files(
+    const std::filesystem::path& directory) {
+  std::vector<std::filesystem::path> result;
+  std::error_code ec;
+  for (const auto& entry :
+       std::filesystem::directory_iterator(
+           directory,
+           std::filesystem::directory_options::skip_permission_denied,
+           ec)) {
+    if (ec)
+      break;
+    const auto path = entry.path();
+    const auto status = std::filesystem::symlink_status(path, ec);
+    if (ec || status.type() == std::filesystem::file_type::symlink ||
+        status.type() != std::filesystem::file_type::regular)
+      continue;
+    if (path.extension() == ".json")
+      result.push_back(path);
+  }
+  std::ranges::sort(result);
+  return result;
+}
+
+} // namespace
+
+crow::response memo_fetch_all(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  if (!ensure_user_directory(*username))
+    return memo_error(503, "MEMO_DIRECTORY_UNAVAILABLE", "ユーザーメモ領域を利用できません");
+
+  crow::json::wvalue::list result;
+  for (const auto& path : memo_files(get_user_memo_path(*username))) {
+    const MemoData memo = MemoData::load(path.string());
+    if (memo.valid)
+      result.emplace_back(format_for_response(path, memo, true));
+  }
+  return memo_success(
+      "MEMO_LIST", "メモ一覧を取得しました",
+      crow::json::wvalue(std::move(result)));
+}
+
+crow::response memo_search(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+	if (memo_base_path.empty())
+		return memo_success(
+			"MEMO_SEARCH", "メモを検索しました",
+			crow::json::wvalue(crow::json::wvalue::list()));
+
+  const char* query_value = req.url_params.get("query");
+  const std::string query = query_value ? query_value : "";
+  const auto query_ast = RETRIEVE::parse_query(query);
+  if (!query_ast)
+    return memo_error(400, "INVALID_QUERY", "検索条件が不正です");
+  const auto directory = std::filesystem::path(get_user_memo_path(*username));
+  std::error_code ec;
+  if (!std::filesystem::is_directory(directory, ec) || ec)
+    return memo_success(
+        "MEMO_SEARCH", "メモを検索しました",
+        crow::json::wvalue(crow::json::wvalue::list()));
+
+  crow::json::wvalue::list result;
+  for (const auto& path : memo_files(directory)) {
+    const MemoData memo = MemoData::load(path.string());
+    if (memo.valid && query_ast->evaluate(memo))
+      result.emplace_back(format_for_response(path, memo, true));
+  }
+  return memo_success(
+      "MEMO_SEARCH", "メモを検索しました",
+      crow::json::wvalue(std::move(result)));
+}
+
+crow::response memo_create_new(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const auto json = body_json(req);
+  if (!json)
+    return memo_error(400, "BAD_REQUEST", "リクエストの形式が不正です");
+
+  std::set<std::string> tags;
+  if (!read_tags(*json, tags))
+    return memo_error(400, "INVALID_TAGS", "タグの形式が不正です");
+  std::string format = "txt";
+  if (const auto requested = string_field(*json, "format"))
+    format = *requested;
+  if (!is_valid_format(format))
+    return memo_error(400, "INVALID_FORMAT", "無効な形式です");
+
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  if (!ensure_user_directory(*username))
+    return memo_error(503, "MEMO_DIRECTORY_UNAVAILABLE", "ユーザーメモ領域を利用できません");
+  const std::string filename = generate_unique_filename(*username);
+  if (filename.empty())
+    return memo_error(503, "FILENAME_UNAVAILABLE", "ファイル名を生成できません");
+  const auto path = safe_user_memo_path(*username, filename);
+  if (!path)
+    return memo_error(400, "INVALID_FILENAME", "無効なファイル名です");
+
+  const std::string timestamp = get_current_timestamp();
+  MemoData memo{tags, std::string(), format, timestamp, timestamp, path->string()};
+  if (!memo.save(path->string()))
+    return memo_error(503, "MEMO_SAVE_FAILED", "メモの作成に失敗しました");
+  memo.valid = true;
+  return memo_success(
+      "MEMO_CREATED", "メモを作成しました",
+      format_for_response(*path, memo, true));
+}
+
+crow::response memo_renew(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const auto json = body_json(req);
+  if (!json)
+    return memo_error(400, "BAD_REQUEST", "リクエストの形式が不正です");
+  const auto filename = string_field(*json, "filename");
+  const auto data = string_field(*json, "memo");
+  if (!filename || !data)
+    return memo_error(400, "BAD_REQUEST", "filenameとmemoは必須です");
+
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  const auto path = existing_memo_path(*username, *filename);
+  if (!path)
+    return memo_error(404, "MEMO_NOT_FOUND", "ファイルが存在しません");
+  MemoData memo = MemoData::load(path->string());
+  if (!memo.valid)
+    return memo_error(409, "MEMO_INVALID", "メモの形式が不正です");
+  memo.data = *data;
+  memo.updated_at = get_current_timestamp();
+  if (!memo.save(path->string()))
+    return memo_error(503, "MEMO_SAVE_FAILED", "メモの保存に失敗しました");
+  return memo_success("MEMO_UPDATED", "メモを保存しました");
 }
 
 crow::response memo_now(const crow::request& req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  
-  lock_guard<mutex> lock(mmtex);
-  
-  const char* fn_c = req.url_params.get("filename");
-  if(!fn_c) return error_response("ファイル名が指定されていません");
-  string filename(fn_c);
-  
-  for(const auto& pattern : {"..", "/", "\\"})
-    if (filename.find(pattern) != string::npos)
-      return error_response("無効なファイル名です");
-  
-  string file_path = get_user_memo_path(username) + filename;
-  
-  if (!filesystem::exists(file_path))
-    return error_response("ファイルが存在しません");
-  
-  MemoData memo = MemoData::load(file_path);
-  return crow::response(200, format_for_response(file_path, memo, false));
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const char* filename_value = req.url_params.get("filename");
+  if (!filename_value)
+    return memo_error(400, "FILENAME_REQUIRED", "ファイル名が指定されていません");
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  const auto path = existing_memo_path(*username, filename_value);
+  if (!path)
+    return memo_error(404, "MEMO_NOT_FOUND", "ファイルが存在しません");
+  const MemoData memo = MemoData::load(path->string());
+  if (!memo.valid)
+    return memo_error(409, "MEMO_INVALID", "メモの形式が不正です");
+  return memo_success(
+      "MEMO_FOUND", "メモを取得しました",
+      format_for_response(*path, memo, false));
 }
 
-crow::response memo_rm(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  lock_guard<mutex> lock(mmtex);
-  const char* fn_c = req.url_params.get("filename");
-  if(!fn_c) return error_response("ファイル名が指定されていません");
-  string filename(fn_c);
-  for(const auto& pattern : {"..", "/", "\\"})
-    if (filename.find(pattern) != string::npos)
-      return error_response("無効なファイル名です");
-  string file_path = get_user_memo_path(username) + filename;
-  if (!filesystem::exists(file_path))
-    return error_response("ファイルが存在しません");
-  if (!filesystem::remove(file_path))
-    return error_response("ファイルの削除に失敗しました");
-  return crow::response(200);
+crow::response memo_rm(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const char* filename_value = req.url_params.get("filename");
+  if (!filename_value)
+    return memo_error(400, "FILENAME_REQUIRED", "ファイル名が指定されていません");
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  const auto path = existing_memo_path(*username, filename_value);
+  if (!path)
+    return memo_error(404, "MEMO_NOT_FOUND", "ファイルが存在しません");
+  std::error_code ec;
+  if (!std::filesystem::remove(*path, ec) || ec)
+    return memo_error(503, "MEMO_DELETE_FAILED", "ファイルの削除に失敗しました");
+  return memo_success("MEMO_DELETED", "メモを削除しました");
 }
 
-crow::response memo_rename(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  
-  lock_guard<mutex> lock(mmtex);
-  
-  auto data = crow::json::load(req.body);
-  string old_filename = data["old_filename"].s();
-  string new_stem = data["new_stem"].s();
-  
-  // ファイル名の安全性をチェック
-  for(const auto& pattern : {"..", "/", "\\"})
-    if (old_filename.find(pattern) != string::npos || new_stem.find(pattern) != string::npos)
-      return error_response("無効なファイル名です");
-  
-  
-  // 新しいファイル名を作成
-  string new_filename = new_stem + ".json";
-  
-  string old_path = get_user_memo_path(username) + old_filename;
-  string new_path = get_user_memo_path(username) + new_filename;
-  
-  if (!filesystem::exists(old_path))
-    return error_response("元のファイルが存在しません");
-  
-  if (filesystem::exists(new_path))
-    return error_response("新しいファイル名が既に存在します");
-  
-  MemoData memo = MemoData::load(old_path);
-  memo.path = new_path;
+crow::response memo_rename(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const auto json = body_json(req);
+  if (!json)
+    return memo_error(400, "BAD_REQUEST", "リクエストの形式が不正です");
+  const auto old_filename = string_field(*json, "old_filename");
+  const auto new_stem = string_field(*json, "new_stem");
+  if (!old_filename || !new_stem ||
+      !valid_filename_component(*new_stem))
+    return memo_error(400, "INVALID_FILENAME", "無効なファイル名です");
+
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  const auto old_path = existing_memo_path(*username, *old_filename);
+  const std::string new_filename = *new_stem + ".json";
+  const auto new_path = safe_user_memo_path(*username, new_filename);
+  if (!old_path || !new_path)
+    return memo_error(404, "MEMO_NOT_FOUND", "元のファイルが存在しません");
+  std::error_code ec;
+  if (std::filesystem::exists(*new_path, ec) || ec)
+    return memo_error(409, "MEMO_ALREADY_EXISTS", "新しいファイル名が既に存在します");
+  std::filesystem::rename(*old_path, *new_path, ec);
+  if (ec)
+    return memo_error(503, "MEMO_RENAME_FAILED", "メモの名前変更に失敗しました");
+
+  crow::json::wvalue body;
+  body["new_filename"] = new_filename;
+  body["new_stem"] = *new_stem;
+  body["extension"] = ".json";
+  return memo_success(
+      "MEMO_RENAMED", "メモの名前を変更しました", std::move(body));
+}
+
+crow::response memo_update_tags(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const auto json = body_json(req);
+  if (!json)
+    return memo_error(400, "BAD_REQUEST", "リクエストの形式が不正です");
+  const auto filename = string_field(*json, "filename");
+  if (!filename)
+    return memo_error(400, "FILENAME_REQUIRED", "ファイル名が指定されていません");
+  std::set<std::string> tags;
+  if (!read_tags(*json, tags))
+    return memo_error(400, "INVALID_TAGS", "タグの形式が不正です");
+
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  const auto path = existing_memo_path(*username, *filename);
+  if (!path)
+    return memo_error(404, "MEMO_NOT_FOUND", "ファイルが存在しません");
+  MemoData memo = MemoData::load(path->string());
+  if (!memo.valid)
+    return memo_error(409, "MEMO_INVALID", "メモの形式が不正です");
+  memo.tag = std::move(tags);
   memo.updated_at = get_current_timestamp();
-  if (!memo.save(new_path))
-    return error_response("メモの保存に失敗しました");
-  try{
-    filesystem::remove(old_path);
-  }catch(...){
-    return error_response("元のファイルの削除に失敗しました");
-  }
-  
-  // 成功レスポンスに新しいファイル名情報を含める
-  crow::json::wvalue ret;
-  ret["new_filename"] = new_filename;
-  ret["new_stem"] = new_stem;
-  ret["extension"] = ".json";
-  return crow::response(200, std::move(ret));
+  if (!memo.save(path->string()))
+    return memo_error(503, "MEMO_SAVE_FAILED", "タグの更新に失敗しました");
+  return memo_success("MEMO_TAGS_UPDATED", "タグを更新しました");
 }
 
-crow::response memo_update_tags(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  
-  lock_guard<mutex> lock(mmtex);
-  auto data = crow::json::load(req.body);
-  string filename = data["filename"].s();
-  set<string> new_tag;
-  for(const auto& pattern : {"..", "/", "\\"})
-    if (filename.find(pattern) != string::npos)
-      return error_response("無効なファイル名です");
-  if (data.has("tag"))
-    for(const auto&x:data["tag"])
-      new_tag.insert(x.s());
-  string file_path = get_user_memo_path(username) + filename;
-  if (!filesystem::exists(file_path))
-    return error_response("ファイルが存在しません");
-  MemoData memo = MemoData::load(file_path);
-  memo.tag = std::move(new_tag);
-  memo.updated_at = get_current_timestamp();
-  if (!memo.save(file_path))
-    return error_response("タグの更新に失敗しました");
-  return crow::response(200);
+crow::response memo_get_formats(const crow::request&) {
+  crow::json::wvalue::list formats;
+  for (const auto format : supported_formats)
+    formats.emplace_back(std::string(format));
+  crow::json::wvalue body;
+  body["formats"] = std::move(formats);
+  return memo_success(
+      "MEMO_FORMATS", "利用可能な形式を取得しました", std::move(body));
 }
 
-crow::response memo_get_formats(const crow::request &req) {
-  crow::json::wvalue::list formats_list;
-  for (const auto& format : supported_formats)
-    formats_list.push_back(std::string(format));
-  
-  crow::json::wvalue ret;
-  ret["formats"] = std::move(formats_list);
-  return crow::response(200, std::move(ret));
+crow::response memo_check_title(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const char* title_value = req.url_params.get("title");
+  if (!title_value || !valid_filename_component(title_value) ||
+      is_whitespace_only(title_value))
+    return memo_error(400, "INVALID_FILENAME", "タイトルは必須です");
+  const std::string filename = std::string(title_value) + ".json";
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  if (!ensure_user_directory(*username))
+    return memo_error(503, "MEMO_DIRECTORY_UNAVAILABLE", "ユーザーメモ領域を利用できません");
+  const bool available = is_filename_unique(*username, filename);
+  crow::json::wvalue body;
+  body["available"] = available;
+  body["title"] = title_value;
+  if (!available)
+    body["error"] = "このタイトルは既に使用されています";
+  return memo_success(
+      "MEMO_TITLE_CHECK", "タイトルを確認しました", std::move(body));
 }
 
-crow::response memo_check_title(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  
-  lock_guard<mutex> lock(mmtex);
-  
-  const char* title_c = req.url_params.get("title");
-  if(!title_c) return error_response("タイトルは必須です");
-  string title(title_c);
-  
-  // タイトルの安全性をチェック
-  for(const auto& pattern : {"..", "/", "\\"})
-    if (title.find(pattern) != string::npos)
-      return error_response("無効なタイトルです");
-  
-  // タイトルが空でないことをチェック
-  if (title.empty() || is_whitespace_only(title))
-    return error_response("タイトルは必須です");
-  
-  // ファイル名として使用可能かチェック
-  string filename = title + ".json";
-  bool is_available = is_filename_unique(username, filename);
-  
-  crow::json::wvalue ret;
-  ret["available"] = is_available;
-  ret["title"] = title;
-  if (!is_available)
-    ret["error"] = "このタイトルは既に使用されています";
-  return crow::response(200, std::move(ret));
+crow::response memo_create_with_title(const crow::request& req) {
+  const auto username = principal_username(req);
+  if (!username)
+    return memo_error(401, "AUTH_REQUIRED", "認証が必要です");
+  const auto json = body_json(req);
+  if (!json)
+    return memo_error(400, "BAD_REQUEST", "リクエストの形式が不正です");
+  const auto title = string_field(*json, "title");
+  if (!title || !valid_filename_component(*title) ||
+      is_whitespace_only(*title))
+    return memo_error(400, "INVALID_FILENAME", "タイトルは必須です");
+  std::set<std::string> tags;
+  if (!read_tags(*json, tags))
+    return memo_error(400, "INVALID_TAGS", "タグの形式が不正です");
+  std::string format = "txt";
+  if (const auto requested = string_field(*json, "format"))
+    format = *requested;
+  if (!is_valid_format(format))
+    return memo_error(400, "INVALID_FORMAT", "無効な形式です");
+
+  const auto lock = user_memo_mutex(*username);
+  std::lock_guard guard(*lock);
+  if (!ensure_user_directory(*username))
+    return memo_error(503, "MEMO_DIRECTORY_UNAVAILABLE", "ユーザーメモ領域を利用できません");
+  const std::string filename = *title + ".json";
+  if (!is_filename_unique(*username, filename))
+    return memo_error(409, "MEMO_ALREADY_EXISTS", "このタイトルは既に使用されています");
+  const auto path = safe_user_memo_path(*username, filename);
+  if (!path)
+    return memo_error(400, "INVALID_FILENAME", "無効なファイル名です");
+  const std::string timestamp = get_current_timestamp();
+  MemoData memo{tags, std::string(), format, timestamp, timestamp, path->string()};
+  if (!memo.save(path->string()))
+    return memo_error(503, "MEMO_SAVE_FAILED", "メモの作成に失敗しました");
+  memo.valid = true;
+  return memo_success(
+      "MEMO_CREATED", "メモを作成しました",
+      format_for_response(*path, memo, true));
 }
 
-crow::response memo_create_with_title(const crow::request &req) {
-  string token = MIDDLEWARE::extract_token(req);
-  string username = AUTH::get_username_from_token(token);
-  if (username.empty())
-    return error_response("ユーザー情報が取得できません");
-  
-  lock_guard<mutex> lock(mmtex);
-  
-  auto data = crow::json::load(req.body);
-  string title = data["title"].s();
-  set<string> tag;
-  string format = "txt"; // デフォルトはtxt
-  
-  // タイトルの安全性をチェック
-  for(const auto& pattern : {"..", "/", "\\"})
-    if (title.find(pattern) != string::npos)
-      return error_response("無効なタイトルです");
-  if (title.empty() || is_whitespace_only(title))
-    return error_response("タイトルは必須です");
-  
-  // タグを読み込み
-  if (data.has("tag"))
-    for(const auto&x:data["tag"])
-      tag.insert(x.s());
-  
-  // 形式を読み込み
-  if (data.has("format")) {
-    format = data["format"].s();
-    if (!is_valid_format(format))
-      return error_response("無効な形式です");
-  }
-  
-  // ユーザーディレクトリを確保
-  if (!ensure_user_directory(username))
-    return error_response("ユーザーディレクトリの作成に失敗しました");
-  
-  // ファイル名を作成
-  string filename = title + ".json";
-  
-  // ファイル名の一意性をチェック
-  if (!is_filename_unique(username, filename))
-    return error_response("このタイトルは既に使用されています");
-  
-  string file_path = get_user_memo_path(username) + filename;
-  string timestamp = get_current_timestamp();
-  // 新しいメモデータを作成
-  MemoData memo{tag, "", format, timestamp, timestamp, file_path};
-  // JSONファイルとして保存
-  if (!memo.save(file_path))
-    return error_response("メモの作成に失敗しました");
-  
-  return crow::response(200, format_for_response(file_path, memo, true));
-}
 } // namespace MEMO

@@ -1,108 +1,185 @@
 #include <manager/auth/middleware.hpp>
 
-namespace MIDDLEWARE {
-using namespace std;
+#include <algorithm>
+#include <iostream>
+#include <string_view>
 
-inline bool requires_auth(const string& path) {
-  // 認証が不要なパス
-  static const vector<string> public_paths = {
-    "/",
-    "/req/auth/login",
-    "/req/auth/check",
-    "/req/user/check_first",
-    "/req/user/register",
-    "/req/user/permissions"
-  };
-  if (path.ends_with(".html") || path.ends_with(".css") || path.ends_with(".js"))
-    return false; // HTMLファイルのパス
-  for (const auto& public_path : public_paths)
-    if (path == public_path)
-      return false; // 公開パスのチェック
-  return true; // その他は認証が必要
-}
+namespace {
 
-inline string extract_token(const crow::request& req) {
-  // Cookie から JWT を取得（唯一の正式な経路）
-  std::string cookie = req.get_header_value("Cookie");
-  const std::string name = "auth_token=";
-  if (!cookie.empty()) {
-    auto pos = cookie.find(name);
-    if (pos != std::string::npos) {
-      pos += name.size();
-      auto end = cookie.find(';', pos);
-      if (end == std::string::npos) end = cookie.size();
-      return cookie.substr(pos, end - pos);
-    }
+std::string log_safe(std::string value) {
+  constexpr std::size_t MAX_LOG_LENGTH = 512;
+  if (value.size() > MAX_LOG_LENGTH)
+    value.resize(MAX_LOG_LENGTH);
+  for (char& character : value) {
+    const auto byte = static_cast<unsigned char>(character);
+    if (byte < 0x20 || byte == 0x7f)
+      character = '?';
   }
-  return "";
+  return value;
 }
 
-inline bool requires_csrf_validation(const string& path, const crow::HTTPMethod& method) {
-  // GETリクエストはCSRF検証不要
-  if (method == crow::HTTPMethod::GET)
-    return false;
-  // 認証が不要なパスはCSRF検証も不要
-  if (!requires_auth(path))
-    return false;
-  return true; // その他のPOST/PUT/DELETEリクエストはCSRF検証が必要
+} // namespace
+
+namespace MIDDLEWARE {
+
+namespace {
+
+bool safe_method(const crow::HTTPMethod method) {
+  return method == crow::HTTPMethod::GET ||
+         method == crow::HTTPMethod::HEAD ||
+         method == crow::HTTPMethod::OPTIONS;
 }
 
-inline bool is_allowed_origin(const string& origin) {
-  // 開発環境ではすべてのオリジンを許可（デバッグ用）
-  if (CONFIG::params.IS_DEVELOPMENT)
+bool public_static_path(std::string_view path) {
+  return path == "/" || path == "/index.html" || path == "/memo.html" ||
+         path == "/viewer.html" || path == "/user_register.html" ||
+         path.starts_with("/static/");
+}
+
+bool origin_header_is_allowed(const crow::request& req) {
+  const std::string origin = req.get_header_value("Origin");
+  if (!origin.empty())
+    return is_allowed_origin(origin);
+  const std::string referer = req.get_header_value("Referer");
+  if (referer.empty())
     return true;
-  // 本番環境ではCONFIGから読み込んだオリジンのみ
+  const auto scheme_end = referer.find("://");
+  if (scheme_end == std::string::npos)
+    return false;
+  const auto authority_end = referer.find('/', scheme_end + 3);
+  const auto origin_end =
+      authority_end == std::string::npos ? referer.size() : authority_end;
+  return is_allowed_origin(referer.substr(0, origin_end));
+}
+
+} // namespace
+
+bool requires_auth(
+    const std::string& path,
+    const crow::HTTPMethod&) {
+  if (public_static_path(path))
+    return false;
+  if (path == "/req/auth/login" ||
+      path == "/req/auth/logout" ||
+      path == "/req/auth/check" ||
+      path == "/req/user/check_first" ||
+      path == "/req/user/register")
+    return false;
+  return true;
+}
+
+std::string extract_token(const crow::request& req) {
+  return AUTH::extract_cookie(req, "auth_token");
+}
+
+bool requires_csrf_validation(
+    const std::string& path,
+    const crow::HTTPMethod& method) {
+  if (safe_method(method))
+    return false;
+  // Login has no pre-existing authenticated state. Origin validation is still
+  // performed by the middleware, while the CSRF token starts at check/login.
+  if (path == "/req/auth/login" || path == "/req/auth/check")
+    return false;
+  return true;
+}
+
+bool is_allowed_origin(const std::string& origin) {
+  if (origin.empty())
+    return true;
   return CONFIG::is_origin_allowed(origin);
 }
 
-inline string get_allowed_origin(const string& request_origin) {
-  if (is_allowed_origin(request_origin))
-    return request_origin;
-  return ""; // 許可されていない場合は空文字を返す
+std::string get_allowed_origin(const std::string& request_origin) {
+  return is_allowed_origin(request_origin) ? request_origin : std::string();
 }
 
-void AuthMiddleware::before_handle(crow::request& req, crow::response& res, context& ctx) {
-  string path = req.url;
-  
-  // OPTIONSリクエスト（プリフライト）の処理
+void AuthMiddleware::before_handle(
+    crow::request& req,
+    crow::response& res,
+    context& ctx) {
+  const std::string path = req.url;
   if (req.method == crow::HTTPMethod::OPTIONS) {
-    // CORSプリフライトリクエストの場合は認証チェックをスキップ
-    res = crow::response(200);
+    res.code = 204;
     res.end();
     return;
   }
-  // 認証が不要なパスはスキップ
-  if (!requires_auth(path)) return;
-  string token = extract_token(req); // JWTトークンを抽出
-  // トークンが空または無効な場合
-  if (token.empty() || !AUTH::validate_token_wrapper(token)) {
-    crow::json::wvalue error_response;
-    error_response["error"] = "認証が必要です";
-    error_response["code"] = "AUTH_REQUIRED";
-    res = crow::response(401, error_response);
+
+  if (!safe_method(req.method) && !origin_header_is_allowed(req)) {
+    std::cerr << "AuthMiddleware: rejected origin for " << req.url
+              << ": origin='"
+              << log_safe(req.get_header_value("Origin"))
+              << "', referer='"
+              << log_safe(req.get_header_value("Referer")) << "'"
+              << std::endl;
+    crow::json::wvalue body;
+    body["success"] = false;
+    body["code"] = "ORIGIN_NOT_ALLOWED";
+    body["message"] = "許可されていないOriginです";
+    body["error"] = "許可されていないOriginです";
+    body["data"] = nullptr;
+    res = crow::response(403, std::move(body));
     res.end();
     return;
+  }
+
+  // 有効なセッションが存在しないログアウトは、期限切れ・失効済み
+  // Cookieの掃除も含めて冪等に成功させる。現在有効なセッションを
+  // ログアウトさせる場合だけCSRF検証を要求する。
+  const bool unauthenticated_logout =
+      path == "/req/auth/logout" &&
+      !AUTH::principal_from_request(req).has_value();
+  if (requires_csrf_validation(path, req.method) &&
+      !unauthenticated_logout &&
+      !AUTH::validate_csrf_token(req)) {
+    crow::json::wvalue body;
+    body["success"] = false;
+    body["code"] = "CSRF_INVALID";
+    body["message"] = "CSRF tokenが不正です";
+    body["error"] = "CSRF tokenが不正です";
+    body["data"] = nullptr;
+    res = crow::response(403, std::move(body));
+    res.end();
+    return;
+  }
+
+  if (!requires_auth(path, req.method))
+    return;
+
+  ctx.principal = AUTH::principal_from_request(req);
+  if (!ctx.principal) {
+    crow::json::wvalue body;
+    body["success"] = false;
+    body["code"] = "AUTH_REQUIRED";
+    body["message"] = "認証が必要です";
+    body["error"] = "認証が必要です";
+    body["data"] = nullptr;
+    res = crow::response(401, std::move(body));
+    res.end();
   }
 }
-void AuthMiddleware::after_handle(crow::request& req, crow::response& res, context& ctx) {
-  // CORSヘッダーを設定
-  string origin = req.get_header_value("Origin");
-  string allowed_origin = get_allowed_origin(origin);
-  
+
+void AuthMiddleware::after_handle(
+    crow::request& req,
+    crow::response& res,
+    context&) {
+  const std::string origin = req.get_header_value("Origin");
+  const std::string allowed_origin = get_allowed_origin(origin);
   if (!allowed_origin.empty()) {
     res.add_header("Access-Control-Allow-Origin", allowed_origin);
+    res.add_header("Vary", "Origin");
   }
-  
   res.add_header("Access-Control-Allow-Methods", CONFIG::params.ALLOWED_METHODS);
   res.add_header("Access-Control-Allow-Headers", CONFIG::params.ALLOWED_HEADERS);
-  res.add_header("Access-Control-Max-Age", "86400"); // 24時間
+  res.add_header("Access-Control-Max-Age", "86400");
   res.add_header("Access-Control-Allow-Credentials", "true");
-  
-  // セキュリティヘッダーを追加
   res.add_header("X-Content-Type-Options", "nosniff");
   res.add_header("X-Frame-Options", "DENY");
-  res.add_header("X-XSS-Protection", "1; mode=block");
   res.add_header("Referrer-Policy", "strict-origin-when-cross-origin");
-  res.add_header("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self'");
+  res.add_header(
+      "Content-Security-Policy",
+      "default-src 'self'; script-src 'self'; style-src 'self'; "
+      "font-src 'self'; img-src 'self' data:; connect-src 'self'");
 }
-}//namespace MIDDLEWARE
+
+} // namespace MIDDLEWARE

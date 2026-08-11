@@ -18,7 +18,7 @@ export function updateSavebarStatus() {
 		return;
 	}
 	const name = entry.kind === 'shared' ? `${entry.stem}（共用）` : `${entry.stem}.${entry.format}`;
-	status.textContent = entry.dirty ? `${name}（未保存）` : name;
+	status.textContent = entry.readOnly ? `${name}（閲覧のみ）` : (entry.dirty ? `${name}（未保存）` : name);
 }
 
 export async function save_active_tab() {
@@ -26,6 +26,7 @@ export async function save_active_tab() {
 	if (!key) return;
 	const entry = openTabs.get(key);
 	if (!entry) return;
+	if (entry.readOnly) return;
 
 	try {
 		if (entry.kind === 'shared') {
@@ -41,4 +42,3 @@ export async function save_active_tab() {
 		showError(e?.message || '保存に失敗しました');
 	}
 }
-

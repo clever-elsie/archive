@@ -15,8 +15,7 @@ import { save_active_tab } from '../tabs/savebar.js';
 import { toggleMemoMenu, toggleSharedMemoMenu } from '../ui/menus.js';
 import { view_memo } from '../ui/viewer.js';
 
-// memo.html の inline onclick や、動的HTML（メモ一覧のメニュー）から呼ばれる関数を
-// 最小限だけ window に公開する。
+// 既存の外部呼び出しとの互換性に必要な関数だけをwindowへ公開する。
 export function bindGlobalHandlers() {
 	window.search_memos = search_memos;
 	window.new_memo = new_memo;
@@ -38,4 +37,3 @@ export function bindGlobalHandlers() {
 	// 旧: 閲覧ポップアップ（必要ならUIから呼べる）
 	window.view_memo = view_memo;
 }
-

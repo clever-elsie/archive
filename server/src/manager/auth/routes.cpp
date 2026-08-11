@@ -10,7 +10,7 @@ void setup(App& app){
     .methods(crow::HTTPMethod::POST)
       (AUTH::logout_response);
   CROW_ROUTE(app,"/req/auth/check")
-    .methods(crow::HTTPMethod::POST)
+    .methods(crow::HTTPMethod::GET, crow::HTTPMethod::POST)
       (AUTH::check_auth_response);
 }
 

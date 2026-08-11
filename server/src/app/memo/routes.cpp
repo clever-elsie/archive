@@ -1,10 +1,20 @@
 #include <app/memo/routes.hpp>
 
+#include <iostream>
+
 namespace MEMO{
 
 void setup(App& app){
 	namespace fs = std::filesystem;
-	MEMO::memo_base_path = fs::canonical(fs::current_path() / "memo").string() + "/";
+	std::error_code ec;
+	const auto configured_root = fs::current_path() / "memo";
+	const auto root = fs::weakly_canonical(configured_root, ec);
+	if (ec || !fs::is_directory(root, ec) || ec) {
+		MEMO::memo_base_path.clear();
+		std::cerr << "Memo directory is unavailable: " << configured_root << std::endl;
+	} else {
+		MEMO::memo_base_path = root.string() + fs::path::preferred_separator;
+	}
 
   CROW_ROUTE(app,"/req/memo/all")
     .methods(crow::HTTPMethod::GET)

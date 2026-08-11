@@ -17,6 +17,9 @@ void setup(App& app){
   CROW_ROUTE(app,"/req/user/demote")
     .methods(crow::HTTPMethod::POST)
       (USER_API::demote_user);
+  CROW_ROUTE(app,"/req/user/password")
+    .methods(crow::HTTPMethod::PATCH)
+      (USER_API::change_password);
   CROW_ROUTE(app,"/req/user/list")
     .methods(crow::HTTPMethod::GET)
       (USER_API::get_user_list);
@@ -24,7 +27,7 @@ void setup(App& app){
     .methods(crow::HTTPMethod::GET)
       (USER_API::check_first_user);
   CROW_ROUTE(app,"/req/user/permissions")
-    .methods(crow::HTTPMethod::POST)
+    .methods(crow::HTTPMethod::GET, crow::HTTPMethod::POST)
       (USER_API::get_user_permissions);
 }
 } // namespace USER

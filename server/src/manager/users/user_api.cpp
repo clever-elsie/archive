@@ -1,156 +1,250 @@
+#include <manager/users/api.hpp>
+
 #include <regex>
 
-#include <inline_helper.hpp>
-#include <manager/users/api.hpp>
-#include <manager/inline_helper.hpp>
 #include <manager/auth/auth.hpp>
-#include <manager/auth/middleware.hpp>
+#include <manager/inline_helper.hpp>
 
 namespace USER_API {
-using namespace std;
+
+namespace {
+
+const std::regex USERNAME_RE("^[A-Za-z0-9]{1,32}$");
+const std::regex PASSWORD_RE("^[A-Za-z0-9_-]{10,64}$");
+
+crow::response result_response(
+    USER_MANAGER::MutationResult result,
+    const std::string& success_message,
+    const std::string& failure_message) {
+  if (result == USER_MANAGER::MutationResult::success)
+    return default_response(true, std::string(success_message));
+
+  int status = 400;
+  const char* code = "USER_OPERATION_FAILED";
+  switch (result) {
+    case USER_MANAGER::MutationResult::invalid_input:
+      status = 400; code = "INVALID_INPUT"; break;
+    case USER_MANAGER::MutationResult::not_initialized:
+      status = 503; code = "USER_STORE_UNAVAILABLE"; break;
+    case USER_MANAGER::MutationResult::invalid_actor:
+      status = 401; code = "AUTH_REQUIRED"; break;
+    case USER_MANAGER::MutationResult::forbidden:
+      status = 403; code = "FORBIDDEN"; break;
+    case USER_MANAGER::MutationResult::not_found:
+      status = 404; code = "USER_NOT_FOUND"; break;
+    case USER_MANAGER::MutationResult::already_exists:
+      status = 409; code = "USER_ALREADY_EXISTS"; break;
+    case USER_MANAGER::MutationResult::last_admin:
+      status = 409; code = "LAST_ADMIN_REQUIRED"; break;
+    case USER_MANAGER::MutationResult::save_failed:
+      status = 503; code = "USER_STORE_SAVE_FAILED"; break;
+    case USER_MANAGER::MutationResult::invalid_credentials:
+      status = 401; code = "INVALID_CREDENTIALS"; break;
+    case USER_MANAGER::MutationResult::invalid_role:
+      status = 400; code = "INVALID_ROLE"; break;
+    case USER_MANAGER::MutationResult::crypto_failed:
+      status = 500; code = "CRYPTO_UNAVAILABLE"; break;
+    default:
+      break;
+  }
+  crow::json::wvalue body;
+  body["success"] = false;
+  body["code"] = code;
+  body["message"] = failure_message;
+  body["error"] = failure_message;
+  body["data"] = nullptr;
+  return crow::response(status, std::move(body));
+}
+
+std::optional<crow::json::rvalue> body_json(const crow::request& req) {
+  auto json = crow::json::load(req.body);
+  if (!json)
+    return std::nullopt;
+  return std::move(json);
+}
+
+std::optional<std::string> string_field(
+    const crow::json::rvalue& json,
+    const char* name) {
+  if (!json.has(name) || json[name].t() != crow::json::type::String)
+    return std::nullopt;
+  return json[name].s();
+}
+
+} // namespace
 
 crow::response register_user(const crow::request& req) {
-  try {
-    auto data = crow::json::load(req.body);
-    string username = data["username"].s();
-    string password = data["password"].s();
-    string role = data["role"].s();
-    // 毎回ユーザー存在確認
-    bool is_first_user = USER_MANAGER::user_manager.is_first_user();
-    // 実行者（権限判断/監査用）はトークンから取得（クライアント入力は信用しない）
-    string created_by = is_first_user ? "system" : AUTH::get_username_from_token(MIDDLEWARE::extract_token(req));
-    // 初回ユーザーでない場合の権限チェック
-    if (!is_first_user) {
-      // 認可はミドルウェアで実施するが、created_by が空の場合は不正なので弾く
-      if (created_by.empty())
-        return default_response(false, "認証が必要です", 401);
-    }
-    // 入力バリデーション
-    static const std::regex re_user("^[A-Za-z0-9]{1,32}$");
-    static const std::regex re_pass("^[A-Za-z0-9_-]{10,64}$");
-    if (!std::regex_match(username, re_user) || !std::regex_match(password, re_pass))
-      return default_response(false, "ユーザー名/パスワードの形式が不正です", 400);
+  const auto json = body_json(req);
+  if (!json)
+    return default_response(false, "リクエストの形式が不正です", 400);
+  const auto username = string_field(*json, "username");
+  const auto password = string_field(*json, "password");
+  if (!username || !password ||
+      !std::regex_match(*username, USERNAME_RE) ||
+      !std::regex_match(*password, PASSWORD_RE))
+    return default_response(false, "ユーザー名/パスワードの形式が不正です", 400);
 
-    // ユーザー登録
-    if (USER_MANAGER::user_manager.add_user(username, password, role, created_by))
-      return default_response(true, is_first_user ? "初回管理者アカウントが正常に登録されました" : "ユーザーが正常に登録されました");
-    else return default_response(false, "ユーザー登録に失敗しました（ユーザー名が既に存在する可能性があります）", 400);
-  } catch (const std::exception& e) {
-    return default_response(false, "リクエストの処理中にエラーが発生しました", 400);
+  const bool first_user = USER_MANAGER::get_user_manager().is_first_user();
+  std::string created_by = "system";
+  std::string role = "admin";
+  if (!first_user) {
+    const auto principal = AUTH::principal_from_request(req);
+    if (!principal || !principal->is_admin())
+      return default_response(false, "管理者権限が必要です", 403);
+    created_by = principal->username;
+    if (const auto requested_role = string_field(*json, "role"))
+      role = *requested_role;
+    else
+      return default_response(false, "roleは必須です", 400);
   }
+
+  const auto result = USER_MANAGER::get_user_manager().add_user(
+      *username, *password, role, created_by);
+  return result_response(
+      result,
+      first_user ? "初回管理者アカウントが正常に登録されました"
+                 : "ユーザーが正常に登録されました",
+      "ユーザー登録に失敗しました");
 }
 
 crow::response delete_user(const crow::request& req) {
-  try {
-    auto data = crow::json::load(req.body);
-    string username = data["username"].s();
-    string deleted_by = AUTH::get_username_from_token(MIDDLEWARE::extract_token(req));
-    if (deleted_by.empty())
-      return default_response(false, "認証が必要です", 401);
-    
-    if (USER_MANAGER::user_manager.delete_user(username, deleted_by))
-      return default_response(true, "ユーザーが正常に削除されました");
-    else return default_response(false, "ユーザー削除に失敗しました", 400);
-  } catch (const std::exception& e) {
-    return default_response(false, "リクエストの処理中にエラーが発生しました", 400);
-  }
+  const auto json = body_json(req);
+  const auto principal = AUTH::principal_from_request(req);
+  if (!principal)
+    return default_response(false, "認証が必要です", 401);
+  if (!json)
+    return default_response(false, "リクエストの形式が不正です", 400);
+  const auto username = string_field(*json, "username");
+  if (!username || username->empty())
+    return default_response(false, "ユーザー名は必須です", 400);
+  return result_response(
+      USER_MANAGER::get_user_manager().delete_user(*username, principal->username),
+      "ユーザーが正常に削除されました",
+      "ユーザー削除に失敗しました");
 }
 
 crow::response promote_user(const crow::request& req) {
-  try {
-    auto data = crow::json::load(req.body);
-    string username = data["username"].s();
-    string promoted_by = AUTH::get_username_from_token(MIDDLEWARE::extract_token(req));
-    if (promoted_by.empty())
-      return default_response(false, "認証が必要です", 401);
-    
-    if (USER_MANAGER::user_manager.promote_user(username, promoted_by))
-      return default_response(true, "ユーザーが管理者に昇格されました");
-    else return default_response(false, "ユーザー昇格に失敗しました", 400);
-  } catch (const std::exception& e) {
-    return default_response(false, "リクエストの処理中にエラーが発生しました", 400);
-  }
+  const auto json = body_json(req);
+  const auto principal = AUTH::principal_from_request(req);
+  if (!principal)
+    return default_response(false, "認証が必要です", 401);
+  if (!json)
+    return default_response(false, "リクエストの形式が不正です", 400);
+  const auto username = string_field(*json, "username");
+  if (!username || username->empty())
+    return default_response(false, "ユーザー名は必須です", 400);
+  return result_response(
+      USER_MANAGER::get_user_manager().promote_user(*username, principal->username),
+      "ユーザーが管理者に昇格されました",
+      "ユーザー昇格に失敗しました");
 }
 
 crow::response demote_user(const crow::request& req) {
-  try {
-    auto data = crow::json::load(req.body);
-    string username = data["username"].s();
-    string demoted_by = AUTH::get_username_from_token(MIDDLEWARE::extract_token(req));
-    if (demoted_by.empty())
-      return default_response(false, "認証が必要です", 401);
-    
-    if (USER_MANAGER::user_manager.demote_user(username, demoted_by))
-      return default_response(true, "ユーザーが一般ユーザーに降格されました");
-    else return default_response(false, "ユーザー降格に失敗しました", 400);
-  } catch (const std::exception& e) {
-    return default_response(false, "リクエストの処理中にエラーが発生しました", 400);
-  }
+  const auto json = body_json(req);
+  const auto principal = AUTH::principal_from_request(req);
+  if (!principal)
+    return default_response(false, "認証が必要です", 401);
+  if (!json)
+    return default_response(false, "リクエストの形式が不正です", 400);
+  const auto username = string_field(*json, "username");
+  if (!username || username->empty())
+    return default_response(false, "ユーザー名は必須です", 400);
+  return result_response(
+      USER_MANAGER::get_user_manager().demote_user(*username, principal->username),
+      "ユーザーが一般ユーザーに降格されました",
+      "ユーザー降格に失敗しました");
 }
 
-crow::response get_user_list(const crow::request& req) {
-  try {
-    auto users = USER_MANAGER::user_manager.get_all_users();
-    
-    crow::json::wvalue::list user_list;
-    for (const auto& user : users) {
-      crow::json::wvalue user_data;
-      user_data["username"] = html_escape(user.username);
-      user_data["role"] = html_escape(user.role);
-      user_data["created_by"] = html_escape(user.created_by);
-      user_data["created_at"] = html_escape(user.created_at);
-      user_data["last_login"] = html_escape(user.last_login);
-      user_list.emplace_back(std::move(user_data));
-    }
-    
-    crow::json::wvalue response;
-    response["success"] = true;
-    response["users"] = std::move(user_list);
-    response["total"] = users.size();
-    
-    return crow::response(response);
-  } catch (const std::exception& e) {
-    return default_response(false, "ユーザー一覧の取得中にエラーが発生しました", 400);
+crow::response change_password(const crow::request& req) {
+  const auto principal = AUTH::principal_from_request(req);
+  if (!principal)
+    return default_response(false, "認証が必要です", 401);
+  const auto json = body_json(req);
+  if (!json)
+    return default_response(false, "リクエストの形式が不正です", 400);
+  const auto current = string_field(*json, "current_password");
+  const auto next = string_field(*json, "new_password");
+  if (!current || !next || !std::regex_match(*current, PASSWORD_RE) ||
+      !std::regex_match(*next, PASSWORD_RE))
+    return default_response(false, "パスワードの形式が不正です", 400);
+  return result_response(
+      USER_MANAGER::get_user_manager().change_password(
+          principal->username, *current, *next),
+      "パスワードを変更しました。再度ログインしてください",
+      "パスワード変更に失敗しました");
+}
+
+crow::response get_user_list(const crow::request&) {
+  const auto users = USER_MANAGER::get_user_manager().get_all_users();
+  crow::json::wvalue::list user_list;
+  user_list.reserve(users.size());
+  for (const auto& user : users) {
+    crow::json::wvalue user_data;
+    user_data["username"] = user.username;
+    user_data["role"] = user.role;
+    user_data["created_by"] = user.created_by;
+    user_data["created_at"] = user.created_at;
+    user_data["last_login"] = user.last_login;
+    user_list.emplace_back(std::move(user_data));
   }
+  crow::json::wvalue body;
+  body["success"] = true;
+  body["code"] = "USER_LIST";
+  body["message"] = "ユーザー一覧を取得しました";
+  body["users"] = std::move(user_list);
+  body["total"] = users.size();
+  crow::json::wvalue data;
+  crow::json::wvalue::list data_users;
+  data_users.reserve(users.size());
+  for (const auto& user : users) {
+    crow::json::wvalue user_data;
+    user_data["username"] = user.username;
+    user_data["role"] = user.role;
+    user_data["created_by"] = user.created_by;
+    user_data["created_at"] = user.created_at;
+    user_data["last_login"] = user.last_login;
+    data_users.emplace_back(std::move(user_data));
+  }
+  data["users"] = std::move(data_users);
+  data["total"] = users.size();
+  body["data"] = std::move(data);
+  return crow::response(200, std::move(body));
 }
 
 crow::response check_first_user(const crow::request& req) {
-  try {
-    bool is_first = USER_MANAGER::user_manager.is_first_user();
-    
-    crow::json::wvalue response;
-    response["success"] = true;
-    response["is_first_user"] = is_first;
-    response["message"] = is_first ? "初回ユーザーです" : "既存ユーザーが存在します";
-    
-    return crow::response(response);
-  } catch (const std::exception& e) {
-    return default_response(false, "初回ユーザー確認中にエラーが発生しました", 400);
-  }
+  const bool first = USER_MANAGER::get_user_manager().is_first_user();
+  crow::json::wvalue body;
+  body["success"] = true;
+  body["code"] = "FIRST_USER_CHECK";
+  body["is_first_user"] = first;
+  body["message"] = first ? "初回ユーザーです" : "既存ユーザーが存在します";
+  body["data"]["is_first_user"] = first;
+  crow::response result(200, std::move(body));
+  if (AUTH::extract_cookie(req, "csrf_token").empty())
+    AUTH::add_csrf_cookie(result, AUTH::create_csrf_token());
+  return result;
 }
 
 crow::response get_user_permissions(const crow::request& req) {
-  try {
-    string token = MIDDLEWARE::extract_token(req);
-    if (token.empty() || !AUTH::validate_token_wrapper(token))
-      return default_response(false, "認証が必要です", 401);
-    string username = AUTH::get_username_from_token(token);
-    if (username.empty())
-      return default_response(false, "ユーザー情報が取得できません", 400);
-    bool is_admin = USER_MANAGER::user_manager.is_admin(username);
-    bool can_register_admin = USER_MANAGER::user_manager.can_register_admin(username);
-    bool can_register_user = USER_MANAGER::user_manager.can_register_user(username);
-    bool can_manage_users = USER_MANAGER::user_manager.can_manage_users(username);
-    crow::json::wvalue response;
-    response["success"] = true;
-    response["username"] = username;
-    response["is_admin"] = is_admin;
-    response["can_register_admin"] = can_register_admin;
-    response["can_register_user"] = can_register_user;
-    response["can_manage_users"] = can_manage_users;
-    return crow::response(response);
-  } catch (const std::exception& e) {
-    return default_response(false, "権限確認中にエラーが発生しました", 400);
-  }
+  const auto principal = AUTH::principal_from_request(req);
+  if (!principal)
+    return default_response(false, "認証が必要です", 401);
+  crow::json::wvalue body;
+  body["success"] = true;
+  body["code"] = "USER_PERMISSIONS";
+  body["username"] = principal->username;
+  body["role"] = principal->role;
+  body["is_admin"] = principal->is_admin();
+  body["can_register_admin"] = principal->is_admin();
+  body["can_register_user"] = principal->is_admin();
+  body["can_manage_users"] = principal->is_admin();
+  body["data"]["username"] = principal->username;
+  body["data"]["role"] = principal->role;
+  body["data"]["is_admin"] = principal->is_admin();
+  body["data"]["can_register_admin"] = principal->is_admin();
+  body["data"]["can_register_user"] = principal->is_admin();
+  body["data"]["can_manage_users"] = principal->is_admin();
+  return crow::response(200, std::move(body));
 }
-}//namespace USER_API
+
+} // namespace USER_API

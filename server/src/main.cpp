@@ -1,3 +1,4 @@
+#include <chrono>
 #include <thread>
 #include <manager/config.hpp>
 #include <manager/auth/routes.hpp>
@@ -6,6 +7,7 @@
 #include <app/viewer/routes.hpp>
 #include <app/memo/routes.hpp>
 #include <app/viewer/manager.hpp>
+#include <manager/users/manager.hpp>
 
 #include <csignal>
 
@@ -19,8 +21,13 @@ int main(int argc, char* argv[]) {
 	std::signal(SIGINT, handle_signal);
 	std::signal(SIGTERM, handle_signal);
 
-	if (!CONFIG::load_params("config/param.json")) {
+	const std::string config_path = CONFIG::config_path_from_args(argc, argv);
+	if (config_path.empty() || !CONFIG::load_params(config_path)) {
 		std::cerr << "Failed to load configuration. Exiting." << std::endl;
+		return 1;
+	}
+	if (!USER_MANAGER::get_user_manager().initialize(CONFIG::params.USER_STORE_PATH)) {
+		std::cerr << "Failed to initialize user store. Exiting." << std::endl;
 		return 1;
 	}
 
@@ -35,6 +42,10 @@ int main(int argc, char* argv[]) {
 	
 	const unsigned hwc = std::thread::hardware_concurrency();
 	constexpr unsigned low = 4u;
-	app.concurrency(std::min(low, hwc)).run();
+	app.concurrency(std::min(low, hwc));
+	auto server = app.run_async();
+	if (app.wait_for_server_start(std::chrono::seconds{30}) == std::cv_status::no_timeout)
+		VIEWER::manager::get_instance().start_initial_load();
+	server.get();
 	VIEWER::manager::get_instance().shutdown(); // 終了前にバックグラウンドスレッドを停止
 } 

@@ -8,6 +8,7 @@ import { makeTabKey, openTabs } from '../tabs/state.js';
 import { createEditorTab, activate_tab, closeTabsBy } from '../tabs/tabs.js';
 import { mark_dirty } from '../tabs/tabs.js';
 import { showError, showSuccess } from '../ui/notifications.js';
+import { makeButton, makeElement, appendText } from '../ui/dom.js';
 
 function formatDate(dateStr) {
 	if (!dateStr) return '';
@@ -20,45 +21,57 @@ export async function loadSharedMemos() {
 	if (sharedList) sharedList.innerHTML = '';
 	try {
 		const data = await fetchSharedAll();
-		data.forEach(item => add_shared_memo_item(item.id, item.title, item.body, item.author, item.created_at, item.updated_at));
+		data.forEach(item => add_shared_memo_item(item.id, item.title, item.body, item.author, item.created_at, item.updated_at, item.can_edit !== false));
 	} catch (e) {
 		console.error('共用メモの取得に失敗しました:', e);
 		showError('共用メモの取得に失敗しました');
 	}
 }
 
-export function add_shared_memo_item(id, title, body, author, created_at, updated_at) {
+export function add_shared_memo_item(id, title, body, author, created_at, updated_at, canEdit = true) {
 	const memoItem = document.createElement('div');
 	memoItem.className = 'memo-item shared-memo-item';
 	memoItem.dataset.id = id;
 
-	memoItem.innerHTML = `
-		<div class="memo-header">
-			<div class="memo-title-row2">
-				<span class="filename-text view-memo-title" style="cursor:pointer;">${title}</span>
-				<span class="author-badge">by ${author}</span>
-			</div>
-			<div class="memo-sub-row">
-				<div class="memo-actions-menu">
-					<button class="btn-menu" onclick="toggleSharedMemoMenu(this)">
-						<i class="fas fa-ellipsis-v"></i>
-					</button>
-					<div class="memo-popup-menu" style="display:none; position:absolute; z-index:10;">
-						<button class="btn-edit" onclick="edit_shared_memo('${id}')"><i class="fas fa-edit"></i> 編集</button>
-						<button class="btn-delete" onclick="delete_shared_memo('${id}')"><i class="fas fa-trash"></i> 削除</button>
-						<div class="popup-meta-dates">
-							<div class="created-date">作成: ${formatDate(created_at)}</div>
-							<div class="updated-date">更新: ${formatDate(updated_at)}</div>
-						</div>
-					</div>
-				</div>
-			</div>
-		</div>
-	`;
+	const header = makeElement('div', 'memo-header');
+	const titleRow = makeElement('div', 'memo-title-row2');
+	const titleElement = appendText(titleRow, title, 'filename-text view-memo-title');
+	titleElement.tabIndex = 0;
+	appendText(titleRow, `by ${author}`, 'author-badge');
+	header.appendChild(titleRow);
+
+	if (canEdit) {
+		const actions = makeElement('div', 'memo-actions-menu');
+		const menuButton = makeButton('⋯', 'btn-menu');
+		menuButton.setAttribute('aria-label', '共用メモ操作');
+		const menu = makeElement('div', 'memo-popup-menu');
+		menu.hidden = true;
+		menu.append(
+			makeButton('編集', 'btn-edit', () => edit_shared_memo(id)),
+			makeButton('削除', 'btn-delete', () => delete_shared_memo(id))
+		);
+		const dates = makeElement('div', 'popup-meta-dates');
+		appendText(dates, `作成: ${formatDate(created_at)}`, 'created-date');
+		appendText(dates, `更新: ${formatDate(updated_at)}`, 'updated-date');
+		menu.appendChild(dates);
+		menuButton.addEventListener('click', event => {
+			event.stopPropagation();
+			document.querySelectorAll('.memo-popup-menu:not([hidden])').forEach(item => {
+				if (item !== menu) item.hidden = true;
+			});
+			menu.hidden = !menu.hidden;
+		});
+		actions.append(menuButton, menu);
+		header.appendChild(actions);
+	}
+	memoItem.appendChild(header);
 
 	memoItem.addEventListener('click', function(e) {
-		if (e.target.closest('.memo-actions-menu') || e.target.closest('.memo-popup-menu-global')) return;
+		if (e.target.closest('.memo-actions-menu')) return;
 		open_shared_tab(id);
+	});
+	titleElement.addEventListener('keydown', event => {
+		if (event.key === 'Enter' || event.key === ' ') open_shared_tab(id);
 	});
 
 	document.getElementById('sharedMemoList')?.appendChild(memoItem);
@@ -75,8 +88,9 @@ export async function open_shared_tab(id) {
 			rawKey: id,
 			stem: data.title,
 			format: 'txt',
-			badgeHtml: `<span class="author-badge">by ${data.author}</span>`,
-			initialText: data.body || ''
+			badgeText: `by ${data.author}`,
+			initialText: data.body || '',
+			readOnly: data.can_edit === false
 		});
 		if (entry) activate_tab(entry.tabKey);
 	} catch {
@@ -111,7 +125,7 @@ export async function new_shared_memo() {
 	try {
 		// 本文は作成後にエディタで入力する（作成時のポップアップ入力は不要）
 		const data = await createSharedMemo({ title: title.trim(), body: '' });
-		add_shared_memo_item(data.id, data.title, data.body, data.author, data.created_at, data.updated_at);
+		add_shared_memo_item(data.id, data.title, data.body, data.author, data.created_at, data.updated_at, data.can_edit !== false);
 		showSuccess('新しい共用メモを作成しました');
 		open_shared_tab(data.id);
 	} catch (e) {
@@ -134,4 +148,3 @@ export async function delete_shared_memo(id) {
 		showError('共用メモの削除に失敗しました');
 	}
 }
-

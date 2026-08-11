@@ -13,6 +13,7 @@ import { makeTabKey, openTabs } from '../tabs/state.js';
 import { createEditorTab, activate_tab, closeTabsBy } from '../tabs/tabs.js';
 import { mark_dirty } from '../tabs/tabs.js';
 import { showError, showSuccess, ensureNotificationKeyframes } from '../ui/notifications.js';
+import { makeButton, makeElement, appendText } from '../ui/dom.js';
 
 export function updateMemoCounter() {
 	const memoItems = document.querySelectorAll('.memo-item');
@@ -29,41 +30,52 @@ function formatDate(dateStr) {
 export function add_memo_item(filename, stem, tag = [], format = 'txt', created_at = '', updated_at = '') {
 	const memoItem = document.createElement('div');
 	memoItem.className = 'memo-item';
-	memoItem.dataset.filename = stem;
+	memoItem.dataset.filename = filename;
 
-	let tagHtml = '';
-	if (tag && tag.length > 0) tagHtml = tag.map(t => `<span class="tag">${t}</span>`).join('');
+	const header = makeElement('div', 'memo-header');
+	const titleRow = makeElement('div', 'memo-title-row2');
+	const title = appendText(titleRow, stem, 'filename-text view-memo-title');
+	title.tabIndex = 0;
+	appendText(titleRow, `.${format}`, 'format-badge');
+	header.appendChild(titleRow);
 
-	memoItem.innerHTML = `
-		<div class="memo-header">
-			<div class="memo-title-row2">
-				<span class="filename-text view-memo-title" style="cursor:pointer;">${stem}</span>
-				<span class="format-badge">.${format}</span>
-			</div>
-			<div class="memo-sub-row">
-				<div class="memo-actions-menu">
-					<button class="btn-menu" onclick="toggleMemoMenu(this)">
-						<i class="fas fa-ellipsis-v"></i>
-					</button>
-					<div class="memo-popup-menu" style="display:none; position:absolute; z-index:10;">
-						<button class="btn-tags" onclick="edit_tags('${filename}', ${JSON.stringify(tag).replace(/\"/g, '&quot;')})"><i class="fas fa-tags"></i> タグ</button>
-						<button class="btn-rename" onclick="rename_memo('${filename}', '${stem}')"><i class="fas fa-edit"></i> リネーム</button>
-						<button class="btn-delete" onclick="delete_memo('${filename}')"><i class="fas fa-trash"></i> 削除</button>
-						<div class="popup-meta-dates">
-							<div class="created-date">作成: ${formatDate(created_at)}</div>
-							<div class="updated-date">更新: ${formatDate(updated_at)}</div>
-						</div>
-					</div>
-				</div>
-			</div>
-			${tagHtml ? `<div class="memo-tags">${tagHtml}</div>` : ''}
-		</div>
-	`;
+	const actions = makeElement('div', 'memo-actions-menu');
+	const menuButton = makeButton('⋯', 'btn-menu');
+	menuButton.setAttribute('aria-label', 'メモ操作');
+	const menu = makeElement('div', 'memo-popup-menu');
+	menu.hidden = true;
+	const tagButton = makeButton('タグ', 'btn-tags', () => edit_tags(filename, tag));
+	const renameButton = makeButton('リネーム', 'btn-rename', () => rename_memo(filename, stem));
+	const deleteButton = makeButton('削除', 'btn-delete', () => delete_memo(filename));
+	menu.append(tagButton, renameButton, deleteButton);
+	const dates = makeElement('div', 'popup-meta-dates');
+	appendText(dates, `作成: ${formatDate(created_at)}`, 'created-date');
+	appendText(dates, `更新: ${formatDate(updated_at)}`, 'updated-date');
+	menu.appendChild(dates);
+	menuButton.addEventListener('click', event => {
+		event.stopPropagation();
+		document.querySelectorAll('.memo-popup-menu:not([hidden])').forEach(item => {
+			if (item !== menu) item.hidden = true;
+		});
+		menu.hidden = !menu.hidden;
+	});
+	actions.append(menuButton, menu);
+	header.appendChild(actions);
+
+	if (Array.isArray(tag) && tag.length > 0) {
+		const tags = makeElement('div', 'memo-tags');
+		tag.forEach(value => appendText(tags, value, 'tag'));
+		header.appendChild(tags);
+	}
+	memoItem.appendChild(header);
 
 	document.getElementById('memoList')?.appendChild(memoItem);
 	memoItem.addEventListener('click', function(e) {
-		if (e.target.closest('.memo-actions-menu') || e.target.closest('.memo-popup-menu-global')) return;
+		if (e.target.closest('.memo-actions-menu')) return;
 		open_tab(filename);
+	});
+	title.addEventListener('keydown', event => {
+		if (event.key === 'Enter' || event.key === ' ') open_tab(filename);
 	});
 	updateMemoCounter();
 }
@@ -74,7 +86,8 @@ export async function loadMemos() {
 	if (memoList) memoList.innerHTML = '';
 	try {
 		const data = await fetchAllMemos();
-		data.forEach(item => add_memo_item(item.filename, item.stem, item.tag || [], item.format || 'txt', item.created_at, item.updated_at));
+		const items = Array.isArray(data) ? data : [];
+		items.forEach(item => add_memo_item(item.filename, item.stem, item.tag || [], item.format || 'txt', item.created_at, item.updated_at));
 	} catch (e) {
 		console.error('メモの取得に失敗しました:', e);
 		showError('メモの取得に失敗しました');
@@ -91,7 +104,8 @@ export async function search_memos() {
 	}
 	try {
 		const data = await searchMemos(query);
-		data.forEach(item => add_memo_item(item.filename, item.stem, item.tag || [], item.format || 'txt', item.created_at, item.updated_at));
+		const items = Array.isArray(data) ? data : [];
+		items.forEach(item => add_memo_item(item.filename, item.stem, item.tag || [], item.format || 'txt', item.created_at, item.updated_at));
 	} catch (e) {
 		console.error('検索に失敗しました:', e);
 		showError('検索に失敗しました');
@@ -109,7 +123,7 @@ export async function open_tab(filename) {
 			rawKey: filename,
 			stem: data.stem,
 			format: data.format,
-			badgeHtml: `<span class="format-badge">.${data.format}</span>`,
+			badgeText: `.${data.format}`,
 			initialText: data.data || ''
 		});
 		if (entry) activate_tab(entry.tabKey);
@@ -162,7 +176,8 @@ export async function delete_memo(filename) {
 		await deleteMemo(filename);
 		// 開いているエディタも閉じる（削除を即反映）
 		closeTabsBy((entry) => entry.kind === 'personal' && String(entry.rawKey) === String(filename));
-		const memoItem = document.querySelector(`.memo-item[data-filename="${stem}"]`);
+		const memoItem = Array.from(document.querySelectorAll('.memo-item'))
+			.find(item => item.dataset.filename === filename);
 		if (memoItem) memoItem.remove();
 		updateMemoCounter();
 		showSuccess('メモを削除しました');
@@ -177,7 +192,8 @@ export async function rename_memo(old_filename, old_stem) {
 	if (!new_stem || new_stem.trim() === '') return;
 	try {
 		const data = await renameMemo(old_filename, new_stem.trim());
-		const oldMemoItem = document.querySelector(`.memo-item[data-filename="${old_stem}"]`);
+		const oldMemoItem = Array.from(document.querySelectorAll('.memo-item'))
+			.find(item => item.dataset.filename === old_filename);
 		if (oldMemoItem) oldMemoItem.remove();
 
 		const memoData = await fetchMemoNow(data.new_filename);
@@ -190,21 +206,21 @@ export async function rename_memo(old_filename, old_stem) {
 }
 
 export function switchSidebarTab(tab) {
-	const personalTab = document.querySelector('.sidebar-tab[onclick*="personal"]');
-	const sharedTab = document.querySelector('.sidebar-tab[onclick*="shared"]');
+	const personalTab = document.getElementById('personalTabButton');
+	const sharedTab = document.getElementById('sharedTabButton');
 	const personalList = document.getElementById('memoList');
 	const sharedList = document.getElementById('sharedMemoList');
 
 	if (tab === 'personal') {
 		personalTab?.classList.add('active');
 		sharedTab?.classList.remove('active');
-		if (personalList) personalList.style.display = 'block';
-		if (sharedList) sharedList.style.display = 'none';
+		personalList?.removeAttribute('hidden');
+		sharedList?.setAttribute('hidden', '');
 	} else {
 		personalTab?.classList.remove('active');
 		sharedTab?.classList.add('active');
-		if (personalList) personalList.style.display = 'none';
-		if (sharedList) sharedList.style.display = 'block';
+		personalList?.setAttribute('hidden', '');
+		sharedList?.removeAttribute('hidden');
 		import('./shared.js').then(m => m.loadSharedMemos());
 	}
 }
@@ -217,29 +233,13 @@ export async function new_memo() {
 async function showFormatDialog() {
 	const modal = document.createElement('div');
 	modal.className = 'modal-overlay';
-	modal.style.cssText = `
-		position: fixed;
-		top: 0; left: 0; width: 100%; height: 100%;
-		background: rgba(0, 0, 0, 0.7);
-		display: flex; justify-content: center; align-items: center;
-		z-index: 1000;
-	`;
 	const dialog = document.createElement('div');
 	dialog.className = 'format-dialog';
-	dialog.style.cssText = `
-		background: rgba(255, 255, 255, 0.1);
-		border-radius: 16px;
-		padding: 2rem;
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		backdrop-filter: blur(10px);
-		max-width: 400px;
-		width: 90%;
-	`;
 	dialog.innerHTML = `
-		<h3 style="color: #64ffda; margin-bottom: 1rem;">形式を選択してください</h3>
-		<div id="format-list" style="margin-bottom: 1.5rem;"></div>
-		<div style="display: flex; gap: 1rem; justify-content: flex-end;">
-			<button id="cancel-btn" class="btn btn-secondary">キャンセル</button>
+		<h3 class="dialog-heading">形式を選択してください</h3>
+		<div id="format-list" class="format-list"></div>
+		<div class="dialog-actions">
+			<button id="cancel-btn" class="btn btn-secondary" type="button">キャンセル</button>
 		</div>
 	`;
 	modal.appendChild(dialog);
@@ -247,20 +247,11 @@ async function showFormatDialog() {
 
 	try {
 		const data = await getFormats();
-		const formatList = document.getElementById('format-list');
+		const formatList = modal.querySelector('#format-list');
 		data.formats.forEach(format => {
 			const button = document.createElement('button');
-			button.className = 'btn btn-outline-primary';
-			button.style.cssText = `
-				margin: 0.25rem;
-				padding: 0.5rem 1rem;
-				border: 1px solid rgba(100, 255, 218, 0.3);
-				background: rgba(100, 255, 218, 0.1);
-				color: #64ffda;
-				border-radius: 8px;
-				cursor: pointer;
-				transition: all 0.3s ease;
-			`;
+			button.type = 'button';
+			button.className = 'btn btn-secondary dialog-choice';
 			button.textContent = `.${format}`;
 			button.addEventListener('click', () => {
 				document.body.removeChild(modal);
@@ -275,96 +266,81 @@ async function showFormatDialog() {
 		return;
 	}
 
-	document.getElementById('cancel-btn')?.addEventListener('click', () => document.body.removeChild(modal));
+	dialog.querySelector('#cancel-btn')?.addEventListener('click', () => modal.remove());
 	modal.addEventListener('click', (e) => { if (e.target === modal) document.body.removeChild(modal); });
 }
 
 async function showTitleDialog(format) {
 	const modal = document.createElement('div');
 	modal.className = 'modal-overlay';
-	modal.style.cssText = `
-		position: fixed;
-		top: 0; left: 0; width: 100%; height: 100%;
-		background: rgba(0, 0, 0, 0.7);
-		display: flex; justify-content: center; align-items: center;
-		z-index: 1000;
-	`;
 
 	const dialog = document.createElement('div');
 	dialog.className = 'title-dialog';
-	dialog.style.cssText = `
-		background: rgba(255, 255, 255, 0.1);
-		border-radius: 16px;
-		padding: 2rem;
-		border: 1px solid rgba(255, 255, 255, 0.2);
-		backdrop-filter: blur(10px);
-		max-width: 500px;
-		width: 90%;
-	`;
 
 	dialog.innerHTML = `
-		<h3 style="color: #64ffda; margin-bottom: 1rem;">メモのタイトルを入力してください</h3>
-		<div style="margin-bottom: 1rem;">
-			<label for="title-input" style="display: block; margin-bottom: 0.5rem; color: rgba(255, 255, 255, 0.8);">タイトル:</label>
-			<input type="text" id="title-input" placeholder="メモのタイトルを入力" style="
-				width: 100%;
-				padding: 0.75rem;
-				border: 1px solid rgba(255, 255, 255, 0.2);
-				border-radius: 8px;
-				background: rgba(255, 255, 255, 0.1);
-				color: #ffffff;
-				font-size: 1rem;
-			">
-			<div id="title-status" style="margin-top: 0.5rem; font-size: 0.875rem;"></div>
+		<h3 class="dialog-heading">メモのタイトルを入力してください</h3>
+		<div class="dialog-field">
+			<label for="title-input" class="dialog-label">タイトル:</label>
+			<input type="text" id="title-input" class="dialog-input" placeholder="メモのタイトルを入力">
+			<div id="title-status" class="dialog-status"></div>
 		</div>
-		<div style="margin-bottom: 1rem;">
-			<label for="tags-input" style="display: block; margin-bottom: 0.5rem; color: rgba(255, 255, 255, 0.8);">タグ (カンマ区切り):</label>
-			<input type="text" id="tags-input" placeholder="タグ1, タグ2, タグ3" style="
-				width: 100%;
-				padding: 0.75rem;
-				border: 1px solid rgba(255, 255, 255, 0.2);
-				border-radius: 8px;
-				background: rgba(255, 255, 255, 0.1);
-				color: #ffffff;
-				font-size: 1rem;
-			">
+		<div class="dialog-field">
+			<label for="tags-input" class="dialog-label">タグ (カンマ区切り):</label>
+			<input type="text" id="tags-input" class="dialog-input" placeholder="タグ1, タグ2, タグ3">
 		</div>
-		<div style="display: flex; gap: 1rem; justify-content: flex-end;">
-			<button id="cancel-btn" class="btn btn-secondary">キャンセル</button>
-			<button id="create-btn" class="btn btn-primary" disabled>作成</button>
+		<div class="dialog-actions">
+			<button id="cancel-btn" class="btn btn-secondary" type="button">キャンセル</button>
+			<button id="create-btn" class="btn btn-primary" type="button" disabled>作成</button>
 		</div>
 	`;
 
 	modal.appendChild(dialog);
 	document.body.appendChild(modal);
 
-	const titleInput = document.getElementById('title-input');
-	const tagInput = document.getElementById('tags-input');
-	const titleStatus = document.getElementById('title-status');
-	const createBtn = document.getElementById('create-btn');
+	const titleInput = dialog.querySelector('#title-input');
+	const tagInput = dialog.querySelector('#tags-input');
+	const titleStatus = dialog.querySelector('#title-status');
+	const createBtn = dialog.querySelector('#create-btn');
 
 	let titleCheckTimeout;
 	titleInput?.addEventListener('input', function() {
 		const title = this.value.trim();
 		clearTimeout(titleCheckTimeout);
 		if (title === '') {
-			if (titleStatus) titleStatus.innerHTML = '';
+			if (titleStatus) {
+				titleStatus.textContent = '';
+				titleStatus.className = 'dialog-status';
+			}
 			if (createBtn) createBtn.disabled = true;
 			return;
 		}
 		titleCheckTimeout = setTimeout(async () => {
-			if (titleStatus) titleStatus.innerHTML = '<span style="color: #ffc107;">確認中...</span>';
+			if (titleStatus) {
+				titleStatus.textContent = '確認中...';
+				titleStatus.className = 'status-pending';
+			}
 			try {
 				const data = await checkTitleAvailability(title);
 				if (data.available) {
-					if (titleStatus) titleStatus.innerHTML = '<span style="color: #64ffda;">✓ このタイトルは使用可能です</span>';
-					if (createBtn) createBtn.disabled = false;
+					if (titleStatus) {
+						titleStatus.textContent = '✓ このタイトルは使用可能です';
+						titleStatus.className = 'status-success';
+					}
+					if (createBtn) {
+						createBtn.disabled = false;
+					}
 				} else {
-					if (titleStatus) titleStatus.innerHTML = '<span style="color: #dc3545;">✗ ' + (data.error || 'このタイトルは既に使用されています') + '</span>';
+					if (titleStatus) {
+						titleStatus.textContent = `✗ ${data.error || 'このタイトルは既に使用されています'}`;
+						titleStatus.className = 'status-error';
+					}
 					if (createBtn) createBtn.disabled = true;
 				}
 			} catch {
-				if (titleStatus) titleStatus.innerHTML = '<span style="color: #dc3545;">✗ タイトル確認に失敗しました</span>';
+				if (titleStatus) {
+					titleStatus.textContent = '✗ タイトル確認に失敗しました';
+					titleStatus.className = 'status-error';
+				}
 				if (createBtn) createBtn.disabled = true;
 			}
 		}, 500);
@@ -387,10 +363,9 @@ async function showTitleDialog(format) {
 		}
 	});
 
-	document.getElementById('cancel-btn')?.addEventListener('click', () => document.body.removeChild(modal));
+	dialog.querySelector('#cancel-btn')?.addEventListener('click', () => modal.remove());
 	modal.addEventListener('click', (e) => { if (e.target === modal) document.body.removeChild(modal); });
 	titleInput?.addEventListener('keypress', (e) => { if (e.key === 'Enter' && createBtn && !createBtn.disabled) createBtn.click(); });
 	tagInput?.addEventListener('keypress', (e) => { if (e.key === 'Enter' && createBtn && !createBtn.disabled) createBtn.click(); });
 	titleInput?.focus();
 }
-

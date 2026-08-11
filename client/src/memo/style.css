@@ -1,1269 +1,187 @@
-@import url("../common.css");
-
 body {
 	min-height: 100dvh;
 	display: flex;
 	flex-direction: column;
-}
-
-/* memoページはヘッダーを細くする */
-.header {
-	padding: 0.4rem 0;
-}
-.header-content {
-	padding: 0 1rem;
-	gap: 0;
-}
-.title {
-	font-size: 1.1rem;
-	margin: 0;
-}
-.home-link {
-	font-size: 1rem;
-}
-
-
-/* メインコンテンツ */
-.main-content {
-	max-width: 1200px;
-	margin: 0 auto;
-	padding: 2rem;
-}
-
-/* サイドバータブ */
-.sidebar-tabs {
-	display: flex;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-	margin-bottom: 1rem;
-}
-
-.sidebar-tab {
-	background: none;
-	border: none;
-	color: rgba(255, 255, 255, 0.6);
-	padding: 0.75rem 1rem;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	border-bottom: 2px solid transparent;
-	font-size: 0.9rem;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-}
-
-.sidebar-tab:hover {
-	color: rgba(255, 255, 255, 0.8);
-	background: rgba(255, 255, 255, 0.05);
-}
-
-.sidebar-tab.active {
-	color: #64ffda;
-	border-bottom-color: #64ffda;
-	background: rgba(100, 255, 218, 0.1);
-}
-
-/* エディタツールバー */
-.editor-toolbar {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.5rem;
-	background: rgba(255, 255, 255, 0.05);
-	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.editor-toolbar .btn {
-	padding: 0.5rem 1rem;
-	font-size: 0.875rem;
-}
-
-/* 共用メモ関連のスタイル */
-.shared-memo-item {
-	border-left: 3px solid #64ffda;
-}
-
-.author-badge {
-	background: rgba(100, 255, 218, 0.2);
-	color: #64ffda;
-	padding: 0.25rem 0.5rem;
-	border-radius: 4px;
-	font-size: 0.75rem;
-	font-weight: 500;
-}
-
-.section-description {
-	color: #8892b0;
-	margin-bottom: 1.5rem;
-	font-size: 1rem;
-	line-height: 1.6;
-}
-
-/* 新規作成セクション */
-.create-section {
-	margin-bottom: 3rem;
-}
-
-.create-card {
-	background: rgba(255, 255, 255, 0.05);
-	border-radius: 16px;
-	padding: 2rem;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	backdrop-filter: blur(10px);
-	transition: all 0.3s ease;
-}
-
-.create-card:hover {
-	transform: translateY(-4px);
-	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-}
-
-.create-card h3 {
-	margin-bottom: 1rem;
-	color: #64ffda;
-}
-
-/* メモセクション */
-.memo-section {
-	margin-bottom: 3rem;
-}
-
-.memo-container {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-	gap: 2rem;
-	align-items: start;
-}
-
-/* メモカード */
-.memo-card {
-	background: rgba(255, 255, 255, 0.05);
-	border-radius: 16px;
-	padding: 2rem;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	backdrop-filter: blur(10px);
-	transition: all 0.3s ease;
-	animation: fadeIn 0.6s ease-out;
-}
-
-.memo-card:hover {
-	transform: translateY(-2px);
-	box-shadow: 0 12px 24px rgba(0, 0, 0, 0.2);
-}
-
-/* ファイル名表示エリア */
-.memo-filename {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 1rem;
-	padding: 0.75rem 1rem;
-	background: rgba(255, 255, 255, 0.03);
-	border-radius: 8px;
-	border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.filename-text {
-	color: #64ffda;
-	font-family: 'Inter', monospace;
-	font-size: 0.9rem;
-	font-weight: 500;
-	word-break: break-all;
-}
-
-.extension-text {
-	color: #8892b0;
-	font-weight: normal;
-}
-
-.rename-btn {
-	padding: 0.25rem 0.5rem;
-	font-size: 0.8rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	background: rgba(255, 255, 255, 0.05);
-	color: #8892b0;
-	transition: all 0.3s ease;
-	flex-shrink: 0;
-	margin-left: 0.5rem;
-}
-
-.rename-btn:hover {
-	background: rgba(100, 255, 218, 0.1);
-	border-color: #64ffda;
-	color: #64ffda;
-}
-
-/* テキストエリア */
-.memo-textarea {
-	width: 100%;
-	min-height: 120px;
-	padding: 1rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	border-radius: 12px;
-	background: rgba(255, 255, 255, 0.05);
-	color: #ffffff;
-	font-family: 'Inter', monospace;
-	font-size: 1rem;
-	line-height: 1.6;
-	resize: vertical;
-	transition: all 0.3s ease;
-	tab-size: 2;
-	overflow: auto;
-}
-
-.memo-textarea:focus {
-	outline: none;
-	border-color: #64ffda;
-	box-shadow: 0 0 0 3px rgba(100, 255, 218, 0.1);
-}
-
-.memo-textarea::placeholder {
-	color: #8892b0;
-}
-
-/* メモボタンコンテナ */
-.memo-buttons {
-	display: flex;
-	gap: 1rem;
-	margin-top: 1.5rem;
-	flex-wrap: wrap;
-}
-
-/* モーダルダイアログ */
-.modal-overlay {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	background: rgba(0, 0, 0, 0.7);
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	z-index: 1000;
-	backdrop-filter: blur(5px);
-}
-
-.extension-dialog {
-	background: rgba(255, 255, 255, 0.1);
-	border-radius: 16px;
-	padding: 2rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	backdrop-filter: blur(10px);
-	max-width: 400px;
-	width: 90%;
-	animation: modalSlideIn 0.3s ease-out;
-}
-
-.extension-dialog h3 {
-	color: #64ffda;
-	margin-bottom: 1rem;
-	text-align: center;
-}
-
-#extension-list {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem;
-	justify-content: center;
-	margin-bottom: 1.5rem;
-}
-
-#extension-list button {
-	margin: 0.25rem;
-	padding: 0.5rem 1rem;
-	border: 1px solid rgba(100, 255, 218, 0.3);
-	background: rgba(100, 255, 218, 0.1);
-	color: #64ffda;
-	border-radius: 8px;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	font-size: 0.9rem;
-}
-
-#extension-list button:hover {
-	background: rgba(100, 255, 218, 0.2);
-	border-color: #64ffda;
-	transform: translateY(-1px);
-}
-
-/* アニメーション */
-@keyframes fadeIn {
-	from {
-		opacity: 0;
-		transform: translateY(20px);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0);
-	}
-}
-
-@keyframes modalSlideIn {
-	from {
-		opacity: 0;
-		transform: translateY(-20px) scale(0.95);
-	}
-	to {
-		opacity: 1;
-		transform: translateY(0) scale(1);
-	}
-}
-
-/* レスポンシブデザイン */
-@media (max-width: 768px) {
-	.memo-buttons {
-		flex-direction: column;
-	}
-	
-	.memo-filename {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.5rem;
-	}
-	
-	.rename-btn {
-		margin-left: 0;
-		align-self: flex-end;
-	}
-	
-	.extension-dialog {
-		padding: 1.5rem;
-		margin: 1rem;
-	}
-	
-	#extension-list {
-		gap: 0.25rem;
-	}
-	
-	#extension-list button {
-		padding: 0.4rem 0.8rem;
-		font-size: 0.85rem;
-	}
-}
-
-@media (max-width: 480px) {
-	.create-card,
-	.memo-card {
-		padding: 1.5rem;
-	}
-
-	.memo-textarea {
-		font-size: 16px; /* iOSでズームを防ぐ */
-	}
-	
-	.extension-dialog {
-		padding: 1rem;
-	}
-	
-	#extension-list button {
-		padding: 0.3rem 0.6rem;
-		font-size: 0.8rem;
-	}
-}
-
-/* メモ管理ページのスタイル */
-
-/* 検索セクション */
-.search-section {
-	margin-bottom: 2rem;
-}
-
-.search-card {
-	background: rgba(255, 255, 255, 0.05);
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 16px;
-	padding: 2rem;
-	backdrop-filter: blur(10px);
-}
-
-.search-input-container {
-	display: flex;
-	gap: 1rem;
-	margin-top: 1rem;
-}
-
-.search-input {
-	flex: 1;
-	padding: 0.75rem 1rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	border-radius: 8px;
-	background: rgba(255, 255, 255, 0.1);
-	color: #ffffff;
-	font-size: 1rem;
-	backdrop-filter: blur(10px);
-}
-
-.search-input::placeholder {
-	color: rgba(255, 255, 255, 0.6);
-}
-
-.search-input:focus {
-	outline: none;
-	border-color: #64ffda;
-	box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2);
-}
-
-/* メモ一覧アイテム */
-.memo-item {
-	position: relative;
-	background: rgba(255, 255, 255, 0.05);
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 16px;
-	padding: 1.5rem;
-	margin-bottom: 1rem;
-	backdrop-filter: blur(10px);
-	transition: all 0.3s ease;
-	width: 100%;
-	max-width: 340px;
-	min-width: 0;
 	overflow: hidden;
 }
 
-.memo-item:hover {
-	background: rgba(255, 255, 255, 0.08);
-	border-color: rgba(255, 255, 255, 0.2);
-	transform: translateY(-2px);
-	box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-}
+.header { flex: 0 0 auto; }
 
-.memo-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: flex-start;
-	margin-bottom: 1rem;
-	overflow: hidden;
-	position: relative;
-}
-
-.memo-title {
-	display: flex;
-	align-items: center;
-	gap: 1rem;
-	flex: 1;
-}
-
-.memo-tags {
-	margin-left: 1rem;
-	margin-right: 1rem;
-}
-
-.memo-actions {
-	display: flex;
-	gap: 0.5rem;
-	flex-wrap: wrap;
-	margin-left: auto;
-	justify-content: flex-end;
-}
-
-.filename-text {
-	font-size: 1.25rem;
-	font-weight: 600;
-	color: #64ffda;
-}
-
-.format-badge {
-	background: rgba(255, 193, 7, 0.2);
-	color: #ffc107;
-	padding: 0.25rem 0.5rem;
-	border-radius: 12px;
-	font-size: 0.75rem;
-	font-weight: 500;
-	margin-left: 0.5rem;
-	border: 1px solid rgba(255, 193, 7, 0.3);
-}
-
-.memo-actions {
-	display: flex;
-	gap: 0.5rem;
-	flex-wrap: wrap;
-}
-
-.btn-edit, .btn-tags, .btn-rename, .btn-delete {
-	padding: 0.5rem 1rem;
-	border: none;
-	border-radius: 8px;
-	font-size: 0.875rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-}
-
-.btn-edit {
-	background: rgba(100, 255, 218, 0.2);
-	color: #b2fff6; /* シアン系の明るい色 */
-	border: 1px solid rgba(100, 255, 218, 0.3);
-}
-
-.btn-edit:hover {
-	background: rgba(100, 255, 218, 0.3);
-	transform: translateY(-1px);
-}
-
-.btn-tags {
-	background: rgba(255, 193, 7, 0.2);
-	color: #ffe082; /* イエロー系の明るい色 */
-	border: 1px solid rgba(255, 193, 7, 0.3);
-}
-
-.btn-tags:hover {
-	background: rgba(255, 193, 7, 0.3);
-	transform: translateY(-1px);
-}
-
-.btn-rename {
-	background: rgba(108, 117, 125, 0.2);
-	color: #e0e0e0; /* グレー系の明るい色 */
-	border: 1px solid rgba(108, 117, 125, 0.3);
-}
-
-.btn-rename:hover {
-	background: rgba(108, 117, 125, 0.3);
-	transform: translateY(-1px);
-}
-
-.btn-delete {
-	background: rgba(220, 53, 69, 0.2);
-	color: #ffb3b3; /* レッド系の明るい色 */
-	border: 1px solid rgba(220, 53, 69, 0.3);
-}
-
-.btn-delete:hover {
-	background: rgba(220, 53, 69, 0.3);
-	transform: translateY(-1px);
-}
-
-.memo-meta {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 1rem;
-}
-
-.memo-tags {
-	display: flex;
-	gap: 0.5rem;
-	flex-wrap: wrap;
-}
-
-.tag {
-	background: rgba(100, 255, 218, 0.2);
-	color: #64ffda;
-	padding: 0.25rem 0.75rem;
-	border-radius: 20px;
-	font-size: 0.75rem;
-	font-weight: 500;
-	border: 1px solid rgba(100, 255, 218, 0.3);
-}
-
-.memo-dates {
-	display: flex;
-	flex-direction: column;
-	gap: 0.25rem;
-	font-size: 0.875rem;
-	color: rgba(255, 255, 255, 0.7);
-}
-
-.created-date, .updated-date {
-	display: flex;
-	align-items: center;
-	gap: 0.25rem;
-}
-
-/* メモ編集画面 */
-.memo-editor {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	background: rgba(0, 0, 0, 0.8);
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	z-index: 1000;
-	backdrop-filter: blur(10px);
-}
-
-.editor-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 1rem;
-	padding-bottom: 1rem;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.editor-header h3 {
-	color: #64ffda;
-	margin: 0;
-}
-
-.btn-close {
-	background: none;
-	border: none;
-	color: rgba(255, 255, 255, 0.7);
-	font-size: 1.5rem;
-	cursor: pointer;
-	transition: color 0.3s ease;
-}
-
-.btn-close:hover {
-	color: #ffffff;
-}
-
-.editor-content {
-	background: rgba(15, 15, 35, 0.95);
-	border: 1px solid rgba(255, 255, 255, 0.1);
-	border-radius: 16px;
-	padding: 2rem;
-	max-width: 800px;
-	width: 90%;
-	max-height: 80vh;
-	overflow-y: auto;
-	backdrop-filter: blur(20px);
-}
-
-.memo-textarea {
-	width: 100%;
-	min-height: 300px;
-	padding: 1rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	border-radius: 8px;
-	background: rgba(255, 255, 255, 0.05);
-	color: #ffffff;
-	font-size: 1rem;
-	font-family: 'Inter', sans-serif;
-	resize: vertical;
-	backdrop-filter: blur(10px);
-}
-
-.memo-textarea:focus {
-	outline: none;
-	border-color: #64ffda;
-	box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2);
-}
-
-.editor-actions {
-	display: flex;
-	gap: 1rem;
-	margin-top: 1rem;
-	justify-content: flex-end;
-}
-
-.btn-save, .btn-cancel {
-	padding: 0.75rem 1.5rem;
-	border: none;
-	border-radius: 8px;
-	font-size: 1rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.3s ease;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-}
-
-.btn-save {
-	background: rgba(100, 255, 218, 0.2);
-	color: #64ffda;
-	border: 1px solid rgba(100, 255, 218, 0.3);
-}
-
-.btn-save:hover {
-	background: rgba(100, 255, 218, 0.3);
-	transform: translateY(-1px);
-}
-
-.btn-cancel {
-	background: rgba(108, 117, 125, 0.2);
-	color: #6c757d;
-	border: 1px solid rgba(108, 117, 125, 0.3);
-}
-
-.btn-cancel:hover {
-	background: rgba(108, 117, 125, 0.3);
-	transform: translateY(-1px);
-}
-
-/* 形式選択ダイアログ */
-.modal-overlay {
-	position: fixed;
-	top: 0;
-	left: 0;
-	width: 100%;
-	height: 100%;
-	background: rgba(0, 0, 0, 0.7);
-	display: flex;
-	justify-content: center;
-	align-items: center;
-	z-index: 1000;
-	backdrop-filter: blur(10px);
-}
-
-.format-dialog {
-	background: rgba(255, 255, 255, 0.1);
-	border-radius: 16px;
-	padding: 2rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	backdrop-filter: blur(10px);
-	max-width: 400px;
-	width: 90%;
-}
-
-/* タイトル入力ダイアログ */
-.title-dialog {
-	background: rgba(255, 255, 255, 0.1);
-	border-radius: 16px;
-	padding: 2rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	backdrop-filter: blur(10px);
-	max-width: 500px;
-	width: 90%;
-}
-
-.title-dialog input {
-	width: 100%;
-	padding: 0.75rem;
-	border: 1px solid rgba(255, 255, 255, 0.2);
-	border-radius: 8px;
-	background: rgba(255, 255, 255, 0.1);
-	color: #ffffff;
-	font-size: 1rem;
-	backdrop-filter: blur(10px);
-}
-
-.title-dialog input:focus {
-	outline: none;
-	border-color: #64ffda;
-	box-shadow: 0 0 0 2px rgba(100, 255, 218, 0.2);
-}
-
-.title-dialog input::placeholder {
-	color: rgba(255, 255, 255, 0.6);
-}
-
-.title-dialog label {
-	display: block;
-	margin-bottom: 0.5rem;
-	color: rgba(255, 255, 255, 0.8);
-	font-weight: 500;
-}
-
-.title-dialog .btn {
-	padding: 0.75rem 1.5rem;
-	border: none;
-	border-radius: 8px;
-	font-size: 1rem;
-	font-weight: 500;
-	cursor: pointer;
-	transition: all 0.3s ease;
-}
-
-.title-dialog .btn-primary {
-	background: rgba(100, 255, 218, 0.2);
-	color: #64ffda;
-	border: 1px solid rgba(100, 255, 218, 0.3);
-}
-
-.title-dialog .btn-primary:hover:not(:disabled) {
-	background: rgba(100, 255, 218, 0.3);
-	transform: translateY(-1px);
-}
-
-.title-dialog .btn-primary:disabled {
-	background: rgba(108, 117, 125, 0.2);
-	color: rgba(255, 255, 255, 0.5);
-	border-color: rgba(108, 117, 125, 0.3);
-	cursor: not-allowed;
-}
-
-.title-dialog .btn-secondary {
-	background: rgba(108, 117, 125, 0.2);
-	color: #6c757d;
-	border: 1px solid rgba(108, 117, 125, 0.3);
-}
-
-.title-dialog .btn-secondary:hover {
-	background: rgba(108, 117, 125, 0.3);
-	transform: translateY(-1px);
-}
-
-/* レスポンシブ対応 */
-@media (max-width: 768px) {
-	.search-input-container {
-		flex-direction: column;
-	}
-	
-	.memo-header {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 1rem;
-	}
-	
-	.memo-title {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.5rem;
-	}
-	
-	.memo-actions {
-		width: 100%;
-		justify-content: flex-start;
-	}
-	
-	.memo-meta {
-		flex-direction: column;
-		align-items: flex-start;
-		gap: 0.5rem;
-	}
-	
-	.memo-dates {
-		flex-direction: column;
-		gap: 0.25rem;
-	}
-	
-	.editor-content {
-		width: 95%;
-		padding: 1rem;
-	}
-	
-	.editor-actions {
-		flex-direction: column;
-	}
-	
-	.title-dialog {
-		width: 95%;
-		padding: 1.5rem;
-	}
-}
-
-.memo-title-block {
-	display: flex;
-	flex-direction: column;
-	gap: 0.5rem;
-}
-
-.memo-title-meta-row {
-	display: flex;
-	flex-direction: column;
-	align-items: flex-start;
-	gap: 0.3rem;
-}
-
-.memo-actions-menu {
-	margin-left: 0;
-	margin-bottom: 0.2rem;
-}
-
-.created-date {
-	color: #ffe082;
-	font-size: 0.85rem;
-	margin-left: 0.5rem;
-	white-space: nowrap;
-}
-
-.memo-title-block .memo-tags {
-	margin-left: 0;
-	margin-right: 0;
-}
-
-.memo-actions-menu {
-	position: relative;
-	margin-left: auto;
-}
-
-.btn-menu {
-	background: none;
-	border: none;
-	color: #b2fff6;
-	font-size: 1.2rem;
-	padding: 0.3rem 0.6rem;
-	border-radius: 50%;
-	cursor: pointer;
-	transition: background 0.2s;
-}
-.btn-menu:hover {
-	background: rgba(100,255,218,0.1);
-}
-
-.memo-popup-menu {
-	position: absolute;
-	top: auto;
-	bottom: 120%;
-	right: 0;
-	background: rgba(30, 34, 44, 0.98);
-	border-radius: 10px;
-	box-shadow: 0 4px 16px rgba(0,0,0,0.25);
-	padding: 0.5rem 0;
-	min-width: 140px;
-	display: none;
-	z-index: 2147483647;
-}
-
-/* cloneされた透過メニュー（.memo-popup-menu-global）が横に伸び続けないよう制約 */
-.memo-popup-menu-global {
-	max-width: min(320px, calc(100vw - 16px));
-	width: max-content;
-}
-
-.memo-popup-menu button {
-	width: 100%;
-	background: none;
-	border: none;
-	color: inherit;
-	text-align: left;
-	padding: 0.5rem 1.2rem;
-	font-size: 1rem;
-	border-radius: 0;
-	transition: background 0.2s;
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-}
-.memo-popup-menu button:hover {
-	background: rgba(100,255,218,0.08);
-}
-
-.meta-dates {
-	display: flex;
-	flex-direction: column;
-	gap: 0.1rem;
-	align-items: flex-start;
-}
-
-.updated-date {
-	color: #b2fff6;
-	font-size: 0.85rem;
-	white-space: nowrap;
-}
-
-.memo-title-row {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	flex-wrap: nowrap;
-	white-space: nowrap;
-	overflow: hidden;
-}
-
-.memo-tags-and-badge {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	flex-wrap: wrap;
-	margin-left: 0;
-	margin-right: 0;
-}
-
-.format-badge {
-	white-space: nowrap;
-	flex-shrink: 0;
-}
-
-.memo-title-row2 {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	white-space: nowrap;
-	font-size: 1.2rem;
-	font-weight: 600;
-	min-width: 0;
-	overflow: hidden;
-}
-
-.memo-title-row2 .filename-text {
-	flex: 1;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	min-width: 0;
-}
-
-.format-badge {
-	white-space: nowrap;
-}
-
-.memo-sub-row {
-	display: flex;
-	flex-direction: row;
-	justify-content: space-between;
-	align-items: flex-start;
-	gap: 0.5rem;
-	margin-top: 0.3rem;
-}
-
-.meta-dates {
-	display: flex;
-	flex-direction: column;
-	gap: 0.1rem;
-	align-items: flex-start;
-}
-
-.memo-actions-menu {
-	margin-left: 0;
-	margin-bottom: 0;
-}
-
-.memo-tags {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 0.5rem;
-	margin-top: 0.5rem;
-}
-
-.popup-meta-dates {
-	margin-top: 0.5rem;
-	display: flex;
-	flex-direction: column;
-	gap: 0.1rem;
-	padding: 0.5rem 1.2rem 0.2rem 1.2rem;
-	border-top: 1px solid rgba(255,255,255,0.08);
-	font-size: 0.95em;
-}
-
-/* ========================= */
-/* VSCode風 メモアプリ追加 */
-/* ========================= */
 .memo-app {
 	display: grid;
-	grid-template-columns: 300px 1fr;
-	grid-template-rows: 1fr;
-	gap: 0;
-	flex: 1;
+	grid-template-columns: minmax(15rem, 22rem) minmax(0, 1fr);
+	grid-template-rows: minmax(0, 1fr);
+	flex: 1 1 auto;
+	width: 100%;
 	min-height: 0;
+	margin: 0;
+	padding: 0;
+	gap: 0;
 	overflow: hidden;
 }
 
-/* 共通CSSの section 余白をmemo内では無効化（保存バー下などの謎スペース対策） */
-.memo-app > section {
-	margin-bottom: 0;
+.memo-status {
+	grid-column: 1 / -1;
+	min-height: 0;
+	color: var(--muted);
+}
+.memo-app.is-ready .memo-status { display: none; }
+.memo-app.is-loading .memo-sidebar,
+.memo-app.is-loading .memo-editor-pane { display: none; }
+
+.memo-sidebar,
+.memo-editor-pane {
+	min-width: 0;
+	min-height: 0;
+	border: 0;
+	border-radius: 0;
+	background: var(--panel);
+	box-shadow: none;
 }
 
 .memo-sidebar {
-	border-right: 1px solid rgba(255, 255, 255, 0.08);
-	background: rgba(255, 255, 255, 0.03);
 	display: flex;
 	flex-direction: column;
-	min-width: 0;
-	min-height: 0;
-}
-
-.sidebar-header {
-	padding: 0.75rem;
-	display: flex;
-	flex-direction: column;
-	gap: 0.75rem;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: rgba(255, 255, 255, 0.03);
-}
-
-.sidebar-memo-counter {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 0.75rem;
-	padding: 0.25rem 0.25rem 0.1rem 0.25rem;
-	color: rgba(255, 255, 255, 0.8);
-}
-.sidebar-memo-counter .counter-label {
-	font-size: 0.85rem;
-	color: #8892b0;
-}
-.sidebar-memo-counter .counter-value {
-	font-size: 1.1rem;
-	font-weight: 700;
-	color: #64ffda;
-}
-
-.sidebar-actions {
-	display: flex;
-	gap: 0.5rem;
-}
-
-/* サイドバー内 検索UIのレイアウト安定化 */
-.memo-sidebar .search-input-container {
-	display: flex;
-	gap: 0.5rem;
-}
-.memo-sidebar .search-input {
-	flex: 1 1 auto;
-	min-width: 0;
-}
-.memo-sidebar .btn {
-	min-width: auto;
-	padding: 0.5rem 0.8rem;
-}
-
-.memo-list-vertical {
-	overflow: auto;
-	padding: 0.5rem 0.75rem;
-}
-
-.memo-editor-pane {
-	display: flex;
-	flex-direction: column;
-	min-width: 0;
-	min-height: 0;
-}
-
-.editor-tabs {
-	display: flex;
-	gap: 0.25rem;
-	align-items: center;
-	padding: 0.25rem 0.5rem;
-	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-	background: rgba(255, 255, 255, 0.03);
-	overflow-x: auto;
-	white-space: nowrap;
-}
-
-.memo-editor-pane {
 	overflow: hidden;
+	border-right: 1px solid var(--border);
 }
-
-.editor-tabs {
-	flex: 0 0 auto;
-}
-
-.editor-area {
-	flex: 1 1 auto;
-}
-
-.memo-savebar {
-	flex: 0 0 auto;
-}
-
-.editor-tab {
-	display: inline-flex;
-	align-items: center;
-	gap: 0.5rem;
-	padding: 0.4rem 0.6rem;
-	border-radius: 6px 6px 0 0;
+.sidebar-header { display: grid; gap: .7rem; padding: .8rem; border-bottom: 1px solid var(--border); }
+.sidebar-memo-counter { display: flex; justify-content: space-between; color: var(--muted); }
+.counter-value { color: var(--accent); font-weight: 650; }
+.search-input-container { display: flex; gap: .4rem; }
+.search-input { flex: 1; width: 0; }
+.sidebar-actions { display: flex; gap: .4rem; }
+.sidebar-actions .button, .sidebar-actions .btn { flex: 1; }
+.sidebar-tabs { display: flex; border-bottom: 1px solid var(--border); }
+.sidebar-tab {
+	flex: 1;
+	border: 0;
+	border-bottom: 2px solid transparent;
+	padding: .65rem .5rem;
 	background: transparent;
-	border: 1px solid transparent;
-	cursor: pointer;
-	color: #b2fff6;
-}
-
-.editor-tab.active {
-	background: rgba(15, 15, 35, 0.9);
-	border-color: rgba(255, 255, 255, 0.08);
-	border-bottom-color: transparent;
-}
-
-.editor-tab .close-btn {
-	background: none;
-	border: none;
-	color: inherit;
-	cursor: pointer;
-}
-
-.editor-area {
-	position: relative;
-	flex: 1;
-	overflow: hidden;
-	background: rgba(15, 15, 35, 0.95);
-	min-height: 0;
-}
-
-.editor-pane {
-	position: absolute;
-	inset: 0;
-	display: none;
-	overflow: hidden;
-}
-
-.editor-pane.active {
-	display: block;
-}
-
-.editor-pane-inner {
-	padding: 0;
-	max-width: none;
-	height: 100%;
-}
-
-.editor-pane-inner .memo-textarea {
-	width: 100%;
-	height: 100%;
-	min-height: 0;
-	resize: none;
-	box-sizing: border-box;
-	border-radius: 0;
-	border-left: none;
-	border-right: none;
-	border-bottom: none;
-	background: rgba(15, 15, 35, 0.98);
-}
-
-/* 保存バー（スクロール外に常設） */
-.memo-savebar {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	gap: 0.75rem;
-	padding: 0.5rem 0.75rem;
-	border-top: 1px solid rgba(255, 255, 255, 0.08);
-	background: rgba(15, 15, 35, 0.98);
-}
-.memo-savebar .btn {
-	min-width: 120px;
-	width: auto;
-}
-.savebar-status {
-	flex: 1;
-	min-width: 0;
-	text-align: right;
-	color: rgba(255, 255, 255, 0.7);
-	font-size: 0.9rem;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-/* サイドバー用リスト調整 */
-.memo-list-vertical .memo-item {
-	border-radius: 10px;
-	padding: 0.6rem 0.8rem;
-	margin-bottom: 0.5rem;
-	max-width: none;
-}
-
-.memo-list-vertical .memo-header {
-	margin-bottom: 0.25rem;
-	align-items: center;
-}
-
-.memo-list-vertical .memo-title-row2 {
-	font-size: 1rem;
+	color: var(--muted);
 	font-weight: 600;
 }
+.sidebar-tab:hover, .sidebar-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.memo-list-vertical {
+	display: grid;
+	align-content: start;
+	flex: 1 1 0;
+	min-height: 0;
+	gap: .45rem;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: .65rem;
+}
+.memo-item {
+	position: relative;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--raised);
+	cursor: pointer;
+}
+.memo-item:hover { border-color: var(--accent); }
+.memo-header { display: grid; gap: .45rem; padding: .65rem; }
+.memo-title-row2 { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+.filename-text { min-width: 0; overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
+.view-memo-title { cursor: pointer; }
+.format-badge, .author-badge {
+	flex: 0 0 auto;
+	padding: .1rem .35rem;
+	border: 1px solid #365264;
+	border-radius: 999px;
+	color: var(--accent);
+	font-size: .75rem;
+}
+.memo-actions-menu { position: relative; display: flex; justify-content: flex-end; }
+.btn-menu { border: 0; background: transparent; color: var(--muted); font-size: 1.2rem; line-height: 1; }
+.btn-menu:hover { color: var(--accent); }
+.memo-popup-menu {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	z-index: 10;
+	display: grid;
+	min-width: 9rem;
+	padding: .35rem;
+	border: 1px solid var(--border);
+	border-radius: 7px;
+	background: var(--panel);
+	box-shadow: 0 8px 18px rgb(0 0 0 / 30%);
+}
+.memo-popup-menu button { border: 0; padding: .4rem .5rem; background: transparent; color: var(--text); text-align: left; }
+.memo-popup-menu button:hover { background: var(--raised); color: var(--accent); }
+.memo-popup-menu .btn-delete { color: var(--danger); }
+.popup-meta-dates { display: grid; gap: .2rem; padding: .45rem; border-top: 1px solid var(--border); color: var(--muted); font-size: .72rem; }
+.memo-tags { display: flex; flex-wrap: wrap; gap: .3rem; }
+.tag { padding: .1rem .35rem; border-radius: 999px; background: #172631; color: var(--accent); font-size: .75rem; }
 
-@media (max-width: 1024px) {
-	.memo-app {
-		grid-template-columns: 260px 1fr;
-	}
+.memo-editor-pane { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
+.editor-tabs { display: flex; gap: .35rem; overflow-x: auto; padding: .55rem; border-bottom: 1px solid var(--border); }
+.editor-tab { display: inline-flex; align-items: center; gap: .4rem; max-width: 16rem; border: 1px solid var(--border); border-radius: 7px; padding: .4rem .55rem; background: var(--raised); color: var(--text); }
+.editor-tab.active { border-color: var(--accent); }
+.tab-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.close-btn { border: 0; background: transparent; color: var(--muted); }
+.editor-area { min-height: 0; overflow: auto; }
+.editor-pane { display: none; height: 100%; padding: .8rem; }
+.editor-pane.active { display: block; }
+.editor-pane-inner { height: 100%; }
+.memo-textarea { display: block; width: 100%; min-height: 24rem; height: 100%; resize: vertical; line-height: 1.65; tab-size: 2; }
+.memo-textarea.is-readonly { color: var(--muted); }
+.memo-savebar { display: flex; align-items: center; gap: .7rem; padding: .65rem .8rem; border-top: 1px solid var(--border); }
+.savebar-status { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.modal-overlay { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 1rem; background: rgb(0 0 0 / 70%); }
+.format-dialog, .title-dialog, .view-memo-dialog { width: min(32rem, 100%); max-height: 90dvh; overflow: auto; padding: 1rem; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); box-shadow: 0 12px 36px rgb(0 0 0 / 35%); }
+.dialog-heading { margin: 0 0 1rem; color: var(--accent); }
+.format-list { display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem; }
+.dialog-choice { min-width: 4rem; }
+.dialog-field { display: grid; gap: .35rem; margin-bottom: 1rem; }
+.dialog-label { color: var(--muted); }
+.dialog-input { width: 100%; }
+.dialog-status { min-height: 1.25rem; font-size: .875rem; }
+.dialog-actions { display: flex; justify-content: flex-end; gap: .6rem; }
+.view-memo-heading { display: flex; justify-content: space-between; align-items: center; gap: 1rem; }
+.view-memo-heading h3 { display: flex; align-items: center; gap: .4rem; margin: 0; }
+.modal-close { border: 0; background: transparent; color: var(--muted); font-size: 1.25rem; }
+.view-memo-content { margin-top: 1rem; padding: .8rem; border: 1px solid var(--border); border-radius: 7px; background: #11171c; white-space: pre-wrap; overflow-wrap: anywhere; }
+.status-pending { color: #fde68a; }
+.status-success { color: var(--accent); }
+.status-error { color: var(--danger); }
+
+.notification {
+	position: fixed;
+	top: 1rem;
+	left: 50%;
+	z-index: 1000;
+	max-width: min(32rem, calc(100% - 2rem));
+	padding: .7rem 1rem;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--panel);
+	box-shadow: 0 4px 20px rgb(0 0 0 / 30%);
+	transform: translateX(-50%);
+	animation: memo-notification-in .2s ease-out;
+}
+.notification-success { border-color: var(--accent); color: var(--accent); }
+.notification-error { border-color: var(--danger); color: var(--danger); }
+.notification-info { color: var(--text); }
+.notification-success::before { content: '✓ '; }
+.notification-error::before { content: '! '; }
+.notification-info::before { content: 'i '; }
+.notification.is-leaving { animation: memo-notification-out .2s ease-in forwards; }
+@keyframes memo-notification-in {
+	from { opacity: 0; transform: translateX(-50%) translateY(-.7rem); }
+	to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+@keyframes memo-notification-out {
+	from { opacity: 1; transform: translateX(-50%) translateY(0); }
+	to { opacity: 0; transform: translateX(-50%) translateY(-.7rem); }
 }
 
-@media (max-width: 768px) {
-	.memo-app {
-		display: block;
-		height: auto;
-	}
-	.memo-sidebar { height: auto; }
-	.editor-area { position: relative; height: auto; }
-	.editor-pane { position: relative; }
-	.editor-pane-inner { height: auto; }
-	.editor-pane-inner .memo-textarea { height: 65dvh; min-height: 240px; }
-	.memo-savebar { position: sticky; bottom: 0; }
+@media (max-width: 760px) {
+	body { overflow: auto; }
+	.memo-app { display: block; overflow: visible; }
+	.memo-sidebar { min-height: 18rem; border-right: 0; border-bottom: 1px solid var(--border); }
+	.memo-editor-pane { margin-top: .8rem; min-height: 28rem; }
 }

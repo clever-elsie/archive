@@ -2,33 +2,29 @@
 <html lang="ja">
 <head>
 	<meta charset="UTF-8">
-	<meta name="viewport" content="width=1024, user-scalable=no">
+	<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 	<title>メモ管理</title>
-	<link rel="preconnect" href="https://fonts.googleapis.com">
-	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-	<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 	<link rel="stylesheet" href="/static/common.css" type="text/css">
 	<link rel="stylesheet" href="/static/memo/style.css" type="text/css">
-	<link rel="stylesheet" href="/static/vendor/katex/katex.min.css">
-	<link rel="stylesheet" href="/static/vendor/markdown-it-texmath/texmath.min.css">
 </head>
 <body>
 	<!-- ヘッダー -->
 	<header class="header">
 		<div class="header-content">
 			<a href="/index.html" class="home-link">
-				<i class="fas fa-home"></i>
+				<span aria-hidden="true">⌂</span>
 				<span>HOME</span>
 			</a>
 			<div class="header-info">
 				<h1 class="title">メモ管理</h1>
 			</div>
+			<button id="logoutButton" class="btn btn-secondary" type="button">ログアウト</button>
 		</div>
 	</header>
 
 	<!-- メインレイアウト（VSCode風） -->
 	<main class="memo-app">
+		<div id="memoStatus" class="memo-status" role="status">認証確認中…</div>
 		<aside class="memo-sidebar">
 			<div class="sidebar-header">
 				<div class="sidebar-memo-counter">
@@ -37,52 +33,31 @@
 				</div>
 				<div class="search-input-container">
 					<input type="text" id="searchInput" class="search-input" placeholder="検索キーワードを入力...">
-					<button class="btn btn-secondary" onclick="search_memos()">
-						<i class="fas fa-search"></i>
-					</button>
+					<button id="searchButton" class="btn btn-secondary" type="button" aria-label="検索">検索</button>
 				</div>
 				<div class="sidebar-actions">
-					<button class="btn btn-primary" onclick="new_memo()">
-						<i class="fas fa-plus"></i>
-						新規
-					</button>
-					<button class="btn btn-secondary" onclick="new_shared_memo()">
-						<i class="fas fa-share-alt"></i>
-						共用
-					</button>
+					<button id="newMemoButton" class="btn btn-primary" type="button">新規</button>
+					<button id="newSharedMemoButton" class="btn btn-secondary" type="button">共用</button>
 				</div>
 			</div>
 			<div class="sidebar-tabs">
-				<button class="sidebar-tab active" onclick="switchSidebarTab('personal')">
-					<i class="fas fa-user"></i>
-					個人メモ
-				</button>
-				<button class="sidebar-tab" onclick="switchSidebarTab('shared')">
-					<i class="fas fa-users"></i>
-					共用メモ
-				</button>
+				<button id="personalTabButton" class="sidebar-tab active" type="button">個人メモ</button>
+				<button id="sharedTabButton" class="sidebar-tab" type="button">共用メモ</button>
 			</div>
 			<div id="memoList" class="memo-list-vertical"></div>
-			<div id="sharedMemoList" class="memo-list-vertical" style="display: none;"></div>
+			<div id="sharedMemoList" class="memo-list-vertical" hidden></div>
 		</aside>
 
 		<section class="memo-editor-pane">
 			<div id="editorTabs" class="editor-tabs"></div>
 			<div id="editorArea" class="editor-area"></div>
 			<div class="memo-savebar" id="memoSavebar">
-				<button class="btn btn-primary" type="button" onclick="save_active_tab()" title="現在表示中を保存 (Ctrl+S)">
-					<i class="fas fa-save"></i>
-					保存
-				</button>
+				<button id="saveActiveButton" class="btn btn-primary" type="button" title="現在表示中を保存 (Ctrl+S)">保存</button>
 				<span class="savebar-status" id="memoSaveStatus">未選択</span>
 			</div>
 		</section>
 	</main>
 
-	<script src="/static/vendor/katex/katex.min.js"></script>
-	<script src="/static/vendor/markdown-it/markdown-it.min.js"></script>
-	<script src="/static/vendor/markdown-it-texmath/texmath.min.js"></script>
-	<script src="/static/common.js"></script>
 	<script type="module" src="/static/memo/main.js"></script>
 </body>
 </html>

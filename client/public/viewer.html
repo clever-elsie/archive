@@ -1,160 +1,193 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=1024, user-scalable=no">
-<title>HOME-SERVER Viewer</title>
-<link rel="stylesheet" href="/static/viewer/style.css">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>Viewer</title>
+  <link rel="stylesheet" href="/static/common.css">
+  <link rel="stylesheet" href="/static/viewer/style.css">
 </head>
+<body>
+  <div class="viewer-shell">
+    <header id="top" class="viewer-header">
+      <a class="brand" href="/index.html">HOME</a>
+      <div class="header-title">
+        <div id="entry-title" class="ruby-label">Viewer</div>
+        <small id="entry-kind"></small>
+        <span id="entry-counter" class="header-counter"></span>
+      </div>
+      <div class="header-actions">
+        <button class="button subtle" id="reload-button" type="button" data-action="reload" hidden>Reload</button>
+        <button class="button subtle" type="button" data-action="logout">ログアウト</button>
+      </div>
+    </header>
 
-<body oncontextmenu="return false;" onload="initializePage()">
-	<!-- ヘッダー -->
-	<header class="header">
-		<div class="header-content">
-			<a href="/index.html" class="home-link">
-				<i class="fas fa-home"></i>
-				<span>HOME</span>
-			</a>
-			<div class="header-info">
-				<div id="title" class="title"></div>
-				<div id="counter" class="counter"></div>
-			</div>
-		</div>
-	</header>
+    <div id="reload-notice" class="reload-notice" role="status" aria-live="polite" hidden>
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="reload-message">Viewerを更新しています…</span>
+    </div>
 
-	<!-- メインコンテンツ -->
-	<main class="main-content">
-		<!-- メタデータ編集セクション -->
-		<section class="metadata-section">
-			<div class="metadata-card">
-				<h3><i class="fas fa-tags"></i> タグ</h3>
-				<div class="input-group">
-					<input id="tag_input" type="text" placeholder="タグを入力" class="modern-input"/>
-					<button type="button" id="tag_add" class="btn btn-primary" data-scroll-to="#top" data-viewer-action="infoAdd">
-						<i class="fas fa-plus"></i> 追加
-					</button>
-					<button type="button" id="tag_erase" class="btn btn-danger" data-scroll-to="#top" data-viewer-action="infoDelete">
-						<i class="fas fa-minus"></i> 削除
-					</button>
-				</div>
-				<div id="tags" class="tag-list"></div>
-			</div>
-		</section>
+    <div id="status-panel" class="status-panel" hidden>
+      <div class="status-icon" aria-hidden="true">…</div>
+      <h1 id="status-title">Viewerを準備しています</h1>
+      <p id="status-message">データ構造を構築しています。</p>
+      <button class="button primary" type="button" data-action="retry">再試行</button>
+    </div>
 
-		<!-- 画像表示エリア -->
-		<section class="image-section">
-			<div id="jmpControll" class="navigation-controls"></div>
-			<div id="imageContainer" class="image-container"></div>
-			<div id="jmpControll2" class="navigation-controls"></div>
-		</section>
+    <main id="viewer-content" class="viewer-content" hidden>
+      <section id="tag-panel" class="tag-panel" hidden>
+        <div id="tag-list" class="tag-list"></div>
+        <form id="tag-form" class="tag-form" hidden>
+          <input id="tag-input" class="input" type="text" placeholder="タグを追加">
+          <button class="button primary" type="submit">追加</button>
+        </form>
+      </section>
 
-		<!-- ジャンプコントロール -->
-		<section class="jump-section">
-			<div class="jump-controls">
-				<input id="jmpImg" type="number" placeholder="ページ番号" class="modern-input" onkeypress="handleJumpImgKeyPress(event)">
-				<button type="button" class="btn btn-secondary" data-scroll-to="#parentdir" data-viewer-action="jmpImg2">
-					<i class="fas fa-arrow-right"></i> ジャンプ
-				</button>
-			</div>
-		</section>
+      <section id="media-workspace" class="media-workspace" hidden>
+        <div class="drawer-handles" aria-label="メディアドロワー">
+          <button id="members-drawer-handle" class="drawer-handle drawer-handle-members" type="button" data-action="toggle-members" aria-controls="media-members-container" aria-expanded="false">Member</button>
+        </div>
+        <aside id="media-sets-container" class="dock dock-sets" hidden>
+          <div class="dock-heading">
+            <h2>MediaSets</h2>
+          </div>
+          <div class="list-controls compact-controls" data-list-controls="mediaSets">
+            <select data-control="sort-key" aria-label="MediaSetsの並び基準">
+              <option value="path">名前</option><option value="updated_at">更新日時</option>
+            </select>
+            <select data-control="direction" aria-label="MediaSetsの並び方向">
+              <option value="asc">昇順</option><option value="desc">降順</option>
+            </select>
+            <select data-control="grouping" aria-label="MediaSetsの分類">
+              <option value="grouped">種別ごと</option><option value="mixed">全種別混合</option>
+            </select>
+            <select data-control="filter" aria-label="MediaSetsの表示種別">
+              <option value="all">すべて</option><option value="image">画像</option><option value="video">動画</option>
+              <option value="audio">音声</option><option value="text">テキスト</option><option value="document">ドキュメント</option>
+            </select>
+          </div>
+          <div id="media-sets-list" class="entry-list"></div>
+        </aside>
 
-		<!-- 親ディレクトリのサムネイル表示エリア -->
-		<section class="parentdir-section">
-			<h3 id="parentdir"><i class="fas fa-folder-open"></i> 親ディレクトリのサムネイル</h3>
-			<div id="parentContainer" class="thumbnail-grid"></div>
-		</section>
+        <section id="main-media-container" class="main-media-container">
+          <div class="media-heading">
+            <div id="media-title" class="ruby-label"></div>
+            <span id="media-counter" class="muted"></span>
+            <label id="volume-control" class="volume-control">音量 <input id="volume-slider" type="range" min="0" max="1" step="0.01" value="1"></label>
+            <button class="button subtle" type="button" data-action="close-work">一覧へ戻る</button>
+          </div>
+          <div id="media-stage" class="media-stage"></div>
+          <div id="media-navigation" class="media-navigation"></div>
+        </section>
 
-		<!-- 検索セクション -->
-		<section class="search-section">
-			<h3 id="THUM"><i class="fas fa-search"></i> その他の作品</h3>
-			<form id="search_form" class="search-controls" action="javascript:void(0);">
-				<input id="query_box" type="text" placeholder="検索クエリを入力" class="modern-input" enterkeyhint="search"/>
-				<button type="button" class="btn btn-primary" data-scroll-to="#THUM" data-viewer-action="throwQuery">
-					<i class="fas fa-search"></i> 検索
-				</button>
-			</form>
-		</section>
+        <aside id="media-members-container" class="dock dock-members" hidden>
+          <div class="dock-heading">
+            <h2>MediaMembers</h2>
+            <button class="icon-button" type="button" data-action="toggle-members" aria-label="MediaMembersを閉じる">×</button>
+          </div>
+          <div class="list-controls compact-controls" data-list-controls="mediaMembers">
+            <select data-control="sort-key" aria-label="MediaMembersの並び基準">
+              <option value="path">名前</option><option value="updated_at">更新日時</option>
+            </select>
+            <select data-control="direction" aria-label="MediaMembersの並び方向">
+              <option value="asc">昇順</option><option value="desc">降順</option>
+            </select>
+            <select data-control="grouping" aria-label="MediaMembersの分類">
+              <option value="grouped">種別ごと</option><option value="mixed">全種別混合</option>
+            </select>
+            <select data-control="filter" aria-label="MediaMembersの表示種別">
+              <option value="all">すべて</option><option value="image">画像</option><option value="video">動画</option>
+              <option value="audio">音声</option><option value="text">テキスト</option><option value="document">ドキュメント</option>
+            </select>
+          </div>
+          <div id="media-members-list" class="entry-list"></div>
+        </aside>
+      </section>
 
-		<!-- ナビゲーションコントロール -->
-		<section class="navigation-section">
-			<div class="nav-buttons">
-				<button type="button" class="btn btn-secondary" data-scroll-to="#THUM" data-viewer-action="fetchRandom">
-					<i class="fas fa-random"></i> ランダムリロード
-				</button>
-				<button type="button" class="btn btn-secondary" data-scroll-to="#THUM" data-viewer-action="cdPar">
-					<i class="fas fa-level-up-alt"></i> 上位ディレクトリ
-				</button>
-				<button type="button" class="btn btn-secondary" data-scroll-to="#THUM" data-viewer-action="cdCur">
-					<i class="fas fa-folder"></i> 現在のディレクトリ
-				</button>
-			</div>
-		</section>
+      <section id="collection-section" class="list-section" hidden>
+        <div class="section-heading"><h2>Collection</h2><span id="collection-count" class="muted"></span></div>
+        <div class="list-controls" data-list-controls="collection">
+          <select data-control="sort-key" aria-label="Collectionの並び基準">
+            <option value="path">名前</option><option value="updated_at">更新日時</option>
+          </select>
+          <select data-control="direction" aria-label="Collectionの並び方向">
+            <option value="asc">昇順</option><option value="desc">降順</option>
+          </select>
+          <select data-control="grouping" aria-label="Collectionの分類">
+            <option value="grouped">種別ごと</option><option value="mixed">全種別混合</option>
+          </select>
+          <select data-control="filter" aria-label="Collectionの表示種別">
+            <option value="all">すべて</option><option value="image">画像</option><option value="video">動画</option>
+            <option value="audio">音声</option><option value="text">テキスト</option><option value="document">ドキュメント</option>
+          </select>
+        </div>
+        <div id="collection-list" class="entry-list"></div>
+        <div id="collection-pagination" class="pagination"></div>
+      </section>
 
-		<!-- サムネイル表示エリア -->
-		<section class="thumbnail-section">
-			<div id="thumbnailContainer" class="thumbnail-grid"></div>
-			<div id="search_page_list" class="page-list"></div>
-		</section>
+      <nav id="directory-navigation" class="toolbar directory-navigation" aria-label="ディレクトリ移動">
+        <button class="button subtle" type="button" data-action="back" id="back-button" hidden>← 戻る</button>
+        <button class="button subtle" type="button" data-action="root">Root</button>
+        <div id="breadcrumbs" class="breadcrumbs"></div>
+        <span id="view-status" class="muted"></span>
+      </nav>
 
-		<section class="page-navigation-section">
-			<section class="page-shift-section">
-				<div class="page-navigation">
-					<button type="button" class="btn btn-secondary" id="prev_page" data-scroll-to="#THUM" data-viewer-action="fetchPagePrev">
-						<i class="fas fa-chevron-left"></i> 前へ
-					</button>
-					<input id="page_num" type="number" placeholder="ページ番号" class="modern-input">
-					<button type="button" class="btn btn-secondary" data-scroll-to="#THUM" data-viewer-action="callPageNum">
-						<i class="fas fa-arrow-right"></i> ページジャンプ
-					</button>
-					<button type="button" class="btn btn-secondary" id="next_page" data-scroll-to="#THUM" data-viewer-action="fetchPageNext">
-						次へ <i class="fas fa-chevron-right"></i>
-					</button>
-				</div>
-			</section>
-			<!-- ページリスト -->
-			<section class="page-list-section">
-				<div id="page_list" class="page-list"></div>
-			</section>
-		</section>
+      <section id="content-controls" class="content-controls" aria-label="内容操作">
+        <div class="browse-toolbar">
+          <form id="search-form" class="search-form">
+            <input id="search-input" class="input" type="search" placeholder="作品名・タグ">
+            <button class="button primary" type="submit">検索</button>
+          </form>
+          <button id="random-button" class="button subtle" type="button" data-action="random" hidden>ランダム</button>
+          <button id="page-mode-button" class="button subtle" type="button" data-action="page-mode">ページング</button>
+          <button class="button subtle" type="button" data-action="toggle-playback-mode" id="playback-mode-toggle">終了時: 自動遷移</button>
+        </div>
+        <div class="list-controls" data-list-controls="browse">
+          <select data-control="sort-key" aria-label="内容の並び基準">
+            <option value="path">名前</option><option value="updated_at">更新日時</option>
+          </select>
+          <select data-control="direction" aria-label="内容の並び方向">
+            <option value="asc">昇順</option><option value="desc">降順</option>
+          </select>
+          <select data-control="grouping" aria-label="内容の分類">
+            <option value="grouped">種別ごと</option><option value="mixed">全種別混合</option>
+          </select>
+          <select data-control="filter" aria-label="内容の表示種別">
+            <option value="all">すべて</option><option value="image">画像</option><option value="video">動画</option>
+            <option value="audio">音声</option><option value="text">テキスト</option><option value="document">ドキュメント</option>
+          </select>
+        </div>
+      </section>
 
-		<!-- システムリロード -->
-		<section class="system-section">
-			<button type="button" class="btn btn-warning" data-viewer-action="reloadLeaf">
-				<i class="fas fa-sync-alt"></i> システムリロード
-			</button>
-		</section>
-	</main>
+      <section id="browse-section" class="list-section">
+        <div class="section-heading"><h2 id="THUM">内容</h2><span id="browse-count" class="muted"></span></div>
+        <div id="thumbnail-container" class="entry-list"></div>
+        <div id="browse-pagination" class="pagination"></div>
+      </section>
 
-	<!-- フローティングナビゲーション -->
-	<nav class="floating-nav">
-		<a href="#top" class="nav-item">
-			<i class="fas fa-arrow-up"></i>
-			<span>トップ</span>
-		</a>
-		<a href="#parentdir" class="nav-item">
-			<i class="fas fa-user"></i>
-			<span>親ディレクトリ</span>
-		</a>
-		<a href="#THUM" class="nav-item">
-			<i class="fas fa-search"></i>
-			<span>検索</span>
-		</a>
-		<a href="#page_list" class="nav-item">
-			<i class="fas fa-list"></i>
-			<span>ページリスト</span>
-		</a>
-	</nav>
-	
-	<!-- ナビゲーショントグルボタン -->
-	<button type="button" class="nav-toggle" data-viewer-action="toggleNav">
-		<i class="fas fa-chevron-right"></i>
-	</button>
+      <section id="search-section" class="list-section" hidden>
+        <div class="section-heading"><h2 id="search-title">検索結果</h2><span id="search-count" class="muted"></span></div>
+        <div id="search-list" class="entry-list"></div>
+        <div id="search-pagination" class="pagination"></div>
+      </section>
 
-	<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-	<script src="/static/common.js"></script>
-	<script type="module" src="/static/viewer/main.js"></script>
+      <section id="diagnostics-panel" class="diagnostics-panel" hidden>
+        <details><summary>開発者情報（隠蔽されたEntry） <span id="hidden-alias-count" class="muted"></span></summary>
+          <div id="hidden-alias-list" class="diagnostic-list"></div>
+        </details>
+      </section>
+    </main>
+
+    <nav id="jump-drawer" class="jump-drawer" aria-label="ページ内移動" aria-hidden="true">
+      <a href="#top" data-action="jump" data-target="#top">トップ</a>
+      <a href="#directory-navigation" data-action="jump" data-target="#directory-navigation">ディレクトリ移動</a>
+      <a href="#media-workspace" data-action="jump" data-target="#media-workspace">メディア</a>
+      <a href="#collection-section" data-action="jump" data-target="#collection-section">Collection</a>
+      <a href="#THUM" data-action="jump" data-target="#THUM">内容</a>
+      <a href="#search-section" data-action="jump" data-target="#search-section">検索</a>
+    </nav>
+    <button id="jump-toggle" class="jump-toggle" type="button" data-action="toggle-jump" aria-controls="jump-drawer" aria-expanded="false" aria-label="ページ内移動を開閉">☰</button>
+  </div>
+  <script type="module" src="/static/viewer/main.js"></script>
 </body>
 </html>
-

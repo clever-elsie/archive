@@ -2,20 +2,43 @@ import { openTabs } from './state.js';
 import { attachTextareaBehaviors } from './textarea.js';
 import { updateSavebarStatus } from './savebar.js';
 
-export function createEditorTab({ tabKey, kind, rawKey, stem, format, badgeHtml, initialText }) {
+export function createEditorTab({ tabKey, kind, rawKey, stem, format, badgeText, initialText, readOnly = false }) {
 	const tabs = document.getElementById('editorTabs');
 	const area = document.getElementById('editorArea');
 	if (!tabs || !area) return null;
 
 	const tab = document.createElement('button');
 	tab.className = 'editor-tab active';
-	tab.innerHTML = `<span class="tab-label">${stem}</span>${badgeHtml || ''}<button class="close-btn" title="閉じる">✕</button>`;
+	const tabLabel = document.createElement('span');
+	tabLabel.className = 'tab-label';
+	tabLabel.textContent = stem;
+	tab.appendChild(tabLabel);
+	if (badgeText) {
+		const badge = document.createElement('span');
+		badge.className = kind === 'shared' ? 'author-badge' : 'format-badge';
+		badge.textContent = badgeText;
+		tab.appendChild(badge);
+	}
+	const closeButton = document.createElement('span');
+	closeButton.className = 'close-btn';
+	closeButton.setAttribute('role', 'button');
+	closeButton.tabIndex = 0;
+	closeButton.title = '閉じる';
+	closeButton.textContent = '✕';
+	tab.appendChild(closeButton);
 
 	const pane = document.createElement('div');
 	pane.className = 'editor-pane active';
-	pane.innerHTML = `<div class="editor-pane-inner">
-		<textarea class="memo-textarea" data-tabkey="${tabKey}">${initialText || ''}</textarea>
-	</div>`;
+	const paneInner = document.createElement('div');
+	paneInner.className = 'editor-pane-inner';
+	const textarea = document.createElement('textarea');
+	textarea.className = 'memo-textarea';
+	textarea.dataset.tabkey = tabKey;
+	textarea.value = initialText || '';
+	textarea.readOnly = readOnly;
+	if (readOnly) textarea.classList.add('is-readonly');
+	paneInner.appendChild(textarea);
+	pane.appendChild(paneInner);
 
 	document.querySelectorAll('.editor-tab').forEach(el => el.classList.remove('active'));
 	document.querySelectorAll('.editor-pane').forEach(el => el.classList.remove('active'));
@@ -23,20 +46,22 @@ export function createEditorTab({ tabKey, kind, rawKey, stem, format, badgeHtml,
 	tabs.appendChild(tab);
 	area.appendChild(pane);
 
-	const textarea = pane.querySelector('textarea');
 	attachTextareaBehaviors(textarea, tabKey);
 
-	const entry = { tabKey, kind, rawKey, tabEl: tab, paneEl: pane, textarea, dirty: false, stem, format };
+	const entry = { tabKey, kind, rawKey, tabEl: tab, paneEl: pane, textarea, dirty: false, stem, format, readOnly };
 	openTabs.set(tabKey, entry);
 
 	tab.addEventListener('click', (e) => {
 		if ((e.target).classList && (e.target).classList.contains('close-btn')) return;
 		activate_tab(tabKey);
 	});
-	tab.querySelector('.close-btn').addEventListener('click', (e) => {
+	closeButton.addEventListener('click', (e) => {
 		e.stopPropagation();
 		if (entry.dirty && !confirm('未保存の変更があります。閉じますか？')) return;
 		close_tab(tabKey);
+	});
+	closeButton.addEventListener('keydown', event => {
+		if (event.key === 'Enter' || event.key === ' ') closeButton.click();
 	});
 
 	return entry;
@@ -87,4 +112,3 @@ export function getActiveTabKey() {
 	const found = Array.from(openTabs.entries()).find(([, v]) => v.tabEl === activeTab);
 	return found ? found[0] : null;
 }
-

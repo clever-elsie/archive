@@ -1,236 +1,174 @@
-// index.html から切り出したメインスクリプト
-// 認証・ログイン・UI制御ロジック
+import {
+	checkAuthentication,
+	login as authenticate,
+	logout as endSession,
+	requestJson,
+	HttpError
+} from '../common/auth.js';
 
-let username = localStorage.getItem('username');
-let isFirstUser = false;
 const RE_USERNAME = /^[A-Za-z0-9]{1,32}$/;
 const RE_PASSWORD = /^[A-Za-z0-9_-]{10,64}$/;
 
-window.onload = async function() {
-	document.getElementById('loadingSpinner').style.display = 'flex';
-	document.getElementById('loginForm').style.display = 'none';
-	document.getElementById('mainContent').style.display = 'none';
-	const first = await checkFirstUser();
-	// JWT は HttpOnly クッキーで管理するため、ここでは username の有無のみで分岐
-	if (username) {
-		await checkAuth();
-	} else {
-		showLoginForm(first);
-	}
-	document.getElementById('loadingSpinner').style.display = 'none';
-};
+let isFirstUser = false;
+let currentPrincipal = null;
 
-// ハンバーガーメニューの切り替え
-function toggleHamburger() {
-	const content = document.getElementById('hamburgerContent');
-	content.classList.toggle('show');
+function element(id) {
+	return document.getElementById(id);
 }
-window.toggleHamburger = toggleHamburger;
 
-// ハンバーガーメニューを外側クリックで閉じる
-document.addEventListener('click', function(event) {
-	const hamburgerMenu = document.getElementById('hamburgerMenu');
-	const hamburgerContent = document.getElementById('hamburgerContent');
-	
-	if (hamburgerMenu && !hamburgerMenu.contains(event.target)) {
-		hamburgerContent.classList.remove('show');
+function showMessage(message, type = 'error') {
+	const target = element('loginMessage');
+	if (!target) return;
+	target.textContent = message || '';
+	target.className = message ? `message ${type}` : '';
+}
+
+function showLoginForm(first = false) {
+  currentPrincipal = null;
+  element('loadingSpinner')?.classList.add('hidden');
+  element('loginForm')?.classList.remove('hidden');
+  element('mainContent')?.classList.add('hidden');
+  element('hamburgerMenu')?.classList.add('hidden');
+  element('hamburgerContent')?.classList.remove('show');
+  const userInfo = element('userInfo');
+  if (userInfo) userInfo.textContent = '';
+  element('adminLink')?.setAttribute('hidden', '');
+	element('loginTitle').textContent = first
+		? '管理者アカウント新規作成'
+		: 'HOME-SERVER ログイン';
+	element('registerFields')?.classList.toggle('hidden', !first);
+	element('passwordInput2').required = first;
+	element('loginButton').textContent = first ? '管理者登録' : 'ログイン';
+	element('usernameInput').value = '';
+	element('passwordInput').value = '';
+	element('passwordInput2').value = '';
+	showMessage('');
+}
+
+async function showMainContent(principal) {
+	currentPrincipal = principal;
+	element('loadingSpinner')?.classList.add('hidden');
+	element('loginForm')?.classList.add('hidden');
+	element('mainContent')?.classList.remove('hidden');
+	element('hamburgerMenu')?.classList.remove('hidden');
+	element('userInfo').textContent = `ログイン中: ${principal?.username || ''}`;
+	const adminLink = element('adminLink');
+	if (!adminLink) return;
+	try {
+		const permissions = await requestJson('/req/user/permissions', { method: 'GET' });
+		adminLink.toggleAttribute('hidden', !permissions?.is_admin);
+	} catch {
+		adminLink.setAttribute('hidden', '');
 	}
-});
+}
+
+function safeReturnPath() {
+	const value = new URLSearchParams(window.location.search).get('return');
+	return value && value.startsWith('/') && !value.startsWith('//')
+		? value
+		: '/';
+}
+
+function continueAfterLogin() {
+	const target = safeReturnPath();
+	if (target !== '/') window.location.assign(target);
+}
 
 async function checkFirstUser() {
+	const data = await requestJson('/req/user/check_first', {
+		method: 'GET',
+		csrf: false,
+		redirectOn401: false
+	});
+	isFirstUser = Boolean(data?.is_first_user);
+	return isFirstUser;
+}
+
+async function init() {
+	element('loadingSpinner')?.classList.remove('hidden');
+	element('loginForm')?.classList.add('hidden');
+	element('mainContent')?.classList.add('hidden');
 	try {
-		const res = await fetch('/req/user/check_first');
-		const data = await res.json();
-		isFirstUser = data.success && data.is_first_user;
-		return isFirstUser;
-	} catch (e) {
-		isFirstUser = false;
-		return false;
+		await checkFirstUser();
+		const auth = await checkAuthentication();
+		if (auth?.authenticated) {
+			await showMainContent(auth);
+		} else {
+			showLoginForm(isFirstUser);
+		}
+	} catch (error) {
+		showLoginForm(isFirstUser);
+		showMessage(
+			error instanceof HttpError ? error.message : 'サーバーに接続できません',
+			'error'
+		);
 	}
 }
 
-function showLoginForm(first) {
-	document.getElementById('loadingSpinner').style.display = 'none';
-	document.getElementById('loginForm').style.display = 'flex';
-	document.getElementById('mainContent').style.display = 'none';
-	document.getElementById('hamburgerMenu').style.display = 'none';
-	document.getElementById('usernameInput').value = '';
-	document.getElementById('passwordInput').value = '';
-	document.getElementById('loginMessage').innerHTML = '';
-	if (first) {
-		document.getElementById('loginTitle').innerText = '管理者アカウント新規作成';
-		document.getElementById('registerFields').style.display = 'block';
-		document.getElementById('loginButton').innerHTML = '<i class="fas fa-user-plus"></i> 管理者登録';
-	} else {
-		document.getElementById('loginTitle').innerText = 'HOME-SERVER ログイン';
-		document.getElementById('registerFields').style.display = 'none';
-		document.getElementById('loginButton').innerHTML = '<i class="fas fa-sign-in-alt"></i> ログイン';
-	}
-}
-window.showLoginForm = showLoginForm;
-
-function handleKeyPress(event) {
-	if (event.key === 'Enter') {
-		login();
-	}
-}
-window.handleKeyPress = handleKeyPress;
-
-async function login() {
-	const inputUsername = document.getElementById('usernameInput').value;
-	const inputPassword = document.getElementById('passwordInput').value;
-	const messageDiv = document.getElementById('loginMessage');
-	if (!inputUsername || !inputPassword) {
-		messageDiv.innerHTML = '<div class="message error-message">ユーザー名とパスワードを入力してください</div>';
+async function submitLogin(event) {
+	event?.preventDefault();
+	const username = element('usernameInput').value.trim();
+	const password = element('passwordInput').value;
+	if (!RE_USERNAME.test(username)) {
+		showMessage('ユーザー名は1〜32文字の英数字のみです');
 		return;
 	}
-	if (!RE_USERNAME.test(inputUsername)) {
-		messageDiv.innerHTML = '<div class="message error-message">ユーザー名は1〜32文字の英数字のみです</div>';
-		return;
-	}
-	if (!RE_PASSWORD.test(inputPassword)) {
-		messageDiv.innerHTML = '<div class="message error-message">パスワードは10〜64文字の英数字・アンダーバー・ハイフンのみです</div>';
+	if (!RE_PASSWORD.test(password)) {
+		showMessage('パスワードは10〜64文字の英数字・アンダーバー・ハイフンのみです');
 		return;
 	}
 	if (isFirstUser) {
-		const inputPassword2 = document.getElementById('passwordInput2').value;
-		if (!RE_PASSWORD.test(inputPassword2)) {
-			messageDiv.innerHTML = '<div class="message error-message">確認用パスワードの形式が不正です</div>';
+		const confirmation = element('passwordInput2').value;
+		if (!RE_PASSWORD.test(confirmation) || password !== confirmation) {
+			showMessage('確認用パスワードが一致しません');
 			return;
 		}
-		if (inputPassword !== inputPassword2) {
-			messageDiv.innerHTML = '<div class="message error-message">パスワードが一致しません</div>';
-			return;
-		}
-		// 管理者登録API
-		try {
-			const res = await fetch('/req/user/register', {
+	}
+
+	const button = element('loginButton');
+	button.disabled = true;
+	try {
+		if (isFirstUser) {
+			await requestJson('/req/user/register', {
 				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ username: inputUsername, password: inputPassword, role: 'admin', created_by: '' })
+				body: JSON.stringify({ username, password, role: 'admin' })
 			});
-			const data = await res.json();
-			if (data.success) {
-				messageDiv.innerHTML = '<div class="message success-message">管理者アカウントを登録しました。自動ログインします。</div>';
-				setTimeout(() => doAutoLogin(inputUsername, inputPassword), 1000);
-			} else {
-				messageDiv.innerHTML = '<div class="message error-message">' + data.message + '</div>';
-			}
-		} catch (e) {
-			messageDiv.innerHTML = '<div class="message error-message">登録中にエラーが発生しました</div>';
 		}
-		return;
-	}
-	// 通常ログイン
-	try {
-		const response = await fetch('/req/auth/login', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			body: JSON.stringify({ username: inputUsername, password: inputPassword })
-		});
-		const data = await response.json();
-		if (data.success) {
-			username = data.username;
-			localStorage.setItem('username', username);
-			messageDiv.innerHTML = '<div class="message success-message">ログインに成功しました</div>';
-			setTimeout(() => {
-				showMainContent();
-			}, 1000);
-		} else {
-			messageDiv.innerHTML = '<div class="message error-message">' + data.message + '</div>';
-		}
+		const data = await authenticate(username, password);
+		showMessage(data?.message || 'ログインに成功しました', 'success');
+		await showMainContent({ username, role: 'admin' });
+		continueAfterLogin();
 	} catch (error) {
-		messageDiv.innerHTML = '<div class="message error-message">ログイン中にエラーが発生しました</div>';
-	}
-}
-window.login = login;
-
-async function doAutoLogin(user, pass) {
-	const messageDiv = document.getElementById('loginMessage');
-	try {
-		const response = await fetch('/req/auth/login', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ username: user, password: pass })
-		});
-		const data = await response.json();
-		if (data.success) {
-			username = data.username;
-			localStorage.setItem('username', username);
-			showMainContent();
-		} else {
-			messageDiv.innerHTML = '<div class="message error-message">自動ログインに失敗しました: ' + data.message + '</div>';
-		}
-	} catch (e) {
-		messageDiv.innerHTML = '<div class="message error-message">自動ログイン中にエラーが発生しました</div>';
+		showMessage(error?.message || 'ログインに失敗しました');
+	} finally {
+		button.disabled = false;
 	}
 }
 
-// 認証チェック
-async function checkAuth() {
-	try {
-		const response = await fetch('/req/auth/check', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			credentials: 'include'
-		});
-
-		const data = await response.json();
-
-		if (data.authenticated) {
-			username = data.username || username;
-			localStorage.setItem('username', username);
-			showMainContent();
-		} else {
-			localStorage.removeItem('username');
-			username = null;
-			showLoginForm();
-		}
-	} catch (error) {
-		localStorage.removeItem('username');
-		username = null;
-		showLoginForm();
-	}
-}
-window.checkAuth = checkAuth;
-
-// ログアウト処理
 async function logout() {
 	try {
-		await fetch('/req/auth/logout', {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json'
-			},
-			credentials: 'include'
-		});
-	} catch (error) {
-		// エラーは無視
+		await endSession();
+	} catch {
+		// Cookie削除はサーバーの応答に任せ、通信不能でも画面上はログアウトする。
 	}
-	
-	localStorage.removeItem('username');
-	username = null;
-	showLoginForm();
+	currentPrincipal = null;
+	showLoginForm(false);
 }
+
+function toggleHamburger() {
+	element('hamburgerContent')?.classList.toggle('show');
+}
+
+element('loginFormElement')?.addEventListener('submit', submitLogin);
+element('logoutButton')?.addEventListener('click', logout);
+element('hamburgerButton')?.addEventListener('click', toggleHamburger);
+document.addEventListener('click', event => {
+	const menu = element('hamburgerMenu');
+	if (menu && !menu.contains(event.target)) element('hamburgerContent')?.classList.remove('show');
+});
+
+window.login = submitLogin;
 window.logout = logout;
+window.toggleHamburger = toggleHamburger;
 
-// メインコンテンツ表示
-function showMainContent() {
-	document.getElementById('loadingSpinner').style.display = 'none';
-	document.getElementById('loginForm').style.display = 'none';
-	document.getElementById('mainContent').style.display = 'block';
-	document.getElementById('hamburgerMenu').style.display = 'block';
-	
-	// ユーザー情報表示
-	const userInfoDiv = document.getElementById('userInfo');
-	if (username) {
-		userInfoDiv.innerHTML = `ログイン中: ${username}`;
-	}
-}
-window.showMainContent = showMainContent;
-
-
+init();

@@ -18,10 +18,10 @@ struct QueryAST{
 };
 
 struct termAST : public QueryAST {
-	termAST(string&&token_, bool not_flag_):child_or_token(move(token_)), not_flag(not_flag_){}
-	termAST(const string&token_, bool not_flag_):child_or_token(token_), not_flag(not_flag_){}
-	termAST(std::unique_ptr<QueryAST>&&child_, bool not_flag_):child_or_token(move(child_)), not_flag(not_flag_){}
-	termAST(termAST&&other, bool not_flag_):child_or_token(move(other.child_or_token)), not_flag(not_flag_){}
+	termAST(string&&token_, bool not_flag_):not_flag(not_flag_), child_or_token(move(token_)){}
+	termAST(const string&token_, bool not_flag_):not_flag(not_flag_), child_or_token(token_){}
+	termAST(std::unique_ptr<QueryAST>&&child_, bool not_flag_):not_flag(not_flag_), child_or_token(move(child_)){}
+	termAST(termAST&&other, bool not_flag_):not_flag(not_flag_), child_or_token(move(other.child_or_token)){}
 	virtual bool evaluate(const Retrieval&tar)const override{
 		bool ret = false;
 		if(std::holds_alternative<string>(child_or_token))

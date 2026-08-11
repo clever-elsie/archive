@@ -4,7 +4,9 @@
 
 namespace MEMO{ // 共用メモ関連のAPIエンドポイント
 using namespace std;
-crow::json::wvalue format_for_response(const SharedMemoData& memo);
+crow::json::wvalue format_for_response(
+    const SharedMemoData& memo,
+    bool can_edit = true);
 crow::response shared_memo_fetch_all(const crow::request &req);
 crow::response shared_memo_create(const crow::request &req);
 crow::response shared_memo_update(const crow::request &req);

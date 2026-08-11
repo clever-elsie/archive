@@ -1,6 +1,9 @@
 #pragma once
+#include <cctype>
 #include <chrono>
 #include <filesystem>
+#include <memory>
+#include <optional>
 
 #include <crow/json.h>
 #include <crow/http_response.h>
@@ -14,6 +17,10 @@ crow::json::wvalue format_for_response(const std::filesystem::path& filepath, co
 
 string generate_unique_id();
 string generate_unique_filename(const string& username);
+bool valid_filename_component(const string& filename);
+optional<filesystem::path> safe_user_memo_path(
+  const string& username,
+  const string& filename);
 
 bool matches_search_query( // 検索クエリを解析（AND OR NOT検索）
   const string& query,
@@ -22,41 +29,17 @@ bool matches_search_query( // 検索クエリを解析（AND OR NOT検索）
   const string& data
 );
 
-inline crow::response error_response(const std::string& message){
-  crow::json::wvalue x;
-  x["error"] = message;
-  return crow::response(400, x);
-}
-
 // ユーザーのメモディレクトリパスを取得
-inline string get_user_memo_path(const string& username) {
-  return memo_base_path + username + "/";
-}
+string get_user_memo_path(const string& username);
 
 // 現在のタイムスタンプを取得
-inline string get_current_timestamp() {
-  auto now = chrono::system_clock::now();
-  auto time_t = chrono::system_clock::to_time_t(now);
-  stringstream ss;
-  ss << put_time(localtime(&time_t), "%Y-%m-%d %H:%M:%S");
-  return ss.str();
-}
+string get_current_timestamp();
 
 // ユーザーのメモディレクトリを作成
-inline bool ensure_user_directory(const string& username) {
-  string user_path = get_user_memo_path(username);
-  if (!filesystem::exists(user_path))
-    try { return filesystem::create_directories(user_path); }
-    catch (...) { return false; }
-  return true;
-}
+bool ensure_user_directory(const string& username);
 
 // ファイル名が一意かどうかをチェック
-inline bool is_filename_unique(const string& username, const string& filename) {
-  const string user_path = get_user_memo_path(username);
-  const string file_path = user_path + filename;
-  return !filesystem::exists(file_path);
-}
+bool is_filename_unique(const string& username, const string& filename);
 
 // データ形式が有効かどうかをチェック
 inline bool is_valid_format(const string& format) {
@@ -65,7 +48,9 @@ inline bool is_valid_format(const string& format) {
 }
 
 inline bool is_whitespace_only(const string& str) {
-  return ranges::all_of(str, ::isspace);
+  return ranges::all_of(str, [](unsigned char value) {
+    return std::isspace(value) != 0;
+  });
 }
 
 }  // namespace MEMO

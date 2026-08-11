@@ -1,0 +1,106 @@
+.admin-page {
+	width: min(1100px, 100%);
+	margin: 0 auto;
+	padding: 1.5rem clamp(1rem, 3vw, 2.5rem) 4rem;
+}
+
+.admin-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 1rem;
+}
+
+.admin-toolbar h1,
+.panel h2 {
+	margin: 0;
+}
+
+.panel {
+	margin-top: 1rem;
+	padding: 1rem;
+	border: 1px solid var(--border);
+	border-radius: 10px;
+	background: var(--panel);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 14%);
+}
+
+.form-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+	gap: .8rem;
+	margin: 1rem 0;
+}
+
+.field {
+	display: grid;
+	gap: .35rem;
+}
+
+.field label,
+.user-role,
+.user-meta,
+.admin-status,
+.message {
+	color: var(--muted);
+}
+
+.field input,
+.field select {
+	width: 100%;
+}
+
+.form-actions,
+.user-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: .5rem;
+	align-items: center;
+}
+
+.user-list {
+	display: grid;
+	gap: .6rem;
+	margin-top: 1rem;
+}
+
+.user-item {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: .75rem;
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	background: var(--raised);
+}
+
+.user-name {
+	font-weight: 650;
+}
+
+.admin-status {
+	min-height: 1.5rem;
+	margin: .4rem 0;
+}
+
+.admin-status.success,
+.message.success {
+	color: var(--accent);
+}
+
+.admin-status.error,
+.message.error {
+	color: var(--danger);
+}
+
+@media (max-width: 640px) {
+	.user-item {
+		align-items: stretch;
+		flex-direction: column;
+	}
+	.user-actions .button {
+		flex: 1 1 8rem;
+	}
+}

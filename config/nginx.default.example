@@ -10,7 +10,7 @@ server{
   listen [::]:443 ssl http2;
 
   ssl_certificate /etc/nginx/ssl/server.crt;
-  ssl_sertificate_key /etc/nginx/ssl/server.key;
+  ssl_certificate_key /etc/nginx/ssl/server.key;
   ssl_protocols TLSv1.2 TLSv1.3;
   ssl_session_timeout 30m;
 	ssl_ciphers 'ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384';
@@ -33,8 +33,10 @@ server{
   location /static/ { # .css, .js ファイルなどの静的アセット
     alias /home/user/archive/client/src/;
     access_log off;
-    expires 1h;
-    add_header Cache-Control "public, max-age=3600";
+    # HTMLとJavaScript/CSSの世代が混在しないよう、更新を即時反映する。
+    # 将来ファイル名ハッシュを導入する場合は、その世代で長期cacheへ変更できる。
+    expires -1;
+    add_header Cache-Control "no-cache, must-revalidate";
     try_files $uri $uri/ =404;
   }
 
@@ -51,7 +53,7 @@ server{
     proxy_read_timeout 600s;
   }
 
-	location /req/media{ # 動画/音声のストリーミング最適化（X-Accel-Redirectを受ける入口）
+	location /req/viewer/content/ { # 動画/音声のストリーミング最適化
 		proxy_pass https://localhost:3000;
 		proxy_set_header Host $host;
 		proxy_set_header X-Real-IP $remote_addr;
@@ -67,7 +69,7 @@ server{
 
 	location /_protected_media/{ # 内部ファイル配信用（直接アクセス不可）
 		internal;
-		alias /home/elsie/archive/data/;
+		alias /home/user/archive/data/;
 		add_header X-Content-Type-Options nosniff;
 	}
 
