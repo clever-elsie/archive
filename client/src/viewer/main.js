@@ -5,7 +5,11 @@ import { calculateContentListSize, calculateListSize, calculateRandomSize } from
 import { requireAuthentication, logout as endSession } from '../common/auth.js';
 
 const store = new ViewerStore();
-const renderer = createRenderer(document, { onMediaEnded });
+const renderer = createRenderer(document, {
+  onMediaEnded,
+  onVolumeChange: value => store.setVolume(value),
+  onPlaybackRateChange: value => store.setPlaybackRate(value)
+});
 let retryTimer = null;
 let statusTimer = null;
 let bootstrapRunning = false;
@@ -790,20 +794,29 @@ function navigateImageFromClick(event, target) {
   if (index < 0) return;
   const nextIndex = event.clientY - rect.top < rect.height / 2 ? index - 1 : index + 1;
   if (nextIndex < 0 || nextIndex >= members.length) return;
-  openMember(members[nextIndex]);
+  const nextMember = members[nextIndex];
+  const nextTarget = [...document.querySelectorAll('#media-stage .gallery-item[data-action="image-navigate"]')]
+    .find(item => String(item.dataset.memberId) === String(nextMember.id));
+  if (nextTarget && typeof nextTarget.scrollIntoView === 'function') {
+    const scrollToNext = () => {
+      try {
+        nextTarget.scrollIntoView({ behavior: 'auto', block: 'center' });
+      } catch {
+        nextTarget.scrollIntoView(true);
+      }
+    };
+    const nextImage = nextTarget.querySelector('img');
+    if (nextImage && !nextImage.complete)
+      nextImage.addEventListener('load', scrollToNext, { once: true });
+    scrollToNext();
+  }
+  openMember(nextMember);
 }
 
 function handleChange(event) {
   const controls = event.target.closest('[data-list-controls]');
   if (!controls) return;
   return updateListState(controls.dataset.listControls, event.target.dataset.control, event.target.value);
-}
-
-function handleInput(event) {
-  if (event.target.id !== 'volume-slider') return;
-  store.setVolume(event.target.value);
-  const media = document.querySelector('#media-stage video, #media-stage audio');
-  if (media) media.volume = store.state.ui.volume;
 }
 
 function handleSubmit(event) {
@@ -821,7 +834,6 @@ function handleSubmit(event) {
 async function start() {
   document.addEventListener('click', handleClick);
   document.addEventListener('change', handleChange);
-  document.addEventListener('input', handleInput);
   document.addEventListener('submit', handleSubmit);
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape') {

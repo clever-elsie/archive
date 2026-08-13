@@ -101,5 +101,5 @@ export function calculateContentListSize(options = {}) {
 }
 
 export function calculateRandomSize() {
-  return calculateContentListSize({ fixedPageRows: false });
+  return calculateContentListSize();
 }

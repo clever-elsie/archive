@@ -1,4 +1,6 @@
 const STORAGE_KEY = 'viewer.settings.v2';
+const MAX_VOLUME = 2;
+const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 function listState(limit = 200, sort = { key: 'path', direction: 'asc', grouping: 'grouped' }) {
   return {
@@ -47,6 +49,7 @@ function initialState() {
       autoScroll: true,
       playbackMode: 'advance',
       volume: 1,
+      playbackRate: 1,
       membersOpen: true
     },
     reload: { state: 'idle', message: '' }
@@ -129,9 +132,22 @@ export class ViewerStore {
     const playbackMode = savedUi.playbackMode === 'loop' || savedUi.playbackMode === 'none'
       ? savedUi.playbackMode
       : legacyAutoAdvance === false ? 'none' : 'advance';
+    const savedVolume = Number(savedUi.volume);
+    const savedPlaybackRate = Number(savedUi.playbackRate);
+    const ui = {
+      ...this.state.ui,
+      ...restoredUi,
+      playbackMode,
+      volume: Number.isFinite(savedVolume)
+        ? Math.min(MAX_VOLUME, Math.max(0, savedVolume))
+        : this.state.ui.volume,
+      playbackRate: PLAYBACK_RATES.includes(savedPlaybackRate)
+        ? savedPlaybackRate
+        : this.state.ui.playbackRate
+    };
     this.state = {
       ...this.state,
-      ui: { ...this.state.ui, ...restoredUi, playbackMode },
+      ui,
       browse: restoreList(this.state.browse, settings?.browse),
       collection: restoreList(this.state.collection, settings?.collection),
       mediaSets: restoreList(this.state.mediaSets, settings?.mediaSets),
@@ -146,8 +162,15 @@ export class ViewerStore {
   }
 
   setVolume(volume) {
-    const value = Math.min(1, Math.max(0, Number(volume) || 0));
+    const value = Math.min(MAX_VOLUME, Math.max(0, Number(volume) || 0));
     this.state = { ...this.state, ui: { ...this.state.ui, volume: value } };
+    writeSettings(this.state, this.pendingSelection);
+  }
+
+  setPlaybackRate(rate) {
+    const value = Number(rate);
+    if (!PLAYBACK_RATES.includes(value)) return;
+    this.state = { ...this.state, ui: { ...this.state.ui, playbackRate: value } };
     writeSettings(this.state, this.pendingSelection);
   }
 

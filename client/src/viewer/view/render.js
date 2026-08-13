@@ -252,8 +252,6 @@ export function createRenderer(root = document, callbacks = {}) {
     mediaStage: root.querySelector('#media-stage'),
     mediaTitle: root.querySelector('#media-title'),
     mediaCounter: root.querySelector('#media-counter'),
-    volumeControl: root.querySelector('#volume-control'),
-    volumeSlider: root.querySelector('#volume-slider'),
     mediaNavigation: root.querySelector('#media-navigation'),
     collectionSection: root.querySelector('#collection-section'),
     collectionList: root.querySelector('#collection-list'),
@@ -286,6 +284,11 @@ export function createRenderer(root = document, callbacks = {}) {
     ? new ResizeObserver(syncDockHeight)
     : null;
   resizeObserver?.observe(refs.mainMediaContainer);
+
+  function clearMediaStage() {
+    refs.mediaStage.querySelectorAll('.media-player').forEach(player => player.destroy?.());
+    refs.mediaStage.replaceChildren();
+  }
 
   function renderStatus(state) {
     const hasView = Boolean(state.entry);
@@ -335,10 +338,11 @@ export function createRenderer(root = document, callbacks = {}) {
     setHidden(refs.mediaWorkspace, !hasWorkspace);
     if (!hasWorkspace) {
       refs.mediaWorkspace.style.removeProperty('--dock-height');
-      refs.mediaStage.replaceChildren();
+      clearMediaStage();
       delete refs.mediaStage.dataset.mediaId;
       delete refs.mediaStage.dataset.mediaType;
-      setHidden(refs.volumeControl, true);
+      delete refs.mediaStage.dataset.mediaSetId;
+      delete refs.mediaStage.dataset.mediaMembersKey;
       setHidden(refs.drawerHandles, true);
       setHidden(refs.membersHandle, true);
       return;
@@ -370,23 +374,29 @@ export function createRenderer(root = document, callbacks = {}) {
     refs.mediaNavigation.replaceChildren();
     const activeIndex = playableMembers.findIndex(member => String(member.id) === String(state.activeMember.id));
     refs.mediaCounter.textContent = activeIndex >= 0 ? `${activeIndex + 1} / ${playableMembers.length}` : '';
-    const volumeVisible = state.activeMember.media_type === 'video' || state.activeMember.media_type === 'audio';
-    setHidden(refs.volumeControl, !volumeVisible);
-    if (refs.volumeSlider) refs.volumeSlider.value = String(state.ui.volume);
     refs.mediaTitle.replaceChildren();
     appendRuby(refs.mediaTitle, work || set || state.activeMember);
     const mediaType = state.activeMember.media_type;
+    const playableMembersKey = playableMembers.map(member => String(member.id)).join(',');
     const playbackLoop = state.ui.playbackMode === 'loop';
     const preservesPlayback = !state.memberError && !state.memberLoading
       && (mediaType === 'audio' || mediaType === 'video')
       && refs.mediaStage.dataset.mediaId === String(state.activeMember.id)
       && refs.mediaStage.dataset.mediaType === mediaType
       && Boolean(refs.mediaStage.querySelector(mediaType));
+    const preservesImageGallery = !state.memberError && !state.memberLoading
+      && set.media_type === 'image'
+      && mediaType === 'image'
+      && refs.mediaStage.dataset.mediaSetId === String(set.id)
+      && refs.mediaStage.dataset.mediaMembersKey === playableMembersKey
+      && Boolean(refs.mediaStage.querySelector('.image-gallery'));
 
-    if (!preservesPlayback) {
-      refs.mediaStage.replaceChildren();
+    if (!preservesPlayback && !preservesImageGallery) {
+      clearMediaStage();
       delete refs.mediaStage.dataset.mediaId;
       delete refs.mediaStage.dataset.mediaType;
+      delete refs.mediaStage.dataset.mediaSetId;
+      delete refs.mediaStage.dataset.mediaMembersKey;
       renderTextStatus(refs.mediaStage, state);
       if (!state.memberError && !state.memberLoading && !(isTextMember(state.activeMember) && state.memberContent === null)) {
         if (set.media_type === 'image') {
@@ -403,12 +413,18 @@ export function createRenderer(root = document, callbacks = {}) {
             gallery.append(figure);
           }
           refs.mediaStage.append(gallery);
+          refs.mediaStage.dataset.mediaType = 'image';
+          refs.mediaStage.dataset.mediaSetId = String(set.id);
+          refs.mediaStage.dataset.mediaMembersKey = playableMembersKey;
         } else {
           const media = createMediaElement(state.activeMember, state.memberContent, {
             autoScroll: state.ui.autoScroll,
             volume: state.ui.volume,
             loop: playbackLoop,
-            onEnded: () => callbacks.onMediaEnded?.(state.activeMember)
+            playbackRate: state.ui.playbackRate,
+            onEnded: () => callbacks.onMediaEnded?.(state.activeMember),
+            onVolumeChange: value => callbacks.onVolumeChange?.(value),
+            onPlaybackRateChange: value => callbacks.onPlaybackRateChange?.(value)
           });
           refs.mediaStage.append(media);
           if (mediaType === 'audio' || mediaType === 'video') {
@@ -419,7 +435,13 @@ export function createRenderer(root = document, callbacks = {}) {
       }
     }
     const currentPlayback = refs.mediaStage.querySelector('video, audio');
-    if (currentPlayback) currentPlayback.loop = playbackLoop;
+    if (currentPlayback) {
+      currentPlayback.loop = playbackLoop;
+      currentPlayback.defaultPlaybackRate = state.ui.playbackRate;
+      currentPlayback.playbackRate = state.ui.playbackRate;
+    }
+    const playbackRateSelect = refs.mediaStage.querySelector('.media-rate-select');
+    if (playbackRateSelect) playbackRateSelect.value = String(state.ui.playbackRate);
     if (activeIndex > 0) {
       const prev = element('button', 'button subtle', '← 前へ');
       prev.type = 'button'; prev.dataset.action = 'open-member'; prev.dataset.memberId = String(playableMembers[activeIndex - 1].id);
