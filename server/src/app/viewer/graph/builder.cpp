@@ -80,8 +80,7 @@ bool has_media_in_subtree(const ObservedDirectory& directory);
 
 bool is_video_leaf_directory(const ObservedDirectory& directory) {
   if (directory.alias_only || directory.files.empty() || !directory.children.empty() ||
-      directory.has_unsupported_files ||
-      directory.declared_kind != DeclaredNodeKind::unspecified)
+      directory.has_unsupported_files)
     return false;
 
   bool has_video = false;
@@ -306,6 +305,34 @@ void finalize_graph_impl(GraphState& state, const std::atomic_bool* stop_request
     }
   };
 
+  const auto add_work_target = [&](NodeRef ref) {
+    const auto* node = state.get(ref);
+    if (!node || node->kind != NodeKind::work) return;
+    state.media_page_cache[0].push_back(ref);
+    bool added_video_leaf = false;
+    const auto begin = static_cast<std::size_t>(node->first_child);
+    const auto end = begin + node->child_count;
+    if (begin > state.arena.child_refs.size() || end > state.arena.child_refs.size()) return;
+    for (std::size_t index = begin; index < end; ++index) {
+      const auto set = state.get(state.arena.child_refs[index]);
+      if (!set || set->kind != NodeKind::media_set ||
+          set->media_type != MediaType::video ||
+          (set->flags & node_video_leaf_flag) == 0)
+        continue;
+      state.media_page_cache[2].push_back(state.arena.child_refs[index]);
+      added_video_leaf = true;
+    }
+    for (const auto type : {MediaType::image, MediaType::audio,
+                            MediaType::text, MediaType::document}) {
+      if ((node->media_mask & media_type_bit(type)) != 0)
+        state.media_page_cache[static_cast<std::size_t>(type) + 1].push_back(ref);
+    }
+    // 何らかの理由で動画Setに葉フラグを付けられないWorkを消失させない。
+    // 通常の動画葉は必ず上の分岐に入り、動画ページはMediaSet単位になる。
+    if (!added_video_leaf && (node->media_mask & media_type_bit(MediaType::video)) != 0)
+      state.media_page_cache[2].push_back(ref);
+  };
+
   for (NodeRef ref = 0; ref < state.arena.nodes.size(); ++ref) {
     if (cancelled()) return;
     const auto* node = state.get(ref);
@@ -329,7 +356,7 @@ void finalize_graph_impl(GraphState& state, const std::atomic_bool* stop_request
           standalone_members.push_back(member_ref);
       }
     }
-    if (standalone_members.empty()) add_target(ref);
+    if (standalone_members.empty()) add_work_target(ref);
     else for (const auto member_ref : standalone_members) add_target(member_ref);
   }
 
@@ -510,7 +537,7 @@ private:
   std::vector<NodeRef> build_media_set(NodeRef work, EntryId work_id, const std::string& label,
                                        const fs::path& base_path, MediaType type,
                                        const std::vector<ObservedFile>& files,
-                                       bool standalone = false) {
+                                       bool standalone = false, bool video_leaf = false) {
     std::vector<NodeRef> result;
     if (files.empty()) return result;
     const auto set_seed = std::to_string(work_id) + ":set:" + label + ":" + media_type_name(type);
@@ -554,6 +581,8 @@ private:
     auto* set_node = state_.get(set_ref);
     set_node->updated_at = updated;
     set_node->media_mask = media_type_bit(type);
+    if (video_leaf && type == MediaType::video)
+      set_node->flags |= node_video_leaf_flag;
     for (const auto member_ref : members) {
       const auto* member = state_.get(member_ref);
       if (member && member->media_type == MediaType::image) {
@@ -629,12 +658,9 @@ private:
     for (const auto& files : grouped)
       if (!files.empty()) ++direct_media_type_count;
 
-    const bool video_directory = !directory.has_unsupported_files && directory.children.empty() &&
-      !grouped[static_cast<std::size_t>(MediaType::video)].empty() &&
-      grouped[static_cast<std::size_t>(MediaType::image)].size() <= 1 &&
-      grouped[static_cast<std::size_t>(MediaType::audio)].empty() &&
-      grouped[static_cast<std::size_t>(MediaType::text)].empty() &&
-      grouped[static_cast<std::size_t>(MediaType::document)].empty();
+    // 動画葉の判定は分類時とMediaSet構築時で同じ関数を使う。特に動画1本だけの
+    // ディレクトリを、複数動画のケースと異なる経路へ送らない。
+    const bool video_directory = is_video_leaf_directory(directory);
 
     if (!video_directory && direct_media_type_count > 1) {
       // 画像・動画・音声などが同じディレクトリに直接置かれた場合は、
@@ -669,8 +695,9 @@ private:
       auto video_files = grouped[static_cast<std::size_t>(MediaType::video)];
       video_files.insert(video_files.end(), grouped[static_cast<std::size_t>(MediaType::image)].begin(),
                          grouped[static_cast<std::size_t>(MediaType::image)].end());
-      const auto label = child_label.empty() ? std::string(media_type_name(MediaType::video)) : std::string(child_label);
-      auto video_sets = build_media_set(work, work_id, label, directory.relative_path, MediaType::video, video_files);
+      const auto label = child_label.empty() ? directory.name : std::string(child_label);
+      auto video_sets = build_media_set(work, work_id, label, directory.relative_path, MediaType::video,
+                                        video_files, false, true);
       mark_preview_in_set(work, video_sets);
       sets.insert(sets.end(), video_sets.begin(), video_sets.end());
       return;

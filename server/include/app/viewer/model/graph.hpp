@@ -16,6 +16,7 @@ inline constexpr NodeRef invalid_node = static_cast<NodeRef>(-1);
 inline constexpr std::uint32_t node_preview_flag = 1u;
 inline constexpr std::uint32_t node_standalone_media_flag = 1u << 1;
 inline constexpr std::uint32_t node_attached_media_flag = 1u << 2;
+inline constexpr std::uint32_t node_video_leaf_flag = 1u << 3;
 
 enum class NodeKind : std::uint8_t {
   collection,
@@ -97,9 +98,9 @@ struct GraphState final {
   std::unordered_map<EntryId, Lookup> index;
   std::unordered_map<EntryId, std::vector<std::string>> tags;
   std::vector<ScanDiagnostic> diagnostics;
-  // Workと、混合ディレクトリ内の独立ファイルMemberを全種別・種別別に
-  // 更新時刻順で保持するページ用キャッシュ。0番目は全種別、1番目以降は
-  // MediaTypeの列挙順に対応する。
+  // Workと、混合ディレクトリ内の独立ファイルMemberを全種別・種別別に、
+  // 動画だけは動画葉のMediaSet単位で更新時刻順に保持するページ用キャッシュ。
+  // 0番目は全種別、1番目以降はMediaTypeの列挙順に対応する。
   std::array<std::vector<NodeRef>, 6> media_page_cache;
   NodeRef root = invalid_node;
   bool ready = false;

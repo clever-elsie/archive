@@ -26,8 +26,9 @@ void register_browse_routes(App& app) {
     });
 
   // 旧page_dataに相当する、通常のWorkとmixed Work内の独立Memberを
-  // 更新時刻順に保持したキャッシュのページ取得。Collectionの子一覧とは
-  // 異なり、randomと同じメディア単位を対象にする。
+  // 更新時刻順に保持したキャッシュのページ取得。動画フィルターだけは
+  // 動画葉のMediaSet単位で扱う。Collectionの子一覧とは異なり、randomと
+  // 同じメディア単位を対象にする。
   CROW_ROUTE(app, "/req/viewer/page")
     .methods(crow::HTTPMethod::GET)
     ([](const crow::request& req) {

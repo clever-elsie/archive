@@ -383,7 +383,7 @@ async function refreshMediaSetList() {
 
 async function openSet(setOrId) {
   const setId = typeof setOrId === 'object' ? setOrId.id : setOrId;
-  if (!setId || !store.state.selectedWork) return;
+  if (!setId) return;
   store.beginOperation('content');
   const operation = store.beginOperation('members');
   store.patch({ mediaMembers: { ...store.state.mediaMembers, loading: true, error: null } });
@@ -391,6 +391,14 @@ async function openSet(setOrId) {
     const set = typeof setOrId === 'object'
       ? setOrId
       : await viewerApi.getEntry(setId, operation.signal, { includeHidden: includeHidden() });
+    if (!set || set.kind !== 'media_set') return;
+    // 動画ページでは動画葉そのもの（MediaSet）が一覧項目になる。現在の
+    // Workと親が違う場合は、親Workを開いてからこのSetを選択する。
+    if (!store.state.selectedWork || String(store.state.selectedWork.id) !== String(set.parent_id || '')) {
+      const work = await viewerApi.getEntry(set.parent_id, operation.signal, { includeHidden: includeHidden() });
+      if (!operation.isCurrent() || work?.kind !== 'work') return;
+      return openWork(work.id, set.id);
+    }
     const members = await loadMediaMembers(set, operation.signal);
     if (!operation.isCurrent()) return;
     const active = chooseMember(set, members.items, null);
