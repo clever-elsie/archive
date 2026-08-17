@@ -124,14 +124,13 @@
         <div id="collection-pagination" class="pagination"></div>
       </section>
 
-      <nav id="directory-navigation" class="toolbar directory-navigation" aria-label="ディレクトリ移動">
-        <button class="button subtle" type="button" data-action="back" id="back-button" hidden>← 戻る</button>
-        <button class="button subtle" type="button" data-action="root">Root</button>
-        <div id="breadcrumbs" class="breadcrumbs"></div>
-        <span id="view-status" class="muted"></span>
-      </nav>
-
-      <section id="content-controls" class="content-controls" aria-label="内容操作">
+      <section id="content-controls" class="content-controls" aria-label="ディレクトリ・内容操作">
+        <nav id="directory-navigation" class="toolbar directory-navigation" aria-label="ディレクトリ移動">
+          <button class="button subtle" type="button" data-action="back" id="back-button" hidden>← 戻る</button>
+          <button class="button subtle" type="button" data-action="root">Root</button>
+          <div id="breadcrumbs" class="breadcrumbs"></div>
+          <span id="view-status" class="muted"></span>
+        </nav>
         <div class="browse-toolbar">
           <form id="search-form" class="search-form">
             <input id="search-input" class="input" type="search" placeholder="作品名・タグ">
@@ -179,7 +178,6 @@
 
     <nav id="jump-drawer" class="jump-drawer" aria-label="ページ内移動" aria-hidden="true">
       <a href="#top" data-action="jump" data-target="#top">トップ</a>
-      <a href="#directory-navigation" data-action="jump" data-target="#directory-navigation">ディレクトリ移動</a>
       <a href="#media-workspace" data-action="jump" data-target="#media-workspace">メディア</a>
       <a href="#collection-section" data-action="jump" data-target="#collection-section">Collection</a>
       <a href="#THUM" data-action="jump" data-target="#THUM">内容</a>

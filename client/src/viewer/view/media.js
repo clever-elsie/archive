@@ -177,6 +177,12 @@ function formatTime(value) {
   return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+function isPortraitViewport() {
+  return typeof window.matchMedia === 'function'
+    ? window.matchMedia('(orientation: portrait)').matches
+    : window.innerHeight > window.innerWidth;
+}
+
 function createPlayerButton(label, ariaLabel, className = '') {
   const button = document.createElement('button');
   button.type = 'button';
@@ -289,13 +295,39 @@ function createCustomPlayer(member, media, {
   }
   rateSelect.value = String(currentPlaybackRate);
   rateBox.append(rateSelect);
-  actionRow.append(play, rewind, forward, rateBox);
-  const volumeRow = document.createElement('div');
-  volumeRow.className = 'media-volume-row';
-  volumeRow.append(mute, volumeBox, volumeReset);
+  actionRow.append(play, rewind, forward, rateBox, mute, volumeBox, volumeReset);
 
   let fullscreen = null;
   let fullscreenChangeHandler = null;
+  let orientationLockSequence = 0;
+  let orientationLockRequested = false;
+  let orientationLocked = false;
+  const lockFullscreenOrientation = () => {
+    const orientation = window.screen?.orientation;
+    if (!isPortraitViewport() || typeof orientation?.lock !== 'function' || orientationLockRequested || orientationLocked) return;
+    orientationLockRequested = true;
+    const sequence = ++orientationLockSequence;
+    try {
+      Promise.resolve(orientation.lock('landscape')).then(() => {
+        if (sequence !== orientationLockSequence) return;
+        if (document.fullscreenElement === player) orientationLocked = true;
+        else unlockFullscreenOrientation();
+      }).catch(() => {
+        if (sequence === orientationLockSequence) orientationLockRequested = false;
+      });
+    } catch {
+      orientationLockRequested = false;
+    }
+  };
+  const unlockFullscreenOrientation = () => {
+    ++orientationLockSequence;
+    const orientation = window.screen?.orientation;
+    const shouldUnlock = orientationLockRequested || orientationLocked;
+    orientationLockRequested = false;
+    orientationLocked = false;
+    if (!shouldUnlock || typeof orientation?.unlock !== 'function') return;
+    try { orientation.unlock(); } catch { /* orientation lock is optional */ }
+  };
   if (kind === 'video') {
     fullscreen = createPlayerButton('全画面', '全画面表示', 'media-fullscreen-button');
     actionRow.append(fullscreen);
@@ -305,7 +337,7 @@ function createCustomPlayer(member, media, {
   status.className = 'media-status';
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
-  controls.append(progressRow, actionRow, volumeRow, status);
+  controls.append(progressRow, actionRow, status);
   player.append(controls);
   if (amplifierUnavailable) status.textContent = 'この環境では100%以上の音量を利用できません。';
 
@@ -374,6 +406,7 @@ function createCustomPlayer(member, media, {
     player.classList.remove('controls-visible');
   };
   const toggleControls = () => {
+    if (document.fullscreenElement !== player) return;
     if (player.classList.contains('controls-visible')) hideControls();
     else showControls();
   };
@@ -475,23 +508,44 @@ function createCustomPlayer(member, media, {
     onEnded?.();
   });
   if (kind === 'video') {
-    media.addEventListener('click', toggleControls);
+    media.addEventListener('click', () => {
+      if (document.fullscreenElement === player) toggleControls();
+      else togglePlayback();
+    });
     fullscreen.addEventListener('click', async () => {
       try {
         if (document.fullscreenElement === player) await document.exitFullscreen();
-        else if (player.requestFullscreen) await player.requestFullscreen();
-        else if (media.webkitEnterFullscreen) media.webkitEnterFullscreen();
+        else if (player.requestFullscreen) {
+          await player.requestFullscreen();
+          lockFullscreenOrientation();
+        } else if (media.webkitEnterFullscreen) {
+          media.webkitEnterFullscreen();
+          lockFullscreenOrientation();
+        }
       } catch {
         status.textContent = '全画面表示を開始できません。';
       }
       updateFullscreenButton();
     });
-    fullscreenChangeHandler = updateFullscreenButton;
+    fullscreenChangeHandler = () => {
+      const active = document.fullscreenElement === player;
+      updateFullscreenButton();
+      if (active) {
+        // 縦画面から動画を全画面化した場合は、対応ブラウザで横画面へ固定する。
+        lockFullscreenOrientation();
+        // 全画面へ入り直したとき、前回非表示だったバーを操作可能な状態で開始する。
+        showControls();
+      } else {
+        unlockFullscreenOrientation();
+        if (!document.fullscreenElement) showControls();
+      }
+    };
     document.addEventListener('fullscreenchange', fullscreenChangeHandler);
   }
 
   player.destroy = () => {
     if (fullscreenChangeHandler) document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
+    unlockFullscreenOrientation();
     if (amplifier) {
       try { amplifier.source.disconnect(); } catch { /* already disconnected */ }
       try { amplifier.gain.disconnect(); } catch { /* already disconnected */ }

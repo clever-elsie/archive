@@ -28,7 +28,7 @@ function initialState() {
     memberContent: null,
     memberLoading: false,
     memberError: null,
-    browse: listState(24, { key: 'updated_at', direction: 'desc', grouping: 'mixed' }),
+    browse: listState(24, { key: 'path', direction: 'asc', grouping: 'mixed' }),
     browseContext: { mode: 'directory', kind: 'root', id: '0', query: '', page: 0 },
     collection: listState(24),
     mediaSets: listState(24),
@@ -50,7 +50,7 @@ function initialState() {
       playbackMode: 'advance',
       volume: 1,
       playbackRate: 1,
-      membersOpen: true
+      membersOpen: false
     },
     reload: { state: 'idle', message: '' }
   };

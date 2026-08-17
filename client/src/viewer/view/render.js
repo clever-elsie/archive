@@ -223,6 +223,12 @@ function renderTextStatus(stage, state) {
     stage.append(element('p', 'empty-message', '読み込み中…'));
 }
 
+function browseLocationId(state) {
+  if (state.search?.mode || state.browseContext?.mode !== 'directory') return null;
+  if (state.browseContext.kind === 'root') return '0';
+  return state.browseContext.id == null ? null : String(state.browseContext.id);
+}
+
 export function createRenderer(root = document, callbacks = {}) {
   const refs = {
     status: root.querySelector('#status-panel'),
@@ -442,14 +448,24 @@ export function createRenderer(root = document, callbacks = {}) {
     }
     const playbackRateSelect = refs.mediaStage.querySelector('.media-rate-select');
     if (playbackRateSelect) playbackRateSelect.value = String(state.ui.playbackRate);
+    const mediaSets = state.mediaSets.items || [];
+    const activeSetIndex = mediaSets.findIndex(item => String(item.id) === String(state.activeSet.id));
     if (activeIndex > 0) {
       const prev = element('button', 'button subtle', '← 前へ');
       prev.type = 'button'; prev.dataset.action = 'open-member'; prev.dataset.memberId = String(playableMembers[activeIndex - 1].id);
+      refs.mediaNavigation.append(prev);
+    } else if (activeSetIndex > 0) {
+      const prev = element('button', 'button subtle', '← 前へ');
+      prev.type = 'button'; prev.dataset.action = 'open-set'; prev.dataset.setId = String(mediaSets[activeSetIndex - 1].id);
       refs.mediaNavigation.append(prev);
     }
     if (activeIndex >= 0 && activeIndex < playableMembers.length - 1) {
       const next = element('button', 'button subtle', '次へ →');
       next.type = 'button'; next.dataset.action = 'open-member'; next.dataset.memberId = String(playableMembers[activeIndex + 1].id);
+      refs.mediaNavigation.append(next);
+    } else if (activeSetIndex >= 0 && activeSetIndex < mediaSets.length - 1) {
+      const next = element('button', 'button subtle', '次へ →');
+      next.type = 'button'; next.dataset.action = 'open-set'; next.dataset.setId = String(mediaSets[activeSetIndex + 1].id);
       refs.mediaNavigation.append(next);
     }
     window.requestAnimationFrame(syncDockHeight);
@@ -491,7 +507,9 @@ export function createRenderer(root = document, callbacks = {}) {
       page: 0,
       hasNext: false
     };
-    const showCollection = Boolean(state.selectedWork && collectionItems.length);
+    const workParentId = state.selectedWork?.parent_id == null ? '0' : String(state.selectedWork.parent_id);
+    const collectionIsAlreadyContent = browseLocationId(state) === workParentId;
+    const showCollection = Boolean(state.selectedWork && collectionItems.length && !collectionIsAlreadyContent);
     setHidden(refs.collectionSection, !showCollection);
     if (showCollection) {
       refs.collectionCount.textContent = `${collectionItems.length}件`;

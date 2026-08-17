@@ -16,7 +16,35 @@ let bootstrapRunning = false;
 let wasReloading = false;
 let tagQueue = Promise.resolve();
 
-store.subscribe(state => renderer.render(state));
+const DIRECTORY_BROWSE_SORT = { key: 'path', direction: 'asc' };
+const PAGE_BROWSE_SORT = { key: 'updated_at', direction: 'desc' };
+
+function setBrowseDefaultSort(mode) {
+  const sort = mode === 'page' ? PAGE_BROWSE_SORT : DIRECTORY_BROWSE_SORT;
+  const current = store.state.browse.sort;
+  if (current.key === sort.key && current.direction === sort.direction) return;
+  store.patch({ browse: { ...store.state.browse, sort: { ...current, ...sort }, page: 0 } });
+}
+
+function visibleJumpTarget(target) {
+  return Boolean(target && !target.hidden && !target.closest('[hidden]'));
+}
+
+function syncJumpDrawer() {
+  const drawer = document.querySelector('#jump-drawer');
+  if (!drawer) return;
+  drawer.querySelectorAll('[data-action="jump"]').forEach(button => {
+    const selector = button.dataset.target || button.getAttribute('href');
+    let target = null;
+    try { target = selector ? document.querySelector(selector) : null; } catch { /* invalid target is simply unavailable */ }
+    button.hidden = !visibleJumpTarget(target);
+  });
+}
+
+store.subscribe(state => {
+  renderer.render(state);
+  syncJumpDrawer();
+});
 
 function asError(error) {
   if (error instanceof ApiError) return error;
@@ -94,6 +122,7 @@ async function fetchCollectionData(id, page, signal, listName = 'browse', filter
 }
 
 async function loadRoot(page = 0) {
+  setBrowseDefaultSort('directory');
   clearRetryTimer();
   store.beginOperation('work');
   store.beginOperation('members');
@@ -107,7 +136,6 @@ async function loadRoot(page = 0) {
     const result = await fetchCollectionData('0', page, operation.signal, 'browse', 'all');
     if (!operation.isCurrent()) return false;
     store.commitBrowse(result.entry, result.children, { mode: 'directory', kind: 'root', id: '0', page: 0, query: '' });
-    if (store.state.ui.autoScroll) document.querySelector('#THUM')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return true;
   } catch (error) {
     handleError(error, operation, { rootFallback: false, keepView: false });
@@ -116,6 +144,7 @@ async function loadRoot(page = 0) {
 }
 
 async function loadCollection(id, page = 0) {
+  setBrowseDefaultSort('directory');
   clearRetryTimer();
   store.beginOperation('work');
   store.beginOperation('members');
@@ -131,7 +160,6 @@ async function loadCollection(id, page = 0) {
     const result = await fetchCollectionData(id, page, operation.signal, 'browse', 'all');
     if (!operation.isCurrent()) return false;
     store.commitBrowse(result.entry, result.children, { mode: 'directory', kind: 'collection', id: String(result.entry.id), page: 0, query: '' });
-    if (store.state.ui.autoScroll) document.querySelector('#THUM')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return true;
   } catch (error) {
     handleError(error, operation);
@@ -140,6 +168,7 @@ async function loadCollection(id, page = 0) {
 }
 
 async function loadPage(page = 0) {
+  if (store.state.browseContext.mode !== 'page') setBrowseDefaultSort('page');
   const requestedPage = pageIndex(page);
   clearRetryTimer();
   store.beginOperation('work');
@@ -157,7 +186,6 @@ async function loadPage(page = 0) {
     ]);
     if (!operation.isCurrent()) return false;
     store.commitBrowse(entry, data, { mode: 'page', kind: 'page', id: '0', page: requestedPage, query: '' });
-    if (store.state.ui.autoScroll) document.querySelector('#THUM')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return true;
   } catch (error) {
     handleError(error, operation, { rootFallback: false, keepView: false });
@@ -640,6 +668,7 @@ async function bootstrap() {
   try {
     const saved = store.settings || {};
     const context = saved.browseContext || { mode: 'directory', kind: 'root', id: '0', page: 0 };
+    setBrowseDefaultSort(context.mode === 'page' ? 'page' : 'directory');
     const loaded = context.mode === 'page'
       ? await loadPage(context.page || 0)
       : context.kind === 'collection' && context.id && String(context.id) !== '0'
@@ -702,10 +731,35 @@ function closeWork() {
   store.patch({ selectedWork: null, activeSet: null, activeMember: null, memberContent: null, memberError: null });
 }
 
+function loadParentDirectory(entry) {
+  const parentId = entry?.parent_id;
+  return parentId && String(parentId) !== '0' ? loadCollection(parentId) : loadRoot();
+}
+
+async function closeWorkAndLoadPreviousDirectory() {
+  const work = store.state.selectedWork || store.state.entry;
+  const currentDirectoryId = work?.parent_id;
+  closeWork();
+  if (!currentDirectoryId || String(currentDirectoryId) === '0') return loadRoot();
+
+  const operation = store.beginOperation('browse');
+  try {
+    const currentDirectory = await viewerApi.getEntry(currentDirectoryId, operation.signal, {
+      includeHidden: includeHidden()
+    });
+    if (!operation.isCurrent()) return false;
+    return loadParentDirectory(currentDirectory);
+  } catch (error) {
+    handleError(error, operation);
+    return false;
+  }
+}
+
 function setJumpDrawerOpen(open) {
   const drawer = document.querySelector('#jump-drawer');
   const toggle = document.querySelector('#jump-toggle');
   if (!drawer || !toggle) return;
+  syncJumpDrawer();
   drawer.classList.toggle('is-open', open);
   drawer.setAttribute('aria-hidden', String(!open));
   toggle.setAttribute('aria-expanded', String(open));
@@ -713,8 +767,10 @@ function setJumpDrawerOpen(open) {
 }
 
 function jumpTo(target) {
-  const destination = document.querySelector(target);
-  if (!destination) return;
+  let destination = null;
+  try { destination = target ? document.querySelector(target) : null; } catch { return; }
+  if (!visibleJumpTarget(destination)) return;
+  syncJumpDrawer();
   setJumpDrawerOpen(false);
   const scroll = () => {
     const top = destination.getBoundingClientRect().top + window.scrollY - 8;
@@ -754,8 +810,8 @@ function handleClick(event) {
   if (action === 'open-member') return openMember(target.dataset.memberId || target.dataset.entryId);
   if (action === 'root') return loadRoot();
   if (action === 'back') {
-    if (store.state.selectedWork) return store.state.entry?.parent_id ? loadCollection(store.state.entry.parent_id) : loadRoot();
-    return store.state.entry?.parent_id ? loadCollection(store.state.entry.parent_id) : loadRoot();
+    if (store.state.selectedWork) return closeWorkAndLoadPreviousDirectory();
+    return loadParentDirectory(store.state.entry);
   }
   if (action === 'close-work') return closeWork();
   if (action === 'logout') return logoutFromViewer();
@@ -764,7 +820,12 @@ function handleClick(event) {
   if (action === 'random') return runRandom();
   if (action === 'page-mode') {
     // ページングへ入るときは必ず0-indexedな先頭ページから開始する。
-    return store.state.browseContext.mode === 'page' ? loadRoot() : loadPage(0);
+    if (store.state.browseContext.mode === 'page') {
+      setBrowseDefaultSort('directory');
+      return loadRoot();
+    }
+    setBrowseDefaultSort('page');
+    return loadPage(0);
   }
   if (action === 'toggle-playback-mode') {
     const modes = ['advance', 'loop', 'none'];
