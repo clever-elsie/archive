@@ -12,8 +12,10 @@ void register_metadata_routes(App& app) {
       auto& manager = Manager::get_instance();
       if (!manager.is_admin_request(req))
         return error_response(req, 403, "ADMIN_REQUIRED", "administrator permission is required");
-      const auto view = manager.acquire_read();
-      if (!view) return error_response(req, 503, "RELOAD_IN_PROGRESS", "viewer graph is not available", "root");
+      {
+        const auto view = manager.acquire_read();
+        if (!view) return error_response(req, 503, "RELOAD_IN_PROGRESS", "viewer graph is not available", "root");
+      }
       const auto id = parse_id(id_text);
       if (!id) return error_response(req, 400, "INVALID_ID", "entry id is invalid");
       const auto json = crow::json::load(req.body);

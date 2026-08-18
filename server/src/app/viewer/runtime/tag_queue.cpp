@@ -54,8 +54,15 @@ TagResult Manager::apply_tag(GraphState& state, const TagTransaction& transactio
   } else {
     std::erase(tags, transaction.tag);
   }
-  if (!metadata::write_tags(root_, *node, state, tags)) {
+  bool written = false;
+  try {
+    written = metadata::write_tags(root_, *node, state, tags);
+  } catch (...) {
+    written = false;
+  }
+  if (!written) {
     tags = previous_tags;
+    mark_dirty();
     result.code = "METADATA_WRITE_FAILED";
     return result;
   }
@@ -103,11 +110,20 @@ void Manager::process_tag_queue() {
     return;
   }
   auto& state = states_[static_cast<std::size_t>(current_slot_)];
+  std::vector<TagResult> results;
+  results.reserve(transactions.size());
   for (auto& transaction : transactions)
-    transaction.completion->set_value(apply_tag(state, transaction));
+    try {
+      results.push_back(apply_tag(state, transaction));
+    } catch (...) {
+      mark_dirty();
+      results.push_back(TagResult{false, "METADATA_WRITE_FAILED", 0, {}});
+    }
   graph_blocked_ = false;
   graph_lock.unlock();
   graph_cv_.notify_all();
+  for (std::size_t index = 0; index < transactions.size(); ++index)
+    transactions[index].completion->set_value(std::move(results[index]));
 }
 
 } // namespace VIEWER

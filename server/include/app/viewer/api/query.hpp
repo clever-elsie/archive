@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -11,6 +13,21 @@
 #include <app/viewer/manager.hpp>
 
 namespace VIEWER::api {
+
+enum class SearchField : std::uint8_t {
+  any,
+  tag,
+  path
+};
+
+struct SearchExpression;
+
+struct SearchQuery final {
+  std::shared_ptr<const SearchExpression> root;
+};
+
+std::optional<SearchQuery> parse_search_query(std::string_view query);
+bool matches_query(const GraphState& state, const NodeRecord& node, const SearchQuery& query);
 
 bool query_flag(const crow::request& req, const char* name);
 std::size_t query_size(const crow::request& req, const char* name,

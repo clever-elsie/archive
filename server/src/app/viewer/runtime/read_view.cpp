@@ -19,8 +19,11 @@ ReadView::~ReadView() {
 }
 
 ReadView Manager::acquire_read() {
-  std::lock_guard lock(graph_mutex_);
-  if (graph_blocked_ || current_slot_ < 0) return {};
+  std::unique_lock lock(graph_mutex_);
+  graph_cv_.wait(lock, [this] {
+    return !graph_blocked_ || current_slot_ < 0 || stop_requested_.load(std::memory_order_acquire);
+  });
+  if (current_slot_ < 0 || stop_requested_.load(std::memory_order_acquire)) return {};
   ++active_readers_[static_cast<std::size_t>(current_slot_)];
   return ReadView(this, current_slot_, &states_[static_cast<std::size_t>(current_slot_)]);
 }

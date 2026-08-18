@@ -57,7 +57,18 @@ bool write_tags(const std::filesystem::path& root, const NodeRecord& node,
   std::ofstream stream(temporary, std::ios::trunc);
   if (!stream) return false;
   stream << json.dump();
+  stream.flush();
+  if (!stream.good()) {
+    stream.close();
+    std::filesystem::remove(temporary, ec);
+    return false;
+  }
   stream.close();
+  if (stream.fail()) {
+    std::filesystem::remove(temporary, ec);
+    return false;
+  }
+  ec.clear();
   std::filesystem::rename(temporary, target, ec);
   if (ec) {
     std::filesystem::remove(temporary, ec);

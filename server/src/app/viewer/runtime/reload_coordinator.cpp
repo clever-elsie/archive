@@ -1,7 +1,6 @@
 #include <app/viewer/manager.hpp>
 
 #include <algorithm>
-#include <iterator>
 
 #include <crow/logging.h>
 
@@ -10,7 +9,7 @@
 
 namespace VIEWER {
 
-ReloadResult Manager::request_reload(bool explicit_request) {
+ReloadResult Manager::request_reload() {
   std::lock_guard lock(work_mutex_);
   if (stop_requested_.load(std::memory_order_acquire))
     return {ReloadResult::Code::not_ready, std::chrono::milliseconds{0}};
@@ -19,7 +18,6 @@ ReloadResult Manager::request_reload(bool explicit_request) {
 
   const auto now = std::chrono::steady_clock::now();
   if (has_reload_started_ && now - last_reload_start_ < minimum_reload_interval_) {
-    if (!explicit_request) dirty_ = true;
     return {ReloadResult::Code::cooldown,
             std::chrono::duration_cast<std::chrono::milliseconds>(minimum_reload_interval_ - (now - last_reload_start_))};
   }
@@ -86,16 +84,6 @@ bool Manager::perform_reload() {
 
   if (!candidate.ready || stop_requested_.load(std::memory_order_acquire)) return abort_reload();
 
-  // タグ操作は候補GraphStateへ反映してから公開する。公開直前に到着した操作は次の処理周期へ回る。
-  std::vector<TagTransaction> transactions;
-  {
-    std::lock_guard lock(tag_mutex_);
-    transactions.assign(std::make_move_iterator(tag_queue_.begin()), std::make_move_iterator(tag_queue_.end()));
-    tag_queue_.clear();
-  }
-  for (auto& transaction : transactions)
-    transaction.completion->set_value(apply_tag(candidate, transaction));
-
   graph_lock.lock();
   if (stop_requested_.load(std::memory_order_acquire)) {
     graph_lock.unlock();
@@ -117,12 +105,16 @@ void Manager::reload_loop() {
   while (!stop_requested_.load(std::memory_order_acquire)) {
     const auto now = std::chrono::steady_clock::now();
     if (now >= next_periodic) {
-      if (!reload_pending_ && !reload_running_) dirty_ = true;
+      // dirty is only an invalidation latch. Automatic reloads are opened by
+      // the periodic gate, never by observing dirty in the ordinary loop.
+      if (!reload_pending_ && !reload_running_) {
+        dirty_ = true;
+        reload_pending_ = true;
+      }
       next_periodic = now + periodic_scan_interval_;
     }
 
     const bool reload_allowed = !has_reload_started_ || now - last_reload_start_ >= minimum_reload_interval_;
-    if (dirty_ && !reload_pending_ && !reload_running_ && reload_allowed) reload_pending_ = true;
 
     if (reload_pending_ && !reload_running_ && reload_allowed) {
       reload_pending_ = false;
@@ -153,7 +145,7 @@ void Manager::reload_loop() {
     }
 
     auto wake_at = next_periodic;
-    if ((dirty_ || reload_pending_) && has_reload_started_)
+    if (reload_pending_ && has_reload_started_)
       wake_at = std::min(wake_at, last_reload_start_ + minimum_reload_interval_);
     work_cv_.wait_until(lock, wake_at);
   }

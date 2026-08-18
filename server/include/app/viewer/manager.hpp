@@ -42,7 +42,7 @@ public:
   void shutdown() noexcept;
   void request_stop() noexcept;
 
-  ReloadResult request_reload(bool explicit_request);
+  ReloadResult request_reload();
   void mark_dirty();
 
   ReadView acquire_read();
