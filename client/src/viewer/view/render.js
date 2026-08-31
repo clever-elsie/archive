@@ -361,16 +361,16 @@ export function createRenderer(root = document, callbacks = {}) {
       ? window.matchMedia('(orientation: portrait)').matches
       : window.innerHeight > window.innerWidth;
     const membersOpen = !portraitLayout || state.ui.membersOpen;
-    const hasClosedDrawer = portraitLayout && showMembers && !state.ui.membersOpen;
-    setHidden(refs.drawerHandles, !hasClosedDrawer);
+    const showDrawerHandle = portraitLayout && showMembers;
+    setHidden(refs.drawerHandles, !showDrawerHandle);
     // MediaSetsは横のドロワーではなく、メイン表示の下段に固定する。
     setHidden(refs.setsContainer, !showSets);
     setHidden(refs.membersContainer, !showMembers || !membersOpen);
-    setHidden(refs.membersHandle, !portraitLayout || !showMembers || membersOpen);
+    setHidden(refs.membersHandle, !portraitLayout || !showMembers);
     refs.setsContainer.classList.remove('is-closed');
     refs.membersContainer.classList.remove('is-closed');
     refs.membersHandle.setAttribute('aria-expanded', String(membersOpen));
-    refs.membersHandle.textContent = 'Member';
+    refs.membersHandle.textContent = membersOpen ? 'Member (閉じる)' : 'Member';
     const visibleSets = state.mediaSets.filter === 'all'
       ? state.mediaSets.items
       : state.mediaSets.items.filter(item => item.media_type === state.mediaSets.filter);
@@ -448,24 +448,23 @@ export function createRenderer(root = document, callbacks = {}) {
     }
     const playbackRateSelect = refs.mediaStage.querySelector('.media-rate-select');
     if (playbackRateSelect) playbackRateSelect.value = String(state.ui.playbackRate);
-    const mediaSets = state.mediaSets.items || [];
-    const activeSetIndex = mediaSets.findIndex(item => String(item.id) === String(state.activeSet.id));
+    const activeSetIndex = visibleSets.findIndex(item => String(item.id) === String(state.activeSet.id));
     if (activeIndex > 0) {
       const prev = element('button', 'button subtle', '← 前へ');
       prev.type = 'button'; prev.dataset.action = 'open-member'; prev.dataset.memberId = String(playableMembers[activeIndex - 1].id);
       refs.mediaNavigation.append(prev);
     } else if (activeSetIndex > 0) {
       const prev = element('button', 'button subtle', '← 前へ');
-      prev.type = 'button'; prev.dataset.action = 'open-set'; prev.dataset.setId = String(mediaSets[activeSetIndex - 1].id);
+      prev.type = 'button'; prev.dataset.action = 'open-set'; prev.dataset.setId = String(visibleSets[activeSetIndex - 1].id);
       refs.mediaNavigation.append(prev);
     }
     if (activeIndex >= 0 && activeIndex < playableMembers.length - 1) {
       const next = element('button', 'button subtle', '次へ →');
       next.type = 'button'; next.dataset.action = 'open-member'; next.dataset.memberId = String(playableMembers[activeIndex + 1].id);
       refs.mediaNavigation.append(next);
-    } else if (activeSetIndex >= 0 && activeSetIndex < mediaSets.length - 1) {
+    } else if (activeSetIndex >= 0 && activeSetIndex < visibleSets.length - 1) {
       const next = element('button', 'button subtle', '次へ →');
-      next.type = 'button'; next.dataset.action = 'open-set'; next.dataset.setId = String(mediaSets[activeSetIndex + 1].id);
+      next.type = 'button'; next.dataset.action = 'open-set'; next.dataset.setId = String(visibleSets[activeSetIndex + 1].id);
       refs.mediaNavigation.append(next);
     }
     window.requestAnimationFrame(syncDockHeight);

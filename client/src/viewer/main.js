@@ -230,7 +230,13 @@ async function refreshBrowsePage(page = 0) {
 
 function mediaMembersFor(set, items) {
   if (!set) return [];
-  return (items || []).filter(member => member.media_type === set.media_type);
+  const list = items || [];
+  if (set.media_type === 'image') return list.filter(member => member.media_type === 'image');
+  if (set.media_type === 'video') {
+    const videoMembers = list.filter(member => member.media_type === 'video');
+    return videoMembers.length ? videoMembers : list;
+  }
+  return list.filter(member => member.media_type === set.media_type);
 }
 
 async function loadMediaMembers(set, signal) {
@@ -483,9 +489,12 @@ function onMediaEnded(member) {
   const members = getMembersForActiveSet();
   const index = members.findIndex(item => String(item.id) === String(member.id));
   if (index >= 0 && index + 1 < members.length) return openMember(members[index + 1]);
-  const sets = store.state.mediaSets.items;
-  const setIndex = sets.findIndex(set => String(set.id) === String(store.state.activeSet?.id));
-  if (setIndex >= 0 && setIndex + 1 < sets.length) return openSet(sets[setIndex + 1]);
+  const sets = store.state.mediaSets.items || [];
+  const visibleSets = store.state.mediaSets.filter === 'all'
+    ? sets
+    : sets.filter(item => item.media_type === store.state.mediaSets.filter);
+  const setIndex = visibleSets.findIndex(set => String(set.id) === String(store.state.activeSet?.id));
+  if (setIndex >= 0 && setIndex + 1 < visibleSets.length) return openSet(visibleSets[setIndex + 1]);
 }
 
 async function openMember(memberOrId) {
@@ -915,6 +924,13 @@ async function start() {
     }
     handlePagingKeydown(event);
   });
+  let resizeTimer = null;
+  const handleViewportResize = () => {
+    if (resizeTimer) window.clearTimeout(resizeTimer);
+    resizeTimer = window.setTimeout(() => store.notify(), 100);
+  };
+  window.addEventListener('resize', handleViewportResize);
+  window.addEventListener('orientationchange', handleViewportResize);
   window.addEventListener('online', pollStatus);
 
   try {
