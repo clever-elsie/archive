@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Viewer</title>
   <link rel="stylesheet" href="/static/common.css">
   <link rel="stylesheet" href="/static/viewer/style.css">
@@ -71,9 +71,14 @@
 
         <section id="main-media-container" class="main-media-container">
           <div class="media-heading">
-            <div id="media-title" class="ruby-label"></div>
-            <span id="media-counter" class="muted"></span>
-            <button class="button subtle" type="button" data-action="close-work">一覧へ戻る</button>
+            <div class="media-heading-info">
+              <div id="media-title" class="ruby-label"></div>
+              <span id="media-counter" class="muted"></span>
+            </div>
+            <div class="media-heading-actions">
+              <div id="media-navigation-top" class="media-navigation media-navigation-top"></div>
+              <button class="button subtle" type="button" data-action="close-work">一覧へ戻る</button>
+            </div>
           </div>
           <div id="media-stage" class="media-stage"></div>
           <div id="media-navigation" class="media-navigation"></div>
@@ -128,7 +133,9 @@
         <nav id="directory-navigation" class="toolbar directory-navigation" aria-label="ディレクトリ移動">
           <button class="button subtle" type="button" data-action="back" id="back-button" hidden>← 戻る</button>
           <button class="button subtle" type="button" data-action="root">Root</button>
-          <div id="breadcrumbs" class="breadcrumbs"></div>
+          <button class="button subtle current-directory-button" type="button"
+                  data-action="current-directory" id="current-directory-button"
+                  aria-label="現在のディレクトリ" title="現在のディレクトリを表示" hidden></button>
           <span id="view-status" class="muted"></span>
         </nav>
         <div class="browse-toolbar">

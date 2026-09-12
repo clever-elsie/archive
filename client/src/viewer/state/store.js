@@ -22,6 +22,9 @@ function initialState() {
     error: null,
     isAdmin: false,
     entry: null,
+    // メディア表示中も、内容一覧がどのディレクトリを表示しているかを保持する。
+    // entryは選択中Workへ切り替わるため、ディレクトリ移動の基準には使わない。
+    browseEntry: null,
     selectedWork: null,
     activeSet: null,
     activeMember: null,
@@ -237,6 +240,7 @@ export class ViewerStore {
       phase: 'ready',
       error: null,
       entry,
+      browseEntry: entry,
       selectedWork: null,
       activeSet: null,
       activeMember: null,

@@ -229,6 +229,20 @@ function browseLocationId(state) {
   return state.browseContext.id == null ? null : String(state.browseContext.id);
 }
 
+function isImageWork(entry) {
+  return Boolean(entry && entry.kind === 'work' && !entry.attached_media &&
+    Array.isArray(entry.media_types) && entry.media_types.length === 1 &&
+    entry.media_types[0] === 'image');
+}
+
+function imageMediaSets(state) {
+  return (state.mediaSets.items || []).filter(item => item.media_type === 'image');
+}
+
+function imageWorks(state) {
+  return (state.collection.items || []).filter(isImageWork);
+}
+
 export function createRenderer(root = document, callbacks = {}) {
   const refs = {
     status: root.querySelector('#status-panel'),
@@ -238,7 +252,7 @@ export function createRenderer(root = document, callbacks = {}) {
     entryTitle: root.querySelector('#entry-title'),
     entryKind: root.querySelector('#entry-kind'),
     entryCounter: root.querySelector('#entry-counter'),
-    breadcrumbs: root.querySelector('#breadcrumbs'),
+    currentDirectory: root.querySelector('#current-directory-button'),
     viewStatus: root.querySelector('#view-status'),
     back: root.querySelector('#back-button'),
     reload: root.querySelector('#reload-button'),
@@ -258,6 +272,7 @@ export function createRenderer(root = document, callbacks = {}) {
     mediaStage: root.querySelector('#media-stage'),
     mediaTitle: root.querySelector('#media-title'),
     mediaCounter: root.querySelector('#media-counter'),
+    mediaNavigationTop: root.querySelector('#media-navigation-top'),
     mediaNavigation: root.querySelector('#media-navigation'),
     collectionSection: root.querySelector('#collection-section'),
     collectionList: root.querySelector('#collection-list'),
@@ -317,12 +332,28 @@ export function createRenderer(root = document, callbacks = {}) {
     else refs.entryTitle.textContent = 'Viewer';
     refs.entryKind.textContent = selected ? groupLabel(selected) : '';
     const memberItems = state.mediaMembers.items || [];
-    const index = state.activeMember ? memberItems.findIndex(item => String(item.id) === String(state.activeMember.id)) : -1;
-    refs.entryCounter.textContent = index >= 0 ? `${index + 1} / ${memberItems.length}` : '';
-    refs.back.hidden = !state.entry || String(state.entry.parent_id || '0') === '0';
+    const playableItems = state.activeSet
+      ? memberItems.filter(member => state.activeSet.media_type === 'image'
+        ? member.media_type === 'image'
+        : member.media_type === state.activeSet.media_type)
+      : memberItems;
+    const index = state.activeMember
+      ? playableItems.findIndex(item => String(item.id) === String(state.activeMember.id))
+      : -1;
+    refs.entryCounter.textContent = index >= 0 ? `${index + 1} / ${playableItems.length}` : '';
+    const context = state.browseContext;
+    const currentDirectoryId = context?.mode === 'directory'
+      ? context.kind === 'root' || context.id == null ? '0' : String(context.id)
+      : null;
+    const currentDirectory = currentDirectoryId != null && state.browseEntry &&
+      String(state.browseEntry.id) === currentDirectoryId
+      ? state.browseEntry
+      : null;
+    refs.back.hidden = !currentDirectory || currentDirectoryId === '0';
     refs.reload.hidden = !state.isAdmin;
-    refs.breadcrumbs.replaceChildren();
-    if (state.entry) appendRuby(refs.breadcrumbs, state.entry, 'breadcrumb-current');
+    refs.currentDirectory.replaceChildren();
+    refs.currentDirectory.hidden = !currentDirectory || currentDirectoryId === '0';
+    if (currentDirectory) appendRuby(refs.currentDirectory, currentDirectory, 'current-directory-label');
   }
 
   function renderReload(state) {
@@ -378,6 +409,11 @@ export function createRenderer(root = document, callbacks = {}) {
     renderList(refs.membersList, members, 'Memberはありません', () => 'open-member', state.activeMember?.id);
 
     refs.mediaNavigation.replaceChildren();
+    refs.mediaNavigationTop?.replaceChildren();
+    const appendNavigationButton = createButton => {
+      for (const container of [refs.mediaNavigationTop, refs.mediaNavigation].filter(Boolean))
+        container.append(createButton());
+    };
     const activeIndex = playableMembers.findIndex(member => String(member.id) === String(state.activeMember.id));
     refs.mediaCounter.textContent = activeIndex >= 0 ? `${activeIndex + 1} / ${playableMembers.length}` : '';
     refs.mediaTitle.replaceChildren();
@@ -448,24 +484,84 @@ export function createRenderer(root = document, callbacks = {}) {
     }
     const playbackRateSelect = refs.mediaStage.querySelector('.media-rate-select');
     if (playbackRateSelect) playbackRateSelect.value = String(state.ui.playbackRate);
-    const activeSetIndex = visibleSets.findIndex(item => String(item.id) === String(state.activeSet.id));
-    if (activeIndex > 0) {
-      const prev = element('button', 'button subtle', '← 前へ');
-      prev.type = 'button'; prev.dataset.action = 'open-member'; prev.dataset.memberId = String(playableMembers[activeIndex - 1].id);
-      refs.mediaNavigation.append(prev);
-    } else if (activeSetIndex > 0) {
-      const prev = element('button', 'button subtle', '← 前へ');
-      prev.type = 'button'; prev.dataset.action = 'open-set'; prev.dataset.setId = String(visibleSets[activeSetIndex - 1].id);
-      refs.mediaNavigation.append(prev);
-    }
-    if (activeIndex >= 0 && activeIndex < playableMembers.length - 1) {
-      const next = element('button', 'button subtle', '次へ →');
-      next.type = 'button'; next.dataset.action = 'open-member'; next.dataset.memberId = String(playableMembers[activeIndex + 1].id);
-      refs.mediaNavigation.append(next);
-    } else if (activeSetIndex >= 0 && activeSetIndex < visibleSets.length - 1) {
-      const next = element('button', 'button subtle', '次へ →');
-      next.type = 'button'; next.dataset.action = 'open-set'; next.dataset.setId = String(visibleSets[activeSetIndex + 1].id);
-      refs.mediaNavigation.append(next);
+    if (set.media_type === 'image') {
+      // 画像のprev/nextは個別Memberではなく画像葉を移動する。画像葉が
+      // 同じWork内にある場合はMediaSet間を、Workの境界では親Collection
+      // の画像Work間を移動する。葉を開いた直後は常に先頭画像を表示する。
+      const imageSets = imageMediaSets(state);
+      const activeImageSetIndex = imageSets.findIndex(item => String(item.id) === String(state.activeSet.id));
+      const imageWorkItems = imageWorks(state);
+      const activeImageWorkIndex = imageWorkItems.findIndex(item => String(item.id) === String(work.id));
+      const appendSetButton = (setId, label) => {
+        appendNavigationButton(() => {
+          const button = element('button', 'button subtle', label);
+          button.type = 'button';
+          button.dataset.action = 'open-set';
+          button.dataset.setId = String(setId);
+          button.dataset.memberEdge = 'first';
+          return button;
+        });
+      };
+      const appendWorkButton = (entry, edge, label) => {
+        appendNavigationButton(() => {
+          const button = element('button', 'button subtle', label);
+          button.type = 'button';
+          button.dataset.action = 'open-work';
+          button.dataset.entryId = String(entry.id);
+          button.dataset.setMediaType = 'image';
+          button.dataset.setEdge = edge;
+          return button;
+        });
+      };
+
+      if (activeImageSetIndex > 0) {
+        appendSetButton(imageSets[activeImageSetIndex - 1].id, '← 前へ');
+      } else if (activeImageWorkIndex > 0) {
+        appendWorkButton(imageWorkItems[activeImageWorkIndex - 1], 'last', '← 前へ');
+      }
+      if (activeImageSetIndex >= 0 && activeImageSetIndex < imageSets.length - 1) {
+        appendSetButton(imageSets[activeImageSetIndex + 1].id, '次へ →');
+      } else if (activeImageWorkIndex >= 0 && activeImageWorkIndex < imageWorkItems.length - 1) {
+        appendWorkButton(imageWorkItems[activeImageWorkIndex + 1], 'first', '次へ →');
+      }
+    } else {
+      const activeSetIndex = visibleSets.findIndex(item => String(item.id) === String(state.activeSet.id));
+      if (activeIndex > 0) {
+        appendNavigationButton(() => {
+          const prev = element('button', 'button subtle', '← 前へ');
+          prev.type = 'button';
+          prev.dataset.action = 'open-member';
+          prev.dataset.memberId = String(playableMembers[activeIndex - 1].id);
+          return prev;
+        });
+      } else if (activeSetIndex > 0) {
+        appendNavigationButton(() => {
+          const prev = element('button', 'button subtle', '← 前へ');
+          prev.type = 'button';
+          prev.dataset.action = 'open-set';
+          prev.dataset.setId = String(visibleSets[activeSetIndex - 1].id);
+          prev.dataset.memberEdge = 'last';
+          return prev;
+        });
+      }
+      if (activeIndex >= 0 && activeIndex < playableMembers.length - 1) {
+        appendNavigationButton(() => {
+          const next = element('button', 'button subtle', '次へ →');
+          next.type = 'button';
+          next.dataset.action = 'open-member';
+          next.dataset.memberId = String(playableMembers[activeIndex + 1].id);
+          return next;
+        });
+      } else if (activeSetIndex >= 0 && activeSetIndex < visibleSets.length - 1) {
+        appendNavigationButton(() => {
+          const next = element('button', 'button subtle', '次へ →');
+          next.type = 'button';
+          next.dataset.action = 'open-set';
+          next.dataset.setId = String(visibleSets[activeSetIndex + 1].id);
+          next.dataset.memberEdge = 'first';
+          return next;
+        });
+      }
     }
     window.requestAnimationFrame(syncDockHeight);
   }

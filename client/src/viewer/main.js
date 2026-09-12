@@ -210,6 +210,7 @@ async function refreshBrowsePage(page = 0) {
     store.patch({
       phase: 'ready',
       entry: store.state.entry || result.entry,
+      browseEntry: result.entry,
       browse: {
         ...store.state.browse,
         items: result.children.items || [],
@@ -274,16 +275,27 @@ async function loadMediaMembers(set, signal) {
   };
 }
 
-function chooseSet(items, preferredId) {
-  return items.find(item => String(item.id) === String(preferredId)) || items[0] || null;
+function chooseSet(items, preferredId, mediaType = null, edge = 'first') {
+  const candidates = mediaType
+    ? items.filter(item => item.media_type === mediaType)
+    : items;
+  const preferred = candidates.find(item => String(item.id) === String(preferredId));
+  if (preferred) return preferred;
+  if (edge === 'last') return candidates[candidates.length - 1] || null;
+  return candidates[0] || null;
 }
 
-function chooseMember(set, items, preferredId) {
+function chooseMember(set, items, preferredId, edge = 'first') {
   const members = mediaMembersFor(set, items);
-  return members.find(item => String(item.id) === String(preferredId)) || members[0] || null;
+  const preferred = members.find(item => String(item.id) === String(preferredId));
+  if (preferred) return preferred;
+  if (edge === 'last') return members[members.length - 1] || null;
+  return members[0] || null;
 }
 
-async function openWork(workOrId, preferredSetId = null, preferredMemberId = null) {
+async function openWork(workOrId, preferredSetId = null, preferredMemberId = null,
+                       preferredMemberEdge = 'first', preferredSetMediaType = null,
+                       preferredSetEdge = 'first') {
   const id = typeof workOrId === 'object' ? workOrId.id : workOrId;
   if (!id) return;
   store.beginOperation('content');
@@ -300,13 +312,23 @@ async function openWork(workOrId, preferredSetId = null, preferredMemberId = nul
     ]);
     if (!operation.isCurrent()) return;
     const storedSetId = preferredSetId || (String(store.state.selectedWork?.id) === String(work.id) ? store.state.activeSet?.id : null) || store.settings?.activeSetId;
-    const activeSet = chooseSet(sets.items || [], storedSetId);
+    const activeSet = chooseSet(
+      sets.items || [],
+      storedSetId,
+      preferredSetMediaType,
+      preferredSetEdge
+    );
     const sameSet = String(store.state.activeSet?.id || '') === String(activeSet?.id || '');
     const members = activeSet
       ? await loadMediaMembers(activeSet, operation.signal)
       : { items: [], page: 0, total: 0, has_next: false };
     if (!operation.isCurrent()) return;
-    const activeMember = chooseMember(activeSet, members.items, preferredMemberId || store.settings?.activeMemberId);
+    const activeMember = chooseMember(
+      activeSet,
+      members.items,
+      preferredMemberId || store.settings?.activeMemberId,
+      preferredMemberEdge
+    );
     store.commitWork(work, parent.children, sets, members, activeSet, activeMember);
     if (activeMember) loadMemberContent(activeMember, operation);
   } catch (error) {
@@ -387,7 +409,7 @@ async function refreshMediaSetList() {
   }
 }
 
-async function openSet(setOrId) {
+async function openSet(setOrId, preferredMemberId = null, preferredMemberEdge = 'first') {
   const setId = typeof setOrId === 'object' ? setOrId.id : setOrId;
   if (!setId) return;
   store.beginOperation('content');
@@ -403,11 +425,11 @@ async function openSet(setOrId) {
     if (!store.state.selectedWork || String(store.state.selectedWork.id) !== String(set.parent_id || '')) {
       const work = await viewerApi.getEntry(set.parent_id, operation.signal, { includeHidden: includeHidden() });
       if (!operation.isCurrent() || work?.kind !== 'work') return;
-      return openWork(work.id, set.id);
+      return openWork(work.id, set.id, preferredMemberId, preferredMemberEdge);
     }
     const members = await loadMediaMembers(set, operation.signal);
     if (!operation.isCurrent()) return;
-    const active = chooseMember(set, members.items, null);
+    const active = chooseMember(set, members.items, preferredMemberId, preferredMemberEdge);
     store.patch({
       activeSet: set,
       activeMember: active,
@@ -484,15 +506,19 @@ function getMembersForActiveSet() {
   return mediaMembersFor(store.state.activeSet, store.state.mediaMembers.items);
 }
 
+function visibleMediaSets() {
+  const sets = store.state.mediaSets.items || [];
+  return store.state.mediaSets.filter === 'all'
+    ? sets
+    : sets.filter(item => item.media_type === store.state.mediaSets.filter);
+}
+
 function onMediaEnded(member) {
   if (store.state.ui.playbackMode !== 'advance' || !member) return;
   const members = getMembersForActiveSet();
   const index = members.findIndex(item => String(item.id) === String(member.id));
   if (index >= 0 && index + 1 < members.length) return openMember(members[index + 1]);
-  const sets = store.state.mediaSets.items || [];
-  const visibleSets = store.state.mediaSets.filter === 'all'
-    ? sets
-    : sets.filter(item => item.media_type === store.state.mediaSets.filter);
+  const visibleSets = visibleMediaSets();
   const setIndex = visibleSets.findIndex(set => String(set.id) === String(store.state.activeSet?.id));
   if (setIndex >= 0 && setIndex + 1 < visibleSets.length) return openSet(visibleSets[setIndex + 1]);
 }
@@ -537,6 +563,7 @@ async function openMember(memberOrId) {
   if (member.media_type === 'document') {
     try { window.open(viewerApi.contentUrl(member.id), '_blank', 'noopener,noreferrer'); } catch { /* fallback remains */ }
   }
+  if (member.media_type === 'image') scrollToImageMember(member.id);
   loadMemberContent(member);
 }
 
@@ -740,12 +767,20 @@ function handlePagingKeydown(event) {
 }
 
 function closeWork() {
+  const currentDirectory = currentBrowseDirectory();
   store.beginOperation('work');
   store.beginOperation('members');
   store.beginOperation('content');
   store.beginOperation('sets');
   store.beginOperation('collection');
-  store.patch({ selectedWork: null, activeSet: null, activeMember: null, memberContent: null, memberError: null });
+  store.patch({
+    entry: currentDirectory || store.state.entry,
+    selectedWork: null,
+    activeSet: null,
+    activeMember: null,
+    memberContent: null,
+    memberError: null
+  });
 }
 
 function loadParentDirectory(entry) {
@@ -753,23 +788,33 @@ function loadParentDirectory(entry) {
   return parentId && String(parentId) !== '0' ? loadCollection(parentId) : loadRoot();
 }
 
-async function closeWorkAndLoadPreviousDirectory() {
-  const work = store.state.selectedWork || store.state.entry;
-  const currentDirectoryId = work?.parent_id;
-  closeWork();
-  if (!currentDirectoryId || String(currentDirectoryId) === '0') return loadRoot();
-
-  const operation = store.beginOperation('browse');
-  try {
-    const currentDirectory = await viewerApi.getEntry(currentDirectoryId, operation.signal, {
-      includeHidden: includeHidden()
-    });
-    if (!operation.isCurrent()) return false;
-    return loadParentDirectory(currentDirectory);
-  } catch (error) {
-    handleError(error, operation);
-    return false;
+function currentBrowseDirectory() {
+  const context = store.state.browseContext;
+  if (!context) return null;
+  if (context.mode === 'page') {
+    const pageEntry = store.state.browseEntry;
+    return pageEntry || { id: '0', parent_id: '0' };
   }
+  if (context.mode !== 'directory') return null;
+  const id = context.kind === 'root' || context.id == null ? '0' : String(context.id);
+  const browseEntry = store.state.browseEntry;
+  if (browseEntry && String(browseEntry.id) === id) return browseEntry;
+  const entry = store.state.entry;
+  if (entry && String(entry.id) === id) return entry;
+  return id === '0' ? { id: '0', parent_id: '0' } : null;
+}
+
+function loadCurrentDirectory() {
+  const context = store.state.browseContext;
+  if (!context || context.mode !== 'directory') return;
+  if (context.kind === 'root' || context.id == null || String(context.id) === '0') return loadRoot();
+  return loadCollection(context.id);
+}
+
+async function closeWorkAndLoadPreviousDirectory() {
+  const currentDirectory = currentBrowseDirectory();
+  closeWork();
+  return currentDirectory ? loadParentDirectory(currentDirectory) : loadRoot();
 }
 
 function setJumpDrawerOpen(open) {
@@ -822,13 +867,29 @@ function handleClick(event) {
   }
   if (action === 'image-navigate') return navigateImageFromClick(event, target);
   if (action === 'open-collection') return loadCollection(target.dataset.entryId);
-  if (action === 'open-work') return openWork(target.dataset.entryId);
-  if (action === 'open-set') return openSet(target.dataset.setId || target.dataset.entryId);
+  if (action === 'open-work') {
+    return openWork(
+      target.dataset.entryId,
+      null,
+      null,
+      target.dataset.memberEdge || 'first',
+      target.dataset.setMediaType || null,
+      target.dataset.setEdge || 'first'
+    );
+  }
+  if (action === 'open-set') {
+    return openSet(
+      target.dataset.setId || target.dataset.entryId,
+      null,
+      target.dataset.memberEdge || 'first'
+    );
+  }
   if (action === 'open-member') return openMember(target.dataset.memberId || target.dataset.entryId);
   if (action === 'root') return loadRoot();
+  if (action === 'current-directory') return loadCurrentDirectory();
   if (action === 'back') {
     if (store.state.selectedWork) return closeWorkAndLoadPreviousDirectory();
-    return loadParentDirectory(store.state.entry);
+    return loadParentDirectory(currentBrowseDirectory() || store.state.entry);
   }
   if (action === 'close-work') return closeWork();
   if (action === 'logout') return logoutFromViewer();
@@ -871,24 +932,25 @@ function navigateImageFromClick(event, target) {
   const index = members.findIndex(member => String(member.id) === String(target.dataset.memberId));
   if (index < 0) return;
   const nextIndex = event.clientY - rect.top < rect.height / 2 ? index - 1 : index + 1;
-  if (nextIndex < 0 || nextIndex >= members.length) return;
-  const nextMember = members[nextIndex];
-  const nextTarget = [...document.querySelectorAll('#media-stage .gallery-item[data-action="image-navigate"]')]
-    .find(item => String(item.dataset.memberId) === String(nextMember.id));
-  if (nextTarget && typeof nextTarget.scrollIntoView === 'function') {
-    const scrollToNext = () => {
-      try {
-        nextTarget.scrollIntoView({ behavior: 'auto', block: 'center' });
-      } catch {
-        nextTarget.scrollIntoView(true);
-      }
-    };
-    const nextImage = nextTarget.querySelector('img');
-    if (nextImage && !nextImage.complete)
-      nextImage.addEventListener('load', scrollToNext, { once: true });
-    scrollToNext();
-  }
-  openMember(nextMember);
+  if (nextIndex >= 0 && nextIndex < members.length) return openMember(members[nextIndex]);
+}
+
+function scrollToImageMember(memberId) {
+  const target = [...document.querySelectorAll('#media-stage .gallery-item[data-action="image-navigate"]')]
+    .find(item => String(item.dataset.memberId) === String(memberId));
+  if (!target || typeof target.scrollIntoView !== 'function') return;
+
+  const scrollToTarget = () => {
+    if (!target.isConnected) return;
+    try {
+      target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' });
+    } catch {
+      target.scrollIntoView(true);
+    }
+  };
+  const image = target.querySelector('img');
+  if (image && !image.complete) image.addEventListener('load', scrollToTarget, { once: true });
+  scrollToTarget();
 }
 
 function handleChange(event) {
