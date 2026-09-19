@@ -308,7 +308,6 @@ void finalize_graph_impl(GraphState& state, const std::atomic_bool* stop_request
   const auto add_work_target = [&](NodeRef ref) {
     const auto* node = state.get(ref);
     if (!node || node->kind != NodeKind::work) return;
-    state.media_page_cache[0].push_back(ref);
     bool added_video_leaf = false;
     const auto begin = static_cast<std::size_t>(node->first_child);
     const auto end = begin + node->child_count;
@@ -319,7 +318,10 @@ void finalize_graph_impl(GraphState& state, const std::atomic_bool* stop_request
           set->media_type != MediaType::video ||
           (set->flags & node_video_leaf_flag) == 0)
         continue;
-      state.media_page_cache[2].push_back(state.arena.child_refs[index]);
+      const auto set_ref = state.arena.child_refs[index];
+      // allでも動画葉は親Workではなく、videoと同じMediaSet単位で扱う。
+      state.media_page_cache[0].push_back(set_ref);
+      state.media_page_cache[2].push_back(set_ref);
       added_video_leaf = true;
     }
     for (const auto type : {MediaType::image, MediaType::audio,
@@ -327,10 +329,13 @@ void finalize_graph_impl(GraphState& state, const std::atomic_bool* stop_request
       if ((node->media_mask & media_type_bit(type)) != 0)
         state.media_page_cache[static_cast<std::size_t>(type) + 1].push_back(ref);
     }
-    // 何らかの理由で動画Setに葉フラグを付けられないWorkを消失させない。
-    // 通常の動画葉は必ず上の分岐に入り、動画ページはMediaSet単位になる。
-    if (!added_video_leaf && (node->media_mask & media_type_bit(MediaType::video)) != 0)
-      state.media_page_cache[2].push_back(ref);
+    if (!added_video_leaf) {
+      // 何らかの理由で動画Setに葉フラグを付けられないWorkを消失させない。
+      // 通常の動画葉は必ず上の分岐に入り、動画ページはMediaSet単位になる。
+      state.media_page_cache[0].push_back(ref);
+      if ((node->media_mask & media_type_bit(MediaType::video)) != 0)
+        state.media_page_cache[2].push_back(ref);
+    }
   };
 
   for (NodeRef ref = 0; ref < state.arena.nodes.size(); ++ref) {

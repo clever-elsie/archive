@@ -1,5 +1,5 @@
 import { viewerApi, ApiError } from './api/client.js';
-import { ViewerStore } from './state/store.js';
+import { ViewerStore, normalizePageRows } from './state/store.js';
 import { createRenderer } from './view/render.js';
 import { calculateContentListSize, calculateListSize, calculateRandomSize } from './view/viewport.js';
 import { requireAuthentication, logout as endSession } from '../common/auth.js';
@@ -65,7 +65,11 @@ function listOptions(name, page = 0, filterOverride) {
   // /pageは常にページング用の一覧を参照する。検索一覧が表示中でも
   // calculateContentListSize()へ切り替えると、初回要求だけ別の幅・列数で
   // limitが計算され、後続のページ要求と件数が揃わなくなる。
-  const limit = calculateListSize(name);
+  const limit = calculateListSize(name, {
+    pageRows: name === 'browse' || name === 'mediaSets'
+      ? store.state.browse.pageRows
+      : '0'
+  });
   return {
     page: pageIndex(page),
     limit,
@@ -75,6 +79,111 @@ function listOptions(name, page = 0, filterOverride) {
     filter: filterOverride ?? list.filter,
     includeHidden: includeHidden()
   };
+}
+
+function directoryPageData(data, page = 0) {
+  const allItems = Array.isArray(data?.items) ? data.items : [];
+  // Navigation directories remain visible on every page; only leaf entries
+  // consume the configured page size.
+  const leaves = allItems.filter(item => item?.kind !== 'collection');
+  const requestedLimit = calculateListSize('browse', {
+    pageRows: store.state.browse.pageRows,
+    allowUnlimited: true
+  });
+  const pageLimit = Number.isFinite(requestedLimit)
+    ? requestedLimit
+    : Math.max(1, leaves.length);
+  const totalPages = Math.ceil(leaves.length / pageLimit);
+  const currentPage = totalPages
+    ? Math.min(pageIndex(page), totalPages - 1)
+    : 0;
+  const start = currentPage * pageLimit;
+  const visibleLeaves = new Set(leaves.slice(start, start + pageLimit));
+  return {
+    ...data,
+    all_items: allItems,
+    items: allItems.filter(item => item?.kind === 'collection' || visibleLeaves.has(item)),
+    page: currentPage,
+    limit: pageLimit,
+    total: allItems.length,
+    page_limit: pageLimit,
+    page_total: leaves.length,
+    has_next: currentPage < totalPages - 1
+  };
+}
+
+function showDirectoryPage(page = 0) {
+  const current = store.state.browse;
+  const data = directoryPageData({ items: current.allItems }, page);
+  store.patch({
+    browse: {
+      ...current,
+      items: data.items,
+      page: data.page,
+      limit: data.limit,
+      total: data.total,
+      pageLimit: data.page_limit,
+      pageTotal: data.page_total,
+      hasNext: Boolean(data.has_next),
+      loading: false,
+      error: null
+    },
+    browseContext: { ...store.state.browseContext, page: data.page }
+  });
+}
+
+function mediaSetItemsForFilter(items) {
+  const filter = store.state.mediaSets.filter;
+  return filter === 'all'
+    ? items
+    : items.filter(item => item?.media_type === filter);
+}
+
+function mediaSetPageData(data, page = 0) {
+  const allItems = Array.isArray(data?.items) ? data.items : [];
+  const visibleItems = mediaSetItemsForFilter(allItems);
+  const requestedLimit = calculateListSize('mediaSets', {
+    pageRows: store.state.browse.pageRows,
+    allowUnlimited: true
+  });
+  const pageLimit = Number.isFinite(requestedLimit)
+    ? requestedLimit
+    : Math.max(1, visibleItems.length);
+  const totalPages = Math.ceil(visibleItems.length / pageLimit);
+  const currentPage = totalPages
+    ? Math.min(pageIndex(page), totalPages - 1)
+    : 0;
+  const start = currentPage * pageLimit;
+  return {
+    ...data,
+    all_items: allItems,
+    items: visibleItems.slice(start, start + pageLimit),
+    page: currentPage,
+    limit: pageLimit,
+    total: visibleItems.length,
+    page_limit: pageLimit,
+    page_total: visibleItems.length,
+    has_next: currentPage < totalPages - 1
+  };
+}
+
+function showMediaSetPage(page = 0) {
+  const current = store.state.mediaSets;
+  const data = mediaSetPageData({ items: current.allItems || current.items }, page);
+  store.patch({
+    mediaSets: {
+      ...current,
+      items: data.items,
+      page: data.page,
+      limit: data.limit,
+      total: data.total,
+      pageLimit: data.page_limit,
+      pageTotal: data.page_total,
+      hasNext: Boolean(data.has_next),
+      loading: false,
+      error: null
+    }
+  });
 }
 
 function clearRetryTimer() {
@@ -135,7 +244,8 @@ async function loadRoot(page = 0) {
   try {
     const result = await fetchCollectionData('0', page, operation.signal, 'browse', 'all');
     if (!operation.isCurrent()) return false;
-    store.commitBrowse(result.entry, result.children, { mode: 'directory', kind: 'root', id: '0', page: 0, query: '' });
+    const data = directoryPageData(result.children, page);
+    store.commitBrowse(result.entry, data, { mode: 'directory', kind: 'root', id: '0', page: data.page, query: '' });
     return true;
   } catch (error) {
     handleError(error, operation, { rootFallback: false, keepView: false });
@@ -159,7 +269,8 @@ async function loadCollection(id, page = 0) {
     // collectionは作品を開いたときのCollectionContainer専用の状態。
     const result = await fetchCollectionData(id, page, operation.signal, 'browse', 'all');
     if (!operation.isCurrent()) return false;
-    store.commitBrowse(result.entry, result.children, { mode: 'directory', kind: 'collection', id: String(result.entry.id), page: 0, query: '' });
+    const data = directoryPageData(result.children, page);
+    store.commitBrowse(result.entry, data, { mode: 'directory', kind: 'collection', id: String(result.entry.id), page: data.page, query: '' });
     return true;
   } catch (error) {
     handleError(error, operation);
@@ -193,9 +304,10 @@ async function loadPage(page = 0) {
   }
 }
 
-async function refreshBrowsePage(page = 0) {
+async function refreshBrowsePage(page = 0, { refetch = false } = {}) {
   const context = store.state.browseContext;
   if (context.mode === 'page') return loadPage(page);
+  if (!refetch && Array.isArray(store.state.browse.allItems)) return showDirectoryPage(page);
   const operation = store.beginOperation('browse');
   store.patch({ browse: { ...store.state.browse, loading: true, error: null } });
   try {
@@ -207,21 +319,25 @@ async function refreshBrowsePage(page = 0) {
       'all'
     );
     if (!operation.isCurrent()) return;
+    const data = directoryPageData(result.children, page);
     store.patch({
       phase: 'ready',
       entry: store.state.entry || result.entry,
       browseEntry: result.entry,
       browse: {
         ...store.state.browse,
-        items: result.children.items || [],
-        page: Number(result.children.page || 0),
-        limit: Number(result.children.limit || store.state.browse.limit),
-        total: Number(result.children.total || 0),
-        hasNext: Boolean(result.children.has_next),
+        items: data.items,
+        allItems: data.all_items,
+        page: data.page,
+        limit: data.limit,
+        total: data.total,
+        pageLimit: data.page_limit,
+        pageTotal: data.page_total,
+        hasNext: Boolean(data.has_next),
         loading: false,
         error: null
       },
-      browseContext: { ...context, page: 0 },
+      browseContext: { ...context, page: data.page },
       hiddenAliases: result.children.hidden_aliases || []
     });
   } catch (error) {
@@ -329,7 +445,14 @@ async function openWork(workOrId, preferredSetId = null, preferredMemberId = nul
       preferredMemberId || store.settings?.activeMemberId,
       preferredMemberEdge
     );
-    store.commitWork(work, parent.children, sets, members, activeSet, activeMember);
+    store.commitWork(
+      work,
+      parent.children,
+      mediaSetPageData(sets, 0),
+      members,
+      activeSet,
+      activeMember
+    );
     if (activeMember) loadMemberContent(activeMember, operation);
   } catch (error) {
     handleError(error, operation);
@@ -377,14 +500,18 @@ async function refreshMediaSetList() {
       : { items: [], page: 0, limit: store.state.mediaMembers.limit, total: 0, has_next: false };
     if (!operation.isCurrent()) return;
     const activeMember = chooseMember(activeSet, members.items, store.state.activeMember?.id);
+    const pagedData = mediaSetPageData(data, 0);
     store.patch({
       mediaSets: {
         ...store.state.mediaSets,
-        items: data.items || [],
-        page: Number(data.page || 0),
-        limit: Number(data.limit || store.state.mediaSets.limit),
-        total: Number(data.total || 0),
-        hasNext: Boolean(data.has_next),
+        items: pagedData.items,
+        allItems: pagedData.all_items,
+        page: pagedData.page,
+        limit: pagedData.limit,
+        total: pagedData.total,
+        pageLimit: pagedData.page_limit,
+        pageTotal: pagedData.page_total,
+        hasNext: Boolean(pagedData.has_next),
         loading: false,
         error: null
       },
@@ -507,10 +634,10 @@ function getMembersForActiveSet() {
 }
 
 function visibleMediaSets() {
-  const sets = store.state.mediaSets.items || [];
-  return store.state.mediaSets.filter === 'all'
-    ? sets
-    : sets.filter(item => item.media_type === store.state.mediaSets.filter);
+  const sets = Array.isArray(store.state.mediaSets.allItems)
+    ? store.state.mediaSets.allItems
+    : (store.state.mediaSets.items || []);
+  return mediaSetItemsForFilter(sets);
 }
 
 function onMediaEnded(member) {
@@ -569,8 +696,24 @@ async function openMember(memberOrId) {
 
 function updateListState(name, key, value) {
   const current = store.state[name];
+  if (!current) return;
+  if (key === 'page-rows') {
+    if (name !== 'browse') return;
+    const pageRows = normalizePageRows(value, normalizePageRows(current.pageRows, '0'));
+    if (current.pageRows === pageRows) {
+      if (String(value) !== pageRows) store.patch({ [name]: { ...current } });
+      return;
+    }
+    store.patch({ [name]: { ...current, pageRows, page: 0 } });
+    if (store.state.selectedWork && Array.isArray(store.state.mediaSets.allItems))
+      showMediaSetPage(0);
+    if (store.state.search.mode === 'search' && store.state.search.query)
+      return runSearch(store.state.search.query, 0);
+    if (store.state.search.mode === 'random') return runRandom();
+    return refreshBrowsePage(0);
+  }
   const sortKey = key === 'sort-key' ? 'key' : key;
-  if (!current || (sortKey !== 'filter' && current.sort[sortKey] === value) || (sortKey === 'filter' && current.filter === value)) return;
+  if ((sortKey !== 'filter' && current.sort[sortKey] === value) || (sortKey === 'filter' && current.filter === value)) return;
   const updated = sortKey === 'filter'
     ? { ...current, filter: value, page: 0 }
     : { ...current, sort: { ...current.sort, [sortKey]: value }, page: 0 };
@@ -581,7 +724,7 @@ function updateListState(name, key, value) {
     if (store.state.search.mode === 'random') {
       return sortKey === 'filter' ? runRandom() : undefined;
     }
-    return refreshBrowsePage(0);
+    return refreshBrowsePage(0, { refetch: true });
   }
   if (name === 'collection') return refreshCollectionList(0);
   if (name === 'mediaSets') return store.state.selectedWork && refreshMediaSetList();
@@ -599,7 +742,7 @@ function runSearch(query, page = 0) {
   }
   const input = document.querySelector('#search-input');
   if (input) input.value = text;
-  const limit = calculateContentListSize();
+  const limit = calculateContentListSize({ pageRows: store.state.browse.pageRows });
   const options = { ...listOptions('browse', page), page, limit };
   const operation = store.beginOperation('search');
   store.setSearchLoading('search', text, page);
@@ -619,7 +762,7 @@ function runSearch(query, page = 0) {
 }
 
 function runRandom() {
-  const count = calculateRandomSize();
+  const count = calculateRandomSize({ pageRows: store.state.browse.pageRows });
   const operation = store.beginOperation('search');
   store.setSearchLoading('random', '');
   viewerApi.random(count, operation.signal, {
@@ -667,7 +810,7 @@ async function refreshAfterReload() {
   const context = store.state.browseContext;
   const search = { ...store.state.search };
   if (context.mode === 'page') await loadPage(context.page);
-  else if (context.kind === 'collection' && String(context.id) !== '0') await loadCollection(context.id);
+  else if (context.kind === 'collection' && String(context.id) !== '0') await loadCollection(context.id, context.page || 0);
   else await loadRoot(context.page || 0);
   if (search.mode === 'random') runRandom();
   else if (search.mode === 'search' && search.query) runSearch(search.query, search.page);
@@ -716,8 +859,8 @@ async function bootstrap() {
     const loaded = context.mode === 'page'
       ? await loadPage(context.page || 0)
       : context.kind === 'collection' && context.id && String(context.id) !== '0'
-        ? await loadCollection(context.id)
-        : await loadRoot();
+        ? await loadCollection(context.id, context.page || 0)
+        : await loadRoot(context.page || 0);
     if (!loaded) return;
     if (saved.search?.mode === 'random') runRandom();
     else if (saved.search?.mode === 'search' && saved.search.query) runSearch(saved.search.query, saved.search.page || 0);
@@ -734,15 +877,46 @@ function pageAction(name, delta) {
   const page = Math.max(0, list.page + delta);
   if (name === 'browse') return refreshBrowsePage(page);
   if (name === 'collection') return refreshCollectionList(page);
+  if (name === 'mediaSets') return showMediaSetPage(page);
   if (name === 'search') {
     if (store.state.search.mode === 'random') return;
     return runSearch(store.state.search.query, page);
   }
 }
 
+function paginationLimit(list) {
+  return Math.max(1, Number(list?.pageLimit ?? list?.limit) || 1);
+}
+
+function paginationTotal(list) {
+  return Math.max(0, Number(list?.pageTotal ?? list?.total) || 0);
+}
+
+function commitPageInput(input) {
+  const listName = input?.dataset.list;
+  const list = listName ? store.state[listName] : null;
+  if (!list) return;
+  const limit = paginationLimit(list);
+  const total = paginationTotal(list);
+  const totalPages = Math.ceil(total / limit);
+  if (totalPages <= 1) return;
+  const currentPage = Math.min(Math.max(0, Number(list.page) || 0), totalPages - 1);
+  const requestedPage = Number(input.value);
+  if (!input.value || !Number.isInteger(requestedPage)) {
+    input.value = String(currentPage + 1);
+    return;
+  }
+  const page = Math.min(Math.max(requestedPage - 1, 0), totalPages - 1);
+  input.value = String(page + 1);
+  if (page !== list.page) return pageAction(listName, page - list.page);
+}
+
 function pagingTarget() {
   if (store.state.search.mode === 'search') return { name: 'search', list: store.state.search };
   if (store.state.browseContext?.mode === 'page') return { name: 'browse', list: store.state.browse };
+  if (store.state.browseContext?.mode === 'directory' &&
+      paginationTotal(store.state.browse) > paginationLimit(store.state.browse))
+    return { name: 'browse', list: store.state.browse };
   return null;
 }
 
@@ -753,8 +927,8 @@ function handlePagingKeydown(event) {
 
   const target = pagingTarget();
   if (!target) return;
-  const limit = Math.max(1, Number(target.list.limit) || 1);
-  const total = Math.max(0, Number(target.list.total) || 0);
+  const limit = paginationLimit(target.list);
+  const total = paginationTotal(target.list);
   const totalPages = Math.ceil(total / limit);
   const page = Math.max(0, Number(target.list.page) || 0);
   if (totalPages <= 1) return;
@@ -954,6 +1128,8 @@ function scrollToImageMember(memberId) {
 }
 
 function handleChange(event) {
+  const pageInput = event.target.closest('input[data-action="page-input"]');
+  if (pageInput) return commitPageInput(pageInput);
   const controls = event.target.closest('[data-list-controls]');
   if (!controls) return;
   return updateListState(controls.dataset.listControls, event.target.dataset.control, event.target.value);
@@ -984,12 +1160,30 @@ async function start() {
       if (store.state.selectedWork) closeWork();
       return;
     }
+    if (event.key === 'Enter' && event.target?.matches?.('input[data-action="page-input"]')) {
+      event.preventDefault();
+      commitPageInput(event.target);
+      return;
+    }
     handlePagingKeydown(event);
   });
   let resizeTimer = null;
   const handleViewportResize = () => {
     if (resizeTimer) window.clearTimeout(resizeTimer);
-    resizeTimer = window.setTimeout(() => store.notify(), 100);
+    resizeTimer = window.setTimeout(() => {
+      resizeTimer = null;
+      let updated = false;
+      if (store.state.selectedWork && Array.isArray(store.state.mediaSets.allItems)) {
+        showMediaSetPage(store.state.mediaSets.page);
+        updated = true;
+      }
+      if (!store.state.search.mode && store.state.browseContext?.mode === 'directory' &&
+          Array.isArray(store.state.browse.allItems)) {
+        showDirectoryPage(store.state.browse.page);
+        updated = true;
+      }
+      if (!updated) store.notify();
+    }, 100);
   };
   window.addEventListener('resize', handleViewportResize);
   window.addEventListener('orientationchange', handleViewportResize);

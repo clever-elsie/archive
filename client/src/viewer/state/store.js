@@ -1,6 +1,16 @@
 const STORAGE_KEY = 'viewer.settings.v2';
 const MAX_VOLUME = 2;
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+const DEFAULT_PAGE_ROWS = '0';
+
+export function normalizePageRows(value, fallback = DEFAULT_PAGE_ROWS) {
+  // 旧設定のautoは、数値指定の自動値へ移行する。
+  if (value === 'auto') return DEFAULT_PAGE_ROWS;
+  const rows = Number(value);
+  return Number.isSafeInteger(rows) && (rows === -1 || rows >= 0)
+    ? String(rows)
+    : fallback;
+}
 
 function listState(limit = 200, sort = { key: 'path', direction: 'asc', grouping: 'grouped' }) {
   return {
@@ -31,10 +41,21 @@ function initialState() {
     memberContent: null,
     memberLoading: false,
     memberError: null,
-    browse: listState(24, { key: 'path', direction: 'asc', grouping: 'mixed' }),
+    browse: {
+      ...listState(24, { key: 'path', direction: 'asc', grouping: 'mixed' }),
+      pageRows: DEFAULT_PAGE_ROWS,
+      allItems: null,
+      pageLimit: 24,
+      pageTotal: 0
+    },
     browseContext: { mode: 'directory', kind: 'root', id: '0', query: '', page: 0 },
     collection: listState(24),
-    mediaSets: listState(24),
+    mediaSets: {
+      ...listState(24),
+      allItems: null,
+      pageLimit: 24,
+      pageTotal: 0
+    },
     mediaMembers: listState(500),
     search: {
       mode: null,
@@ -72,7 +93,12 @@ function writeSettings(state, pendingSelection = {}) {
   try {
     const settings = {
       ui: state.ui,
-      browse: { sort: state.browse.sort, filter: state.browse.filter, page: state.browse.page },
+      browse: {
+        sort: state.browse.sort,
+        filter: state.browse.filter,
+        page: state.browse.page,
+        pageRows: state.browse.pageRows
+      },
       collection: { sort: state.collection.sort, filter: state.collection.filter, page: state.collection.page },
       mediaSets: { sort: state.mediaSets.sort, filter: state.mediaSets.filter },
       mediaMembers: { sort: state.mediaMembers.sort, filter: state.mediaMembers.filter },
@@ -98,7 +124,8 @@ function restoreList(target, saved) {
     ...target,
     sort: { ...target.sort, ...(saved.sort || {}) },
     filter: saved.filter || target.filter,
-    page: Number.isInteger(saved.page) && saved.page >= 0 ? saved.page : target.page
+    page: Number.isInteger(saved.page) && saved.page >= 0 ? saved.page : target.page,
+    ...('pageRows' in target ? { pageRows: normalizePageRows(saved.pageRows, target.pageRows) } : {})
   };
 }
 
@@ -121,6 +148,10 @@ export class ViewerStore {
     this.listeners.add(listener);
     listener(this.state);
     return () => this.listeners.delete(listener);
+  }
+
+  notify() {
+    for (const listener of this.listeners) listener(this.state);
   }
 
   patch(changes) {
@@ -226,12 +257,20 @@ export class ViewerStore {
   }
 
   commitBrowse(entry, data, context) {
+    const directory = context?.mode === 'directory';
+    const limit = Number(data?.limit ?? this.state.browse.limit) || 1;
+    const total = Number(data?.total ?? 0);
     const browse = {
       ...this.state.browse,
       items: data?.items || [],
+      allItems: directory
+        ? Array.isArray(data?.all_items) ? data.all_items : (data?.items || [])
+        : null,
       page: Number(data?.page || 0),
-      limit: Number(data?.limit || this.state.browse.limit),
-      total: Number(data?.total || 0),
+      limit,
+      total,
+      pageLimit: Number(data?.page_limit ?? limit) || 1,
+      pageTotal: Number(data?.page_total ?? total),
       hasNext: Boolean(data?.has_next),
       loading: false,
       error: null
@@ -278,9 +317,14 @@ export class ViewerStore {
       mediaSets: {
         ...this.state.mediaSets,
         items: setData?.items || [],
-        page: Number(setData?.page || 0),
-        limit: Number(setData?.limit || this.state.mediaSets.limit),
-        total: Number(setData?.total || 0),
+        allItems: Array.isArray(setData?.all_items)
+          ? setData.all_items
+          : (setData?.items || []),
+        page: Number(setData?.page ?? 0),
+        limit: Number(setData?.limit ?? this.state.mediaSets.limit) || 1,
+        total: Number(setData?.total ?? 0),
+        pageLimit: Number(setData?.page_limit ?? setData?.limit ?? this.state.mediaSets.limit) || 1,
+        pageTotal: Number(setData?.page_total ?? setData?.total ?? 0),
         hasNext: Boolean(setData?.has_next),
         loading: false,
         error: null

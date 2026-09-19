@@ -67,6 +67,7 @@
             </select>
           </div>
           <div id="media-sets-list" class="entry-list"></div>
+          <div id="media-sets-pagination" class="pagination"></div>
         </aside>
 
         <section id="main-media-container" class="main-media-container">
@@ -161,6 +162,9 @@
             <option value="all">すべて</option><option value="image">画像</option><option value="video">動画</option>
             <option value="audio">音声</option><option value="text">テキスト</option><option value="document">ドキュメント</option>
           </select>
+          <input class="input page-rows-input" data-control="page-rows" type="number" min="-1" step="1" value="0"
+                 inputmode="numeric" aria-label="内容の表示行数（0=自動、-1=上限なし）"
+                 title="0=自動（横2行／縦4行）、-1=上限なし">
         </div>
       </section>
 

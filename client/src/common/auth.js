@@ -202,11 +202,3 @@ export async function readJsonOrThrow(response) {
 window.authenticatedFetch = authenticatedFetch;
 window.checkAuthentication = checkAuthentication;
 window.redirectToLogin = redirectToLogin;
-
-if (!window.__homeServerTouchGuardsInstalled) {
-	window.__homeServerTouchGuardsInstalled = true;
-	document.addEventListener('touchstart', event => {
-		if (event.touches.length > 1) event.preventDefault();
-	}, { passive: false });
-	document.addEventListener('gesturestart', event => event.preventDefault());
-}

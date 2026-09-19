@@ -118,8 +118,9 @@ function renderList(container, entries, emptyText, actionFor, selectedId = '') {
 
 function renderPagination(container, listName, list) {
   container.replaceChildren();
-  const limit = Math.max(1, Number(list?.limit) || 1);
-  const totalPages = Math.ceil(Math.max(0, Number(list?.total) || 0) / limit);
+  const limit = Math.max(1, Number(list?.pageLimit ?? list?.limit) || 1);
+  const total = Math.max(0, Number(list?.pageTotal ?? list?.total) || 0);
+  const totalPages = Math.ceil(total / limit);
   if (totalPages <= 1) return;
   const currentPage = Math.min(Math.max(0, Number(list?.page) || 0), totalPages - 1);
 
@@ -149,7 +150,19 @@ function renderPagination(container, listName, list) {
     previousPage = page;
   }
 
-  container.append(element('span', 'pagination-status', `${currentPage + 1} / ${totalPages}`));
+  const status = element('span', 'pagination-status');
+  const pageInput = document.createElement('input');
+  pageInput.type = 'number';
+  pageInput.className = 'pagination-page-input';
+  pageInput.min = '1';
+  pageInput.max = String(totalPages);
+  pageInput.step = '1';
+  pageInput.value = String(currentPage + 1);
+  pageInput.dataset.action = 'page-input';
+  pageInput.dataset.list = listName;
+  pageInput.setAttribute('aria-label', 'ページ番号');
+  status.append(pageInput, document.createTextNode(` / ${totalPages}`));
+  container.append(status);
   if (currentPage < totalPages - 1) {
     const button = element('button', 'button subtle', '次へ →');
     button.type = 'button';
@@ -166,7 +179,8 @@ function renderListControls(root, name, list) {
     'sort-key': list.sort.key,
     direction: list.sort.direction,
     grouping: list.sort.grouping,
-    filter: list.filter
+    filter: list.filter,
+    'page-rows': list.pageRows || '0'
   };
   for (const [key, value] of Object.entries(values)) {
     const input = controls.querySelector(`[data-control="${key}"]`);
@@ -236,7 +250,10 @@ function isImageWork(entry) {
 }
 
 function imageMediaSets(state) {
-  return (state.mediaSets.items || []).filter(item => item.media_type === 'image');
+  const sets = Array.isArray(state.mediaSets.allItems)
+    ? state.mediaSets.allItems
+    : (state.mediaSets.items || []);
+  return sets.filter(item => item.media_type === 'image');
 }
 
 function imageWorks(state) {
@@ -265,6 +282,7 @@ export function createRenderer(root = document, callbacks = {}) {
     drawerHandles: root.querySelector('.drawer-handles'),
     setsContainer: root.querySelector('#media-sets-container'),
     setsList: root.querySelector('#media-sets-list'),
+    setsPagination: root.querySelector('#media-sets-pagination'),
     membersContainer: root.querySelector('#media-members-container'),
     membersHandle: root.querySelector('#members-drawer-handle'),
     membersList: root.querySelector('#media-members-list'),
@@ -382,10 +400,17 @@ export function createRenderer(root = document, callbacks = {}) {
       delete refs.mediaStage.dataset.mediaMembersKey;
       setHidden(refs.drawerHandles, true);
       setHidden(refs.membersHandle, true);
+      refs.setsPagination?.replaceChildren();
       return;
     }
 
-    const showSets = Math.max(state.mediaSets.total || 0, state.mediaSets.items.length) > 1;
+    const allSets = Array.isArray(state.mediaSets.allItems)
+      ? state.mediaSets.allItems
+      : (state.mediaSets.items || []);
+    const visibleSetCount = state.mediaSets.filter === 'all'
+      ? allSets.length
+      : allSets.filter(item => item.media_type === state.mediaSets.filter).length;
+    const showSets = visibleSetCount > 1;
     const showMembers = set.media_type !== 'image'
       && Math.max(state.mediaMembers.total || 0, allMembers.length) > 1;
     const portraitLayout = typeof window.matchMedia === 'function'
@@ -406,6 +431,8 @@ export function createRenderer(root = document, callbacks = {}) {
       ? state.mediaSets.items
       : state.mediaSets.items.filter(item => item.media_type === state.mediaSets.filter);
     renderList(refs.setsList, visibleSets, 'MediaSetはありません', () => 'open-set', state.activeSet?.id);
+    if (showSets) renderPagination(refs.setsPagination, 'mediaSets', state.mediaSets);
+    else refs.setsPagination?.replaceChildren();
     renderList(refs.membersList, members, 'Memberはありません', () => 'open-member', state.activeMember?.id);
 
     refs.mediaNavigation.replaceChildren();
@@ -416,9 +443,14 @@ export function createRenderer(root = document, callbacks = {}) {
     };
     const activeIndex = playableMembers.findIndex(member => String(member.id) === String(state.activeMember.id));
     refs.mediaCounter.textContent = activeIndex >= 0 ? `${activeIndex + 1} / ${playableMembers.length}` : '';
-    refs.mediaTitle.replaceChildren();
-    appendRuby(refs.mediaTitle, work || set || state.activeMember);
     const mediaType = state.activeMember.media_type;
+    refs.mediaTitle.replaceChildren();
+    // 動画のMediaSetは動画葉ディレクトリそのものなので、親Workではなく
+    // 動画葉のディレクトリ名をメディア見出しに表示する。
+    const mediaTitle = mediaType === 'video'
+      ? set || work || state.activeMember
+      : work || set || state.activeMember;
+    appendRuby(refs.mediaTitle, mediaTitle);
     const playableMembersKey = playableMembers.map(member => String(member.id)).join(',');
     const playbackLoop = state.ui.playbackMode === 'loop';
     const preservesPlayback = !state.memberError && !state.memberLoading
@@ -627,7 +659,8 @@ export function createRenderer(root = document, callbacks = {}) {
     } else {
       refs.browseCount.textContent = `${state.browse.total}件`;
       renderList(refs.browseList, state.browse.items, '表示できる内容はありません', entryAction);
-      if (pageMode) renderPagination(refs.browsePagination, 'browse', state.browse);
+      if (pageMode || state.browseContext?.mode === 'directory')
+        renderPagination(refs.browsePagination, 'browse', state.browse);
       else refs.browsePagination.replaceChildren();
     }
     renderMedia(state);

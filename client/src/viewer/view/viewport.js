@@ -1,6 +1,7 @@
 const MAX_PAGE_SIZE = 500;
 const LANDSCAPE_PAGE_ROWS = 2;
 const PORTRAIT_PAGE_ROWS = 4;
+const UNLIMITED_PAGE_ROWS = -1;
 
 const listSelectors = {
   browse: '#thumbnail-container',
@@ -64,25 +65,39 @@ function availableHeight(list, section, dock) {
   return Math.max(1, viewportHeight - headerHeight - headingHeight - padding - 16);
 }
 
-function pageRows() {
+function defaultPageRows() {
   const width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
   const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
   return height > width ? PORTRAIT_PAGE_ROWS : LANDSCAPE_PAGE_ROWS;
 }
 
-export function calculateListSize(name, { fixedPageRows = true } = {}) {
+function resolvedPageRows(value) {
+  const rows = Number(value);
+  if (rows === UNLIMITED_PAGE_ROWS) return Infinity;
+  if (value !== 'auto' && Number.isSafeInteger(rows) && rows >= 1)
+    return rows;
+  return defaultPageRows();
+}
+
+export function calculateListSize(name, { fixedPageRows = true, pageRows = '0', allowUnlimited = false } = {}) {
   const list = document.querySelector(listSelectors[name] || listSelectors.browse);
   if (!list) return 1;
 
   const style = window.getComputedStyle(list);
   const width = list.getBoundingClientRect().width || fallbackListWidth(list);
   const dock = Boolean(list.closest('.dock'));
-  const minimumWidth = dock ? 110 : 200;
+  // .entry-listのgrid minmax()と同じ幅にして、非表示状態から初回計算
+  // するときも、実際に表示される列数を見積もる。
+  const minimumWidth = 200;
   const columnGap = pixels(style.columnGap, 12);
   const rowGap = pixels(style.rowGap, 12);
   const columns = measuredColumns(list, width, columnGap, minimumWidth);
-  if (fixedPageRows)
-    return Math.min(MAX_PAGE_SIZE, Math.max(1, columns * pageRows()));
+  if (fixedPageRows) {
+    const rows = resolvedPageRows(pageRows);
+    if (!Number.isFinite(rows)) return allowUnlimited ? Infinity : MAX_PAGE_SIZE;
+    const size = Math.max(1, columns * rows);
+    return allowUnlimited ? size : Math.min(MAX_PAGE_SIZE, size);
+  }
 
   const cardWidth = Math.max(1, (width - columnGap * (columns - 1)) / columns);
   const cardHeight = measuredCardHeight(list, cardWidth, dock);
@@ -100,6 +115,6 @@ export function calculateContentListSize(options = {}) {
   return calculateListSize('search', options);
 }
 
-export function calculateRandomSize() {
-  return calculateContentListSize();
+export function calculateRandomSize(options = {}) {
+  return calculateContentListSize(options);
 }

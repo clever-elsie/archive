@@ -135,6 +135,7 @@ function readyCenter(element, enabled) {
 
 const MAX_VOLUME = 2;
 const PLAYBACK_RATES = [0.5, 0.75, 1, 1.25, 1.5, 2];
+let volumeControlSequence = 0;
 let sharedAudioContext = null;
 
 function clampVolume(value) {
@@ -264,10 +265,18 @@ function createCustomPlayer(member, media, {
   const play = createPlayerButton('再生', '再生', 'media-play-button');
   const rewind = createPlayerButton('−10', '10秒戻る', 'media-skip-button');
   const forward = createPlayerButton('+10', '10秒進む', 'media-skip-button');
-  const mute = createPlayerButton('ミュート', 'ミュート', 'media-mute-button');
-  const volumeBox = document.createElement('label');
-  volumeBox.className = 'media-volume';
-  volumeBox.textContent = '音量';
+  const volumeControl = document.createElement('div');
+  volumeControl.className = 'media-volume media-volume-control';
+  const volumeControlId = `media-volume-popover-${++volumeControlSequence}`;
+  const volumeToggle = createPlayerButton('音量', '音量設定を表示', 'media-volume-toggle');
+  volumeToggle.setAttribute('aria-haspopup', 'true');
+  volumeToggle.setAttribute('aria-expanded', 'false');
+  volumeToggle.setAttribute('aria-controls', volumeControlId);
+  volumeControl.append(volumeToggle);
+  const volumePopover = document.createElement('div');
+  volumePopover.className = 'media-volume-popover';
+  volumePopover.id = volumeControlId;
+  volumePopover.hidden = true;
   const volumeInput = document.createElement('input');
   volumeInput.type = 'range';
   volumeInput.className = 'media-volume-input';
@@ -276,11 +285,21 @@ function createCustomPlayer(member, media, {
   volumeInput.step = '0.01';
   volumeInput.value = String(volumeValue);
   volumeInput.setAttribute('aria-label', '音量');
+  volumeInput.setAttribute('aria-orientation', 'vertical');
+  volumeInput.setAttribute('orient', 'vertical');
   const volumeValueLabel = document.createElement('output');
   volumeValueLabel.className = 'media-volume-value';
   volumeValueLabel.setAttribute('aria-live', 'polite');
-  volumeBox.append(volumeInput, volumeValueLabel);
+  const volumeSlider = document.createElement('div');
+  volumeSlider.className = 'media-volume-slider';
+  volumeSlider.append(volumeInput, volumeValueLabel);
+  const volumeActions = document.createElement('div');
+  volumeActions.className = 'media-volume-actions';
   const volumeReset = createPlayerButton('音量リセット', '音量を100%に戻す', 'media-volume-reset');
+  const mute = createPlayerButton('ミュート', 'ミュート', 'media-mute-button');
+  volumeActions.append(volumeReset, mute);
+  volumePopover.append(volumeSlider, volumeActions);
+  volumeControl.append(volumePopover);
   const rateBox = document.createElement('label');
   rateBox.className = 'media-rate';
   rateBox.append(document.createTextNode('速度'));
@@ -295,7 +314,7 @@ function createCustomPlayer(member, media, {
   }
   rateSelect.value = String(currentPlaybackRate);
   rateBox.append(rateSelect);
-  actionRow.append(play, rewind, forward, rateBox, mute, volumeBox, volumeReset);
+  actionRow.append(play, rewind, forward, progressRow, rateBox, volumeControl);
 
   let fullscreen = null;
   let fullscreenChangeHandler = null;
@@ -337,9 +356,30 @@ function createCustomPlayer(member, media, {
   status.className = 'media-status';
   status.setAttribute('role', 'status');
   status.setAttribute('aria-live', 'polite');
-  controls.append(progressRow, actionRow, status);
+  controls.append(actionRow, status);
   player.append(controls);
   if (amplifierUnavailable) status.textContent = 'この環境では100%以上の音量を利用できません。';
+
+  let volumeOpen = false;
+  const setVolumeOpen = open => {
+    volumeOpen = Boolean(open);
+    volumeControl.classList.toggle('is-open', volumeOpen);
+    volumePopover.hidden = !volumeOpen;
+    volumeToggle.setAttribute('aria-expanded', String(volumeOpen));
+    volumeToggle.setAttribute('aria-label', volumeOpen ? '音量設定を閉じる' : '音量設定を表示');
+    volumeToggle.title = volumeOpen ? '音量設定を閉じる' : '音量設定を表示';
+  };
+  const closeVolumeOnOutsidePointer = event => {
+    if (volumeOpen && !volumeControl.contains(event.target)) setVolumeOpen(false);
+  };
+  const closeVolumeOnEscape = event => {
+    if (event.key === 'Escape' && volumeOpen) {
+      setVolumeOpen(false);
+      volumeToggle.focus();
+    }
+  };
+  document.addEventListener('pointerdown', closeVolumeOnOutsidePointer);
+  document.addEventListener('keydown', closeVolumeOnEscape);
 
   let lastAudibleVolume = volumeValue > 0 ? volumeValue : 1;
   const setVolume = (value, notify = true) => {
@@ -389,6 +429,7 @@ function createCustomPlayer(member, media, {
     mute.title = muted ? 'ミュート解除' : 'ミュート';
     volumeInput.value = String(volumeValue);
     volumeValueLabel.textContent = `${Math.round(volumeValue * 100)}%`;
+    volumeToggle.textContent = `音量 ${Math.round(volumeValue * 100)}%`;
   };
   const updateFullscreenButton = () => {
     if (!fullscreen) return;
@@ -403,6 +444,7 @@ function createCustomPlayer(member, media, {
     player.classList.add('controls-visible');
   };
   const hideControls = () => {
+    setVolumeOpen(false);
     player.classList.remove('controls-visible');
   };
   const toggleControls = () => {
@@ -421,6 +463,10 @@ function createCustomPlayer(member, media, {
   };
 
   play.addEventListener('click', togglePlayback);
+  volumeToggle.addEventListener('click', () => {
+    setVolumeOpen(!volumeOpen);
+    showControls();
+  });
   rewind.addEventListener('click', () => {
     media.currentTime = Math.max(0, (Number.isFinite(media.currentTime) ? media.currentTime : 0) - 10);
     updateTime();
@@ -481,24 +527,13 @@ function createCustomPlayer(member, media, {
   });
   media.addEventListener('pause', () => { updatePlayButton(); showControls(); });
   media.addEventListener('playing', () => {
-    player.classList.remove('is-loading');
     status.textContent = '';
   });
   media.addEventListener('canplay', () => {
-    player.classList.remove('is-loading');
     if (!player.classList.contains('is-error')) status.textContent = '';
-  });
-  media.addEventListener('waiting', () => {
-    player.classList.add('is-loading');
-    status.textContent = '読み込み中…';
-  });
-  media.addEventListener('stalled', () => {
-    player.classList.add('is-loading');
-    status.textContent = '読み込み中…';
   });
   media.addEventListener('volumechange', updateMuteButton);
   media.addEventListener('error', () => {
-    player.classList.remove('is-loading');
     player.classList.add('is-error');
     status.textContent = 'メディアを読み込めません。';
   });
@@ -529,6 +564,7 @@ function createCustomPlayer(member, media, {
     });
     fullscreenChangeHandler = () => {
       const active = document.fullscreenElement === player;
+      setVolumeOpen(false);
       updateFullscreenButton();
       if (active) {
         // 縦画面から動画を全画面化した場合は、対応ブラウザで横画面へ固定する。
@@ -545,6 +581,8 @@ function createCustomPlayer(member, media, {
 
   player.destroy = () => {
     if (fullscreenChangeHandler) document.removeEventListener('fullscreenchange', fullscreenChangeHandler);
+    document.removeEventListener('pointerdown', closeVolumeOnOutsidePointer);
+    document.removeEventListener('keydown', closeVolumeOnEscape);
     unlockFullscreenOrientation();
     if (amplifier) {
       try { amplifier.source.disconnect(); } catch { /* already disconnected */ }
