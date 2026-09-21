@@ -732,7 +732,7 @@ function updateListState(name, key, value) {
 }
 
 function runSearch(query, page = 0) {
-  const text = query.trim();
+  const text = query.replace(/\u3000/g, ' ').trim();
   if (!text) {
     store.beginOperation('search');
     store.clearSearch();

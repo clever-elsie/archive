@@ -171,8 +171,14 @@ button { cursor: pointer; }
   display: block; width: 100%; max-width: 100%; height: auto; max-height: min(82vh, calc(100vh - 11rem));
   margin: auto; object-fit: contain; cursor: pointer;
 }
-.media-player-video:fullscreen { width: 100%; height: 100%; max-width: none; background: #000; }
-.media-player-video:fullscreen .media-video { width: 100%; height: 100%; max-height: none; }
+.media-player-video:fullscreen {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%; min-width: 0; min-height: 0; max-width: none; overflow: hidden;
+  background: #000;
+}
+.media-player-video:fullscreen .media-video {
+  width: auto; height: auto; max-width: 100%; max-height: 100%; min-width: 0; min-height: 0;
+}
 .media-player-audio {
   width: 100%; max-width: none; gap: 0; overflow: hidden; border: 1px solid var(--border); border-radius: 10px;
   background: #151d24;
