@@ -1,6 +1,8 @@
 import { displayName, groupLabel, mediaLabel } from './ordering.js';
 import { contentUrl, createMediaElement, isTextMember } from './media.js';
 
+const paginationNodesByContainer = new WeakMap();
+
 function element(tag, className, text) {
   const node = document.createElement(tag);
   if (className) node.className = className;
@@ -117,11 +119,40 @@ function renderList(container, entries, emptyText, actionFor, selectedId = '') {
 }
 
 function renderPagination(container, listName, list) {
-  container.replaceChildren();
+  let nodes = paginationNodesByContainer.get(container);
+  if (!nodes || !container.contains(nodes.status)) {
+    container.replaceChildren();
+    const previous = element('span', 'pagination-slot');
+    const pages = element('span', 'pagination-pages');
+    const status = element('span', 'pagination-status');
+    const pageInput = document.createElement('input');
+    pageInput.type = 'number';
+    pageInput.className = 'pagination-page-input';
+    pageInput.min = '1';
+    pageInput.step = '1';
+    pageInput.dataset.action = 'page-input';
+    pageInput.dataset.list = listName;
+    pageInput.setAttribute('aria-label', 'ページ番号');
+    const totalLabel = document.createTextNode('');
+    status.append(pageInput, totalLabel);
+    const next = element('span', 'pagination-slot');
+    container.append(previous, pages, status, next);
+    nodes = { previous, pages, status, pageInput, totalLabel, next };
+    paginationNodesByContainer.set(container, nodes);
+  }
+
+  nodes.previous.replaceChildren();
+  nodes.pages.replaceChildren();
+  nodes.next.replaceChildren();
   const limit = Math.max(1, Number(list?.pageLimit ?? list?.limit) || 1);
   const total = Math.max(0, Number(list?.pageTotal ?? list?.total) || 0);
   const totalPages = Math.ceil(total / limit);
-  if (totalPages <= 1) return;
+  const hasPagination = totalPages > 1;
+  nodes.previous.hidden = !hasPagination;
+  nodes.pages.hidden = !hasPagination;
+  nodes.status.hidden = !hasPagination;
+  nodes.next.hidden = !hasPagination;
+  if (!hasPagination) return;
   const currentPage = Math.min(Math.max(0, Number(list?.page) || 0), totalPages - 1);
 
   if (currentPage > 0) {
@@ -129,7 +160,7 @@ function renderPagination(container, listName, list) {
     button.type = 'button';
     button.dataset.action = 'page-previous';
     button.dataset.list = listName;
-    container.append(button);
+    nodes.previous.append(button);
   }
 
   const pages = new Set([0, totalPages - 1]);
@@ -138,7 +169,7 @@ function renderPagination(container, listName, list) {
   }
   let previousPage = -1;
   for (const page of [...pages].sort((a, b) => a - b)) {
-    if (page > previousPage + 1) container.append(element('span', 'pagination-ellipsis', '…'));
+    if (page > previousPage + 1) nodes.pages.append(element('span', 'pagination-ellipsis', '…'));
     const button = element('button', `button subtle${page === currentPage ? ' primary' : ''}`, String(page + 1));
     button.type = 'button';
     button.dataset.action = 'page-select';
@@ -146,29 +177,20 @@ function renderPagination(container, listName, list) {
     button.dataset.page = String(page);
     button.setAttribute('aria-label', `${page + 1}ページ目`);
     button.setAttribute('aria-current', page === currentPage ? 'page' : 'false');
-    container.append(button);
+    nodes.pages.append(button);
     previousPage = page;
   }
 
-  const status = element('span', 'pagination-status');
-  const pageInput = document.createElement('input');
-  pageInput.type = 'number';
-  pageInput.className = 'pagination-page-input';
-  pageInput.min = '1';
-  pageInput.max = String(totalPages);
-  pageInput.step = '1';
-  pageInput.value = String(currentPage + 1);
-  pageInput.dataset.action = 'page-input';
-  pageInput.dataset.list = listName;
-  pageInput.setAttribute('aria-label', 'ページ番号');
-  status.append(pageInput, document.createTextNode(` / ${totalPages}`));
-  container.append(status);
+  nodes.pageInput.max = String(totalPages);
+  if (document.activeElement !== nodes.pageInput)
+    nodes.pageInput.value = String(currentPage + 1);
+  nodes.totalLabel.data = ` / ${totalPages}`;
   if (currentPage < totalPages - 1) {
     const button = element('button', 'button subtle', '次へ →');
     button.type = 'button';
     button.dataset.action = 'page-next';
     button.dataset.list = listName;
-    container.append(button);
+    nodes.next.append(button);
   }
 }
 
@@ -312,6 +334,7 @@ export function createRenderer(root = document, callbacks = {}) {
     hiddenAliasList: root.querySelector('#hidden-alias-list'),
     hiddenAliasCount: root.querySelector('#hidden-alias-count')
   };
+  let renderedTextContent = null;
 
   function syncDockHeight() {
     if (!refs.mainMediaContainer || refs.mediaWorkspace.hidden) return;
@@ -327,6 +350,7 @@ export function createRenderer(root = document, callbacks = {}) {
   function clearMediaStage() {
     refs.mediaStage.querySelectorAll('.media-player').forEach(player => player.destroy?.());
     refs.mediaStage.replaceChildren();
+    renderedTextContent = null;
   }
 
   function renderStatus(state) {
@@ -464,8 +488,15 @@ export function createRenderer(root = document, callbacks = {}) {
       && refs.mediaStage.dataset.mediaSetId === String(set.id)
       && refs.mediaStage.dataset.mediaMembersKey === playableMembersKey
       && Boolean(refs.mediaStage.querySelector('.image-gallery'));
+    const preservesText = !state.memberError && !state.memberLoading
+      && isTextMember(state.activeMember)
+      && state.memberContent !== null
+      && refs.mediaStage.dataset.mediaId === String(state.activeMember.id)
+      && refs.mediaStage.dataset.mediaType === 'text'
+      && renderedTextContent === state.memberContent
+      && Boolean(refs.mediaStage.querySelector('.text-content'));
 
-    if (!preservesPlayback && !preservesImageGallery) {
+    if (!preservesPlayback && !preservesImageGallery && !preservesText) {
       clearMediaStage();
       delete refs.mediaStage.dataset.mediaId;
       delete refs.mediaStage.dataset.mediaType;
@@ -501,7 +532,11 @@ export function createRenderer(root = document, callbacks = {}) {
             onPlaybackRateChange: value => callbacks.onPlaybackRateChange?.(value)
           });
           refs.mediaStage.append(media);
-          if (mediaType === 'audio' || mediaType === 'video') {
+          if (isTextMember(state.activeMember)) {
+            renderedTextContent = state.memberContent;
+            refs.mediaStage.dataset.mediaId = String(state.activeMember.id);
+            refs.mediaStage.dataset.mediaType = 'text';
+          } else if (mediaType === 'audio' || mediaType === 'video') {
             refs.mediaStage.dataset.mediaId = String(state.activeMember.id);
             refs.mediaStage.dataset.mediaType = mediaType;
           }

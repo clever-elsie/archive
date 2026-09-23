@@ -1,7 +1,7 @@
 import { viewerApi, ApiError } from './api/client.js';
 import { ViewerStore, normalizePageRows } from './state/store.js';
 import { createRenderer } from './view/render.js';
-import { calculateContentListSize, calculateListSize, calculateRandomSize } from './view/viewport.js';
+import { calculateContentListSize, calculateListSize, calculateRandomSize, getViewportLayoutKey } from './view/viewport.js';
 import { requireAuthentication, logout as endSession } from '../common/auth.js';
 
 const store = new ViewerStore();
@@ -1168,10 +1168,14 @@ async function start() {
     handlePagingKeydown(event);
   });
   let resizeTimer = null;
+  let lastViewportLayoutKey = getViewportLayoutKey();
   const handleViewportResize = () => {
     if (resizeTimer) window.clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(() => {
       resizeTimer = null;
+      const layoutKey = getViewportLayoutKey();
+      if (layoutKey === lastViewportLayoutKey) return;
+      lastViewportLayoutKey = layoutKey;
       let updated = false;
       if (store.state.selectedWork && Array.isArray(store.state.mediaSets.allItems)) {
         showMediaSetPage(store.state.mediaSets.page);

@@ -65,10 +65,34 @@ function availableHeight(list, section, dock) {
   return Math.max(1, viewportHeight - headerHeight - headingHeight - padding - 16);
 }
 
-function defaultPageRows() {
+function isPortraitLayout() {
+  const coarsePointer = typeof window.matchMedia === 'function'
+    && window.matchMedia('(pointer: coarse)').matches;
+  if (coarsePointer) {
+    const orientation = window.screen?.orientation?.type;
+    if (orientation?.startsWith('portrait')) return true;
+    if (orientation?.startsWith('landscape')) return false;
+    const screenWidth = Number(window.screen?.width);
+    const screenHeight = Number(window.screen?.height);
+    if (screenWidth > 0 && screenHeight > 0) return screenHeight > screenWidth;
+  }
+
   const width = Math.max(window.innerWidth || 0, document.documentElement.clientWidth || 0);
   const height = Math.max(window.innerHeight || 0, document.documentElement.clientHeight || 0);
-  return height > width ? PORTRAIT_PAGE_ROWS : LANDSCAPE_PAGE_ROWS;
+  return height > width;
+}
+
+function defaultPageRows() {
+  return isPortraitLayout() ? PORTRAIT_PAGE_ROWS : LANDSCAPE_PAGE_ROWS;
+}
+
+export function getViewportLayoutKey() {
+  const widths = [listSelectors.browse, listSelectors.mediaSets]
+    .map(selector => {
+      const list = document.querySelector(selector);
+      return Math.round(list?.getBoundingClientRect().width || 0);
+    });
+  return `${isPortraitLayout() ? 'portrait' : 'landscape'}:${widths.join(':')}`;
 }
 
 function resolvedPageRows(value) {
